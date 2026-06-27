@@ -8,7 +8,18 @@
 ### フィールド
 `name`(必須) / `name_en` / `category`(観光/食事/自然/美術館…) / `city` /
 `country`(スイス/フランス) / `lat`,`lng` / `url` / `note` /
-`source`(出典 例:地球の歩き方 p.210) / `want_level`(1–5)
+`source`(出典 例:地球の歩き方 p.210) / `want_level`(1–5) /
+`icon`(地図ピンのアイコン種別。未指定なら category から自動)
+
+`icon` のキー: `pin`/`sightseeing`/`nature`/`food`/`cafe`/`hotel`/`castle`/
+`museum`/`shopping`/`view`/`beach`/`star`。通常は **category を入れれば自動で
+それらしいピン**になるので省略可。明示したいときだけ指定する。
+
+`instagram` は関連 Instagram 投稿 URL の **配列**（候補カードに埋め込み表示）。
+公開投稿の `…/p/{code}/`・`/reel/{code}/`・`/tv/{code}/` 形式を手動で指定する。
+```
+node scripts/travel.mjs edit-spot 1 '{"instagram":["https://www.instagram.com/p/ABC123/","https://www.instagram.com/reel/XYZ789/"]}'
+```
 
 ### 操作
 ```

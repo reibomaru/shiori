@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #1f2937;
+  --alpine: #0e7490; /* スイスの湖・氷河 */
+  --azur: #2563eb; /* コートダジュール */
+  --gold: #d97706; /* 夕暮れ */
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+    system-ui, -apple-system, sans-serif;
+  background: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* deck.gl の canvas を角丸内に収める */
+#deckgl-overlay {
+  border-radius: 0;
+}
+
+/* ============ 印刷（PDF出力）用 ============ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-break {
+    break-before: page;
+  }
+  .day-card,
+  .budget-card,
+  .map-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0;
+  }
+  /* サイドメニューを除いた本文を全幅で印刷 */
+  main {
+    padding: 0 !important;
+  }
+}

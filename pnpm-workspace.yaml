@@ -1,0 +1,6 @@
+packages:
+  - .
+
+# esbuild（Vite の依存）のビルドスクリプトを許可する
+onlyBuiltDependencies:
+  - esbuild

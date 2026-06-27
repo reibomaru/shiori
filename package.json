@@ -1,0 +1,42 @@
+{
+  "name": "honeymoon-shiori",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "description": "スイス & 南仏ハネムーン しおり（SQLite永続化・旅程・予算・地図・PDF）",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,green \"node server/index.mjs\" \"vite\"",
+    "web": "vite",
+    "api": "node server/index.mjs",
+    "db:init": "node db/seed.mjs",
+    "db:reset": "node db/seed.mjs --reset",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^9.3.5",
+    "@deck.gl/geo-layers": "^9.3.5",
+    "@deck.gl/layers": "^9.3.5",
+    "@deck.gl/react": "^9.3.5",
+    "@deck.gl/widgets": "^9.3.5",
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.14",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.6.0",
+    "react-router-dom": "^7.18.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/geojson": "^7946.0.16",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "playwright-core": "^1.61.1",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  }
+}

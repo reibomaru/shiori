@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+tsconfig.tsbuildinfo
+
+# SQLite データ（seed で再生成可能）。
+# 編集内容をバージョン管理したい場合はこの行を消してください。
+data/*.db
+data/*.db-journal
+data/*.db-wal

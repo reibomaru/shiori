@@ -3,9 +3,13 @@ import { FaWallet, FaPlus } from "react-icons/fa6";
 import type { BudgetItem } from "../types";
 import { yen } from "../itemMeta";
 import { api } from "../api";
+import EditToggle from "./EditToggle";
+import ConfirmDialog from "./ConfirmDialog";
 
 function Row({ item, edit, reload }: { item: BudgetItem; edit: boolean; reload: () => void }) {
   const [draft, setDraft] = useState(item);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const dirty = JSON.stringify(draft) !== JSON.stringify(item);
   const f = "rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-cyan-500 focus:outline-none";
 
@@ -14,8 +18,14 @@ function Row({ item, edit, reload }: { item: BudgetItem; edit: boolean; reload: 
     reload();
   }
   async function remove() {
-    await api.deleteBudget(item.id);
-    reload();
+    setDeleting(true);
+    try {
+      await api.deleteBudget(item.id);
+      setConfirmOpen(false);
+      reload();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (!edit) {
@@ -43,8 +53,16 @@ function Row({ item, edit, reload }: { item: BudgetItem; edit: boolean; reload: 
         <div className="mt-1 flex justify-end gap-1">
           <button onClick={save} disabled={!dirty}
             className="rounded bg-cyan-600 px-2 py-0.5 text-xs font-semibold text-white disabled:opacity-40">保存</button>
-          <button onClick={remove} className="rounded px-2 py-0.5 text-xs text-rose-600 hover:bg-rose-50">削除</button>
+          <button onClick={() => setConfirmOpen(true)} className="rounded px-2 py-0.5 text-xs text-rose-600 hover:bg-rose-50">削除</button>
         </div>
+        <ConfirmDialog
+          open={confirmOpen}
+          title="費目を削除しますか？"
+          message={`「${item.category}」を予算から削除します。この操作は取り消せません。`}
+          busy={deleting}
+          onConfirm={remove}
+          onCancel={() => setConfirmOpen(false)}
+        />
       </td>
     </tr>
   );
@@ -63,9 +81,12 @@ export default function Budget({ budget, partySize, edit, reload }: {
 
   return (
     <div className="budget-card rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-      <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-800">
-        <FaWallet className="text-cyan-700" /> 予算計画（1人あたり）
-      </h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800">
+          <FaWallet className="text-cyan-700" /> 予算計画（1人あたり）
+        </h2>
+        <EditToggle />
+      </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b-2 border-slate-200 text-left text-xs text-slate-500">

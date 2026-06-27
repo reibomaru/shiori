@@ -3,6 +3,7 @@ import { FaLink, FaPlus } from "react-icons/fa6";
 import type { Day, Item, ItemType } from "../types";
 import { ITEM_META, ITEM_TYPES, yen } from "../itemMeta";
 import { api } from "../api";
+import ConfirmDialog from "./ConfirmDialog";
 
 const WD = ["日", "月", "火", "水", "木", "金", "土"];
 function fmtDate(d: string | null) {
@@ -16,6 +17,8 @@ function fmtDate(d: string | null) {
 function ItemRow({ item, edit, reload }: { item: Item; edit: boolean; reload: () => void }) {
   const [draft, setDraft] = useState<Item>(item);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const meta = ITEM_META[draft.type] ?? ITEM_META.spot;
   const dirty = JSON.stringify(draft) !== JSON.stringify(item);
 
@@ -32,9 +35,14 @@ function ItemRow({ item, edit, reload }: { item: Item; edit: boolean; reload: ()
     }
   }
   async function remove() {
-    if (!confirm(`「${item.title}」を削除しますか？`)) return;
-    await api.deleteItem(item.id);
-    reload();
+    setDeleting(true);
+    try {
+      await api.deleteItem(item.id);
+      setConfirmOpen(false);
+      reload();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (!edit) {
@@ -101,8 +109,16 @@ function ItemRow({ item, edit, reload }: { item: Item; edit: boolean; reload: ()
           className="rounded-md bg-cyan-600 px-3 py-1 text-sm font-semibold text-white disabled:opacity-40">
           {saving ? "保存中…" : dirty ? "保存" : "保存済"}
         </button>
-        <button onClick={remove} className="rounded-md px-2 py-1 text-sm text-rose-600 hover:bg-rose-50">削除</button>
+        <button onClick={() => setConfirmOpen(true)} className="rounded-md px-2 py-1 text-sm text-rose-600 hover:bg-rose-50">削除</button>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="予定を削除しますか？"
+        message={`「${item.title}」を旅程から削除します。この操作は取り消せません。`}
+        busy={deleting}
+        onConfirm={remove}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </li>
   );
 }

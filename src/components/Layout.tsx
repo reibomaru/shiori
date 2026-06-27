@@ -5,8 +5,6 @@ import {
   FaRegCalendarDays,
   FaWallet,
   FaCompass,
-  FaPen,
-  FaCheck,
   FaPrint,
   FaRegCalendar,
   FaUserGroup,
@@ -20,13 +18,13 @@ const NAV = [
   { to: "/map", label: "地図", Icon: FaMapLocationDot },
   { to: "/itinerary", label: "旅程", Icon: FaRegCalendarDays },
   { to: "/budget", label: "予算", Icon: FaWallet },
-  { to: "/spots", label: "候補", Icon: FaCompass },
+  { to: "/spots", label: "スポット", Icon: FaCompass },
 ];
 
 export default function Layout() {
-  const { data, error, edit, setEdit } = useTrip();
+  const { data, error } = useTrip();
   const { pathname } = useLocation();
-  const fullBleed = pathname.startsWith("/map"); // 地図ページは全画面（余白なし）
+  const fullBleed = pathname.startsWith("/map") || pathname.startsWith("/spots"); // 地図・候補は全画面（余白なし）
   const [navOpen, setNavOpen] = useState(true);
 
   return (
@@ -94,15 +92,6 @@ export default function Layout() {
         </nav>
 
         <div className="space-y-2 border-t border-white/10 px-3 py-4">
-          <button
-            onClick={() => setEdit(!edit)}
-            className={`flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-              edit ? "bg-amber-400 text-amber-950" : "bg-white/10 text-white hover:bg-white/20"
-            }`}
-          >
-            {edit ? <FaCheck /> : <FaPen />}
-            {edit ? "編集中（終了）" : "編集モード"}
-          </button>
           <button
             onClick={() => window.print()}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-50"

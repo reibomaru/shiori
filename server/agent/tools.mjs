@@ -175,9 +175,9 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
       url: Type.String({ description: "Google マップの共有URL（maps.app.goo.gl など）" }),
     }),
     async execute(_id, p, signal) {
-      // 30x を手動で辿る（最終ページ本文はダウンロードしない）。
-      const ua =
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+      // 注意: ブラウザ風 UA だと Google は 200 のインタースティシャルを返し redirect しない。
+      // 非ブラウザ UA（下記）だとサーバー側 30x で最終 URL が得られる。
+      const ua = "honeymoon-shiori/1.0 (travel-plans spot agent)";
       // fetch の redirect:"manual" は Location を隠す（opaqueredirect）ため、
       // redirect:"follow" で辿って最終 URL（res.url）を使う。本文は不要なので破棄する。
       let url = p.url;
@@ -243,13 +243,11 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
     }),
     async execute(_id, p, signal) {
       try {
-        // ブラウザ風 UA。短縮URLやリダイレクトを弾くサイト対策（Google 等）。
-        const ua =
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+        // 非ブラウザ UA。Google 等はブラウザ風 UA だと 30x を返さずインタースティシャルになるため。
         const res = await fetch(p.url, {
           signal: signal ?? undefined,
-          headers: { "User-Agent": ua },
-          redirect: "follow", // 302 等は最後まで辿る
+          headers: { "User-Agent": "honeymoon-shiori/1.0 (travel-plans spot agent)" },
+          redirect: "follow", // 302 等は最後まで辿り、res.url に最終 URL が入る
         });
         // 着地先が元URLと違う（=リダイレクトされた）なら、その最終URLを明示する
         const redirectedNote = res.url && res.url !== p.url ? `リダイレクト先: ${res.url}\n\n` : "";

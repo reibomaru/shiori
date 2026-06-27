@@ -4,6 +4,10 @@ dist/
 *.log
 tsconfig.tsbuildinfo
 
+# AI アシスタント: 秘密情報とエージェントのセッションファイル
+.env
+data/agent-sessions/
+
 # SQLite データ（seed で再生成可能）。
 # 編集内容をバージョン管理したい場合はこの行を消してください。
 data/*.db

@@ -178,24 +178,22 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
       // 30x を手動で辿る（最終ページ本文はダウンロードしない）。
       const ua =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
-      const resolved = /\/maps\//.test(p.url) || /@-?\d/.test(p.url) || /!3d-?\d/.test(p.url);
+      // fetch の redirect:"manual" は Location を隠す（opaqueredirect）ため、
+      // redirect:"follow" で辿って最終 URL（res.url）を使う。本文は不要なので破棄する。
       let url = p.url;
+      const alreadyResolved = /\/maps\//.test(p.url) || /@-?\d/.test(p.url) || /!3d-?\d/.test(p.url);
       try {
-        if (!resolved) {
-          for (let i = 0; i < 6; i++) {
-            const res = await fetch(url, {
-              method: "GET",
-              redirect: "manual",
-              signal: signal ?? undefined,
-              headers: { "User-Agent": ua },
-            });
-            const loc = res.headers.get("location");
-            if (res.status >= 300 && res.status < 400 && loc) {
-              url = new URL(loc, url).href;
-              if (/\/maps\//.test(url) || /@-?\d/.test(url) || /!3d-?\d/.test(url)) break;
-              continue;
-            }
-            break;
+        if (!alreadyResolved) {
+          const res = await fetch(p.url, {
+            redirect: "follow",
+            signal: signal ?? undefined,
+            headers: { "User-Agent": ua },
+          });
+          url = res.url || p.url;
+          try {
+            await res.body?.cancel();
+          } catch {
+            /* noop */
           }
         }
       } catch (err) {
@@ -238,22 +236,27 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
     name: "fetch_url",
     label: "URL 取得",
     description:
-      "指定 URL のページ本文をプレーンテキストで取得する。ユーザーが貼った URL や、web_search で見つけた公式ページから、英名・カテゴリ・概要・出典を読み取るために使う。",
-    promptSnippet: "fetch_url(url) — ページ本文を取得",
+      "指定 URL のページ本文をプレーンテキストで取得する。ユーザーが貼った URL や、web_search で見つけた公式ページから、英名・カテゴリ・概要・出典を読み取るために使う。短縮URL/302 リダイレクトは自動で辿り、最終的に着地した URL も併せて返す（リダイレクト先が Google マップなら resolve_map_url の利用を検討）。",
+    promptSnippet: "fetch_url(url) — ページ本文を取得（リダイレクト先も追う）",
     parameters: Type.Object({
       url: Type.String({ description: "取得する URL" }),
     }),
     async execute(_id, p, signal) {
       try {
+        // ブラウザ風 UA。短縮URLやリダイレクトを弾くサイト対策（Google 等）。
+        const ua =
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
         const res = await fetch(p.url, {
           signal: signal ?? undefined,
-          headers: { "User-Agent": "honeymoon-shiori/1.0 (travel-plans spot agent)" },
-          redirect: "follow",
+          headers: { "User-Agent": ua },
+          redirect: "follow", // 302 等は最後まで辿る
         });
-        if (!res.ok) return text(`取得失敗: HTTP ${res.status}`);
+        // 着地先が元URLと違う（=リダイレクトされた）なら、その最終URLを明示する
+        const redirectedNote = res.url && res.url !== p.url ? `リダイレクト先: ${res.url}\n\n` : "";
+        if (!res.ok) return text(`${redirectedNote}取得失敗: HTTP ${res.status}`);
         const body = await res.text();
         const plain = htmlToText(body).slice(0, 4000);
-        return text(plain || "(本文を抽出できませんでした)");
+        return text(redirectedNote + (plain || "(本文を抽出できませんでした)"));
       } catch (err) {
         return text(`取得エラー: ${err instanceof Error ? err.message : String(err)}`);
       }

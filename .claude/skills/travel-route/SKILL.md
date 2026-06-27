@@ -11,7 +11,23 @@ description: スイス&南仏ハネムーンしおりの「移動プラン」（
 
 - **route** … 地図に置く経由地点（都市・空港）の並び。番号付きピンとして表示される。
 - **legs** … 隣り合う route 点どうしをつなぐ「区間」。交通手段(mode)と、任意で実ルートの
-  GeoJSON を持つ。GeoJSON があれば実際の線形、なければ直線（空路は破線）で描画される。
+  GeoJSON を持つ。GeoJSON があれば線路に沿った平らな線、無ければ弧（後述）で描画される。
+
+## ★区間の描画：GeoJSON が無い区間は「弧」になる（飛行機に見える）
+
+MapView (`src/components/MapView.tsx`) は区間を **2 通りで描き分ける**。これは色(mode)とは
+独立した「線の形」の話なので、mode が train でも形が空路っぽく見えることがある。
+
+- **GeoJSON を持つ区間** → `GeoJsonLayer`（"rail"）で、座標列に沿った**平らな線**。
+- **GeoJSON を持たない区間** → `ArcLayer` で `getHeight: 0.5` の**3D の弧**。
+  色は mode のままだが、この弧の形が**飛行機の経路のように見える**。区間カードには「直線」と出る。
+
+つまり「鉄道なのに飛行機みたいな弧で表示される」のは設定ミスではなく、実ルートの
+GeoJSON が無い区間のフォールバック描画。**平らな鉄道の線にしたいなら GeoJSON を取り込む**
+（経由点を並べた LineString でよい。例：ジュネーブ→マルセイユは Geneva→Lyon→ローヌ谷→
+Marseille の経由点で近似ルートを作成し `set-geojson` で取込）。`legs` の `points` が
+2 点以上になれば "rail" レイヤーで平らに描かれる。空路をあえて弧で見せたい区間は
+GeoJSON を入れずにそのままでよい。
 
 ## ★最重要：order_index の対応関係
 
@@ -38,6 +54,7 @@ node scripts/travel.mjs legs      # 区間一覧（from→to / mode / 詳細ル�
 ```
 node scripts/travel.mjs add-route  '<json>'          # 経由地点を追加
 node scripts/travel.mjs edit-route <id> '<json>'     # 経由地点を修正（順番・座標・hub 等）
+node scripts/travel.mjs rm-route   <id>              # 経由地点を削除
 node scripts/travel.mjs add-leg    '<json>'          # 区間を追加
 node scripts/travel.mjs edit-leg   <id> '<json>'     # 区間を修正（mode・note・順番）
 node scripts/travel.mjs rm-leg     <id>              # 区間を削除
@@ -45,7 +62,8 @@ node scripts/travel.mjs set-geojson <leg_id> <file>  # 区間に実ルート Geo
 node scripts/travel.mjs set-gpx     <leg_id> <file>  # GPX を取込（自動で GeoJSON 化）
 ```
 
-※ `route` には削除コマンドがない。地点を消したい時は後述の手順（並べ替え + leg 統合）で対応する。
+※ `rm-route` で点自体は消せるが、order_index の振り直しと leg の統合は自動では行われない。
+地点を消す時は後述の手順（leg 統合 + order_index 振り直し）とセットで使うこと。
 
 ## データの形（フィールド）
 
@@ -98,9 +116,10 @@ node scripts/travel.mjs add-leg   '{"order_index":8,"from_name":"マルセイユ
 3. 既存の通し区間 leg を `edit-leg` で「手前→新点」に書き換え、`add-leg` で「新点→次点」を追加。
    以降の leg の order_index も +1 する。最後に `route`/`legs` で連番と点数を検算する。
 
-### 経由地を削除する（route に rm がないため統合で対応）
+### 経由地を削除する（例：ジュネーブ→ニース→マルセイユからニースを外す）
 1. 消す点に出入りする 2 本の leg のうち片方を `rm-leg`、もう片方を `edit-leg` で
-   「前点→後点」を直接つなぐ区間に書き換える。
-2. 消す点の order_index 以降の route 点を `edit-route` で order_index −1 してから、
-   その点自体を末尾の通過点（hub=0）に退避させるか、CLI に `rm-route` を足す相談をする。
-   ※ きれいに消すには CLI 拡張が要るので、その旨ユーザーに確認する。
+   「前点→後点」を直接つなぐ区間に書き換える（from_name/to_name/mode/note/order_index を更新。
+   古い区間の geojson が残るなら `'{"geojson":null}'` でクリアする）。
+2. 消す点を `rm-route <id>` で削除する。
+3. 消した点より後ろの route 点を `edit-route` で order_index −1、後ろの leg も order_index −1
+   して連番に詰める。最後に `route`/`legs` で **route 点数 = legs 数 + 1** と連番を検算する。

@@ -131,6 +131,9 @@ switch (cmd) {
   case "edit-route":
     out(update("route", args[0], parseJson(args[1], "route"), ROUTE_FIELDS));
     break;
+  case "rm-route":
+    db.prepare("DELETE FROM route WHERE id=?").run(args[0]); out("ok");
+    break;
 
   // ---- legs（都市間移動・GeoJSON 詳細ルート）----
   case "legs":
@@ -170,7 +173,7 @@ switch (cmd) {
   days  | add-day <json>  | edit-day <id> <json>
   items [day_no] | add-item <day_no> <json> | edit-item <id> <json> | rm-item <id>
   budget | add-budget <json> | edit-budget <id> <json>
-  route  | add-route <json>  | edit-route <id> <json>
+  route  | add-route <json>  | edit-route <id> <json> | rm-route <id>
   legs   | add-leg <json> | edit-leg <id> <json> | set-geojson <id> <file> | set-gpx <id> <file> | rm-leg <id>
   edit-trip <json>
 

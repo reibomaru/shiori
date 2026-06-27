@@ -56,7 +56,7 @@ export default function Layout() {
           >
             <TbLayoutSidebarLeftCollapse size={20} />
           </button>
-          <p className="text-[10px] uppercase tracking-widest text-cyan-200/70">Honeymoon</p>
+          <p className="text-[10px] uppercase tracking-widest text-cyan-200/70">open-expedia</p>
           <h1 className="mt-1 text-base font-bold leading-snug">{data?.trip?.title ?? "しおり"}</h1>
           {data?.trip && (
             <dl className="mt-3 space-y-1.5 text-xs text-cyan-50/80">

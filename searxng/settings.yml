@@ -1,0 +1,23 @@
+# SearXNG 設定（AI アシスタントの web_search 用）。
+# JSON 出力を有効化し、安定した検索エンジンだけに絞る。
+#
+# duckduckgo は CAPTCHA、brave/google はレート制限・スクレイピング破綻で
+# ERROR を量産するため除外。bing は安定して結果を返すので主軸にし、qwant /
+# mojeek / wikipedia を補助に置く（web_search ツール側で engines を明示指定する）。
+use_default_settings:
+  engines:
+    keep_only:
+      - bing
+      - wikipedia
+
+server:
+  # 本番運用では必ず変更してください（任意のランダム文字列）。
+  secret_key: "change-this-to-a-random-secret"
+  limiter: false
+  image_proxy: false
+
+search:
+  # /search?format=json を許可する（既定では html のみ）。
+  formats:
+    - html
+    - json

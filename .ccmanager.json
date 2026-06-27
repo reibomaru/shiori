@@ -1,0 +1,16 @@
+{
+  "worktreeHooks": {
+    "post_creation": {
+      "command": "git pull origin \"${CCMANAGER_BASE_BRANCH:-main}\"",
+      "enabled": true
+    }
+  },
+  "worktree": {
+    "autoDirectory": true,
+    "autoDirectoryPattern": "../{project}-{branch}",
+    "copySessionData": true,
+    "sortByLastSession": false,
+    "autoUseDefaultBranch": false,
+    "includeRemoteBranches": false
+  }
+}

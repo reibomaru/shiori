@@ -3,7 +3,6 @@ dist/
 .DS_Store
 *.log
 tsconfig.tsbuildinfo
-.ccmanager.json
 
 # SQLite データ（seed で再生成可能）。
 # 編集内容をバージョン管理したい場合はこの行を消してください。

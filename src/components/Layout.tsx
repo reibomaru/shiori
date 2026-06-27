@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   FaMapLocationDot,
@@ -11,6 +12,7 @@ import {
   FaUserGroup,
   FaYenSign,
 } from "react-icons/fa6";
+import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
 import { yen } from "../itemMeta";
 
@@ -25,12 +27,35 @@ export default function Layout() {
   const { data, error, edit, setEdit } = useTrip();
   const { pathname } = useLocation();
   const fullBleed = pathname.startsWith("/map"); // 地図ページは全画面（余白なし）
+  const [navOpen, setNavOpen] = useState(true);
 
   return (
     <div className="flex min-h-screen bg-slate-100">
+      {/* ===== サイドバーを開くボタン（折りたたみ時のみ・左端中央） ===== */}
+      {!navOpen && (
+        <button
+          onClick={() => setNavOpen(true)}
+          aria-label="メニューを開く"
+          className="no-print fixed left-0 top-1/2 z-[600] flex -translate-y-1/2 items-center rounded-r-lg bg-cyan-800 py-3 pl-1.5 pr-2 text-white shadow-lg transition-colors hover:bg-cyan-700"
+        >
+          <TbLayoutSidebarLeftExpand size={20} />
+        </button>
+      )}
+
       {/* ===== 左サイドメニュー（印刷時は非表示） ===== */}
-      <aside className="no-print sticky top-0 z-[500] flex h-screen w-60 shrink-0 flex-col bg-gradient-to-b from-cyan-800 via-sky-800 to-blue-900 text-white">
-        <div className="border-b border-white/10 px-5 py-5">
+      <aside
+        className={`no-print sticky top-0 z-[500] h-screen shrink-0 flex-col overflow-hidden bg-gradient-to-b from-cyan-800 via-sky-800 to-blue-900 text-white transition-all duration-200 ${
+          navOpen ? "flex w-60" : "hidden w-0"
+        }`}
+      >
+        <div className="relative border-b border-white/10 px-5 py-5">
+          <button
+            onClick={() => setNavOpen(false)}
+            aria-label="メニューを閉じる"
+            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <TbLayoutSidebarLeftCollapse size={20} />
+          </button>
           <p className="text-[10px] uppercase tracking-widest text-cyan-200/70">open-expedia</p>
           <h1 className="mt-1 text-base font-bold leading-snug">{data?.trip?.title ?? "しおり"}</h1>
           {data?.trip && (

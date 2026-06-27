@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DeckGL from "@deck.gl/react";
 import { WebMercatorViewport, type PickingInfo } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
@@ -6,7 +6,6 @@ import { BitmapLayer, GeoJsonLayer, ArcLayer, ScatterplotLayer, TextLayer } from
 import { ZoomWidget, CompassWidget, FullscreenWidget } from "@deck.gl/widgets";
 import "@deck.gl/widgets/stylesheet.css";
 import type { Feature, FeatureCollection } from "geojson";
-import { FaMapLocationDot } from "react-icons/fa6";
 import type { RoutePoint, LegFeature } from "../types";
 import bordersData from "../data/borders.geojson.json";
 
@@ -25,7 +24,67 @@ const BORDER_RGB: RGB = [220, 38, 38];
 const rgb = (m: string): RGB => MODE_RGB[m] ?? [100, 116, 139];
 const cssColor = (c: RGB) => `rgb(${c.join(",")})`;
 
-export default function MapView({ route, legs }: { route: RoutePoint[]; legs: LegFeature[] }) {
+// 2点間の大円距離（km）
+const haversineKm = (a: [number, number], b: [number, number]) => {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b[1] - a[1]);
+  const dLng = toRad(b[0] - a[0]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[1])) * Math.cos(toRad(b[1])) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+// 巡航高度（km）。飛行機は約10km、地上移動は0（平坦）
+const CRUISE_ALT_KM = 10;
+// 実高度は距離比だとほぼ平坦になるため、空に浮いて見えるよう誇張＋上限でクランプ
+const ALT_EXAGGERATION = 70;
+const MAX_ARC_HEIGHT = 0.35;
+
+// ベースマップ（地図タイル）の種類
+type BaseId = "osm" | "satellite" | "topo" | "light";
+const BASEMAPS: Record<BaseId, { label: string; url: string; maxZoom: number; attribution: string; dark?: boolean }> = {
+  osm: {
+    label: "標準",
+    url: "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    maxZoom: 19,
+    attribution: "© OpenStreetMap contributors",
+  },
+  satellite: {
+    label: "衛星",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    maxZoom: 19,
+    attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
+    dark: true,
+  },
+  topo: {
+    label: "地形",
+    url: "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+    maxZoom: 17,
+    attribution: "© OpenTopoMap (CC-BY-SA) · © OpenStreetMap contributors",
+  },
+  light: {
+    label: "白黒",
+    url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+    maxZoom: 19,
+    attribution: "© CARTO · © OpenStreetMap contributors",
+  },
+};
+const BASE_ORDER: BaseId[] = ["osm", "satellite", "topo", "light"];
+// 衛星写真に重ねる地名・境界ラベル（ハイブリッド表示）
+const SAT_REFERENCE = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
+
+export default function MapView({
+  route,
+  legs,
+  selectedLeg = null,
+  onSelectLeg,
+}: {
+  route: RoutePoint[];
+  legs: LegFeature[];
+  selectedLeg?: number | null;
+  onSelectLeg?: (order: number | null) => void;
+}) {
+  const [base, setBase] = useState<BaseId>("osm");
+
   const cities = route
     .filter((p) => p.lat != null && p.lng != null)
     .map((p, i) => ({ index: i, name: p.name, hub: !!p.hub, note: p.note, position: [p.lng as number, p.lat as number] as [number, number] }));
@@ -39,7 +98,7 @@ export default function MapView({ route, legs }: { route: RoutePoint[]; legs: Le
     if (detailedOrders.has(i)) return null;
     const next = cities[i + 1];
     const mode = legByOrder.get(i)?.properties.mode ?? route[i + 1]?.leg_type ?? "flight";
-    return { from: c.position, to: next.position, mode, fromName: c.name, toName: next.name };
+    return { order: i, from: c.position, to: next.position, mode, fromName: c.name, toName: next.name };
   }).filter((x): x is NonNullable<typeof x> => x !== null);
 
   const initialViewState = useMemo(() => {
@@ -59,13 +118,28 @@ export default function MapView({ route, legs }: { route: RoutePoint[]; legs: Le
     }
   }, [JSON.stringify(cities.map((c) => c.position))]);
 
+  // 視点はコントロール（2D/3D 切替・全体表示リセットのため）
+  const [viewState, setViewState] = useState<any>(initialViewState);
+  useEffect(() => { setViewState(initialViewState); }, [initialViewState]);
+  const is3D = (viewState.pitch ?? 0) > 0;
+  const toggle3D = () => setViewState((v: any) => ({ ...v, pitch: is3D ? 0 : 45, transitionDuration: 400 }));
+  const resetView = () => setViewState({ ...initialViewState, transitionDuration: 600 });
+
   const usedModes = Array.from(new Set([...detailed.map((f) => f.properties.mode), ...arcs.map((a) => a.mode)]));
+  const cfg = BASEMAPS[base];
+  const hasSelection = selectedLeg != null;
+  // 選択時：選択区間は太く不透明、それ以外は細く半透明にして強調
+  const lineColor = (mode: string, order: number): [number, number, number, number] => {
+    const c = rgb(mode);
+    if (!hasSelection) return [...c, 235];
+    return order === selectedLeg ? [...c, 255] : [...c, 55];
+  };
 
   const layers = [
     new TileLayer({
-      id: "osm",
-      data: "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      minZoom: 0, maxZoom: 19, tileSize: 256,
+      id: `basemap-${base}`,
+      data: cfg.url,
+      minZoom: 0, maxZoom: cfg.maxZoom, tileSize: 256,
       renderSubLayers: (props: any) => {
         const { boundingBox } = props.tile;
         return new BitmapLayer(props, {
@@ -75,6 +149,21 @@ export default function MapView({ route, legs }: { route: RoutePoint[]; legs: Le
         });
       },
     }),
+    // 衛星写真のときは地名・境界ラベルを重ねて読みやすく（ハイブリッド）
+    base === "satellite" &&
+      new TileLayer({
+        id: "sat-reference",
+        data: SAT_REFERENCE,
+        minZoom: 0, maxZoom: 19, tileSize: 256,
+        renderSubLayers: (props: any) => {
+          const { boundingBox } = props.tile;
+          return new BitmapLayer(props, {
+            data: undefined,
+            image: props.data,
+            bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
+          });
+        },
+      }),
     // 周辺国の国境（スイス・フランス・モナコ・イタリア・ドイツ等）
     new GeoJsonLayer({
       id: "borders",
@@ -88,9 +177,11 @@ export default function MapView({ route, legs }: { route: RoutePoint[]; legs: Le
       id: "rail",
       data: detailedFC,
       stroked: true, filled: false, pickable: true,
-      getLineColor: (f: any) => rgb(f.properties?.mode),
-      getLineWidth: 3, lineWidthUnits: "pixels", lineWidthMinPixels: 3,
+      getLineColor: (f: any) => lineColor(f.properties?.mode, f.properties?.order_index),
+      getLineWidth: (f: any) => (f.properties?.order_index === selectedLeg ? 6 : 3),
+      lineWidthUnits: "pixels", lineWidthMinPixels: 2,
       lineJointRounded: true, lineCapRounded: true,
+      updateTriggers: { getLineColor: selectedLeg, getLineWidth: selectedLeg },
     }),
     new ArcLayer({
       id: "arcs",
@@ -98,17 +189,33 @@ export default function MapView({ route, legs }: { route: RoutePoint[]; legs: Le
       pickable: true,
       getSourcePosition: (d: any) => d.from,
       getTargetPosition: (d: any) => d.to,
-      getSourceColor: (d: any) => rgb(d.mode),
-      getTargetColor: (d: any) => rgb(d.mode),
-      getWidth: 2.5, getHeight: 0.5,
+      getSourceColor: (d: any) => lineColor(d.mode, d.order),
+      getTargetColor: (d: any) => lineColor(d.mode, d.order),
+      getWidth: (d: any) => (d.order === selectedLeg ? 5 : 2.5),
+      // アークの高さ＝(巡航高度×誇張)/水平距離。地上移動は平坦
+      getHeight: (d: any) => {
+        const distKm = haversineKm(d.from, d.to);
+        if (d.mode !== "flight" || distKm <= 0) return 0;
+        return Math.min(MAX_ARC_HEIGHT, (CRUISE_ALT_KM * ALT_EXAGGERATION) / distKm);
+      },
+      updateTriggers: { getSourceColor: selectedLeg, getTargetColor: selectedLeg, getWidth: selectedLeg },
     }),
     new ScatterplotLayer({
       id: "cities",
       data: cities, pickable: true,
       getPosition: (d: any) => d.position,
-      getRadius: (d: any) => (d.hub ? 7 : 5), radiusUnits: "pixels",
-      getFillColor: (d: any) => (d.hub ? [14, 116, 144] : [148, 163, 184]),
+      getRadius: (d: any) => {
+        const endpoint = hasSelection && (d.index === selectedLeg || d.index === selectedLeg + 1);
+        return endpoint ? 9 : d.hub ? 7 : 5;
+      },
+      radiusUnits: "pixels",
+      getFillColor: (d: any) => {
+        const endpoint = hasSelection && (d.index === selectedLeg || d.index === selectedLeg + 1);
+        if (endpoint) return [217, 119, 6];
+        return d.hub ? [14, 116, 144] : [148, 163, 184];
+      },
       stroked: true, getLineColor: [255, 255, 255], lineWidthMinPixels: 2,
+      updateTriggers: { getRadius: selectedLeg, getFillColor: selectedLeg },
     }),
     new TextLayer({
       id: "labels",
@@ -120,7 +227,7 @@ export default function MapView({ route, legs }: { route: RoutePoint[]; legs: Le
       fontFamily: '"Hiragino Sans", system-ui, sans-serif',
       outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },
     }),
-  ];
+  ].filter(Boolean) as any[];
 
   const getTooltip = ({ object, layer }: PickingInfo): any => {
     if (!object) return null;
@@ -145,38 +252,78 @@ export default function MapView({ route, legs }: { route: RoutePoint[]; legs: Le
   return (
     <div className="relative h-full w-full bg-slate-200">
       <DeckGL
-        initialViewState={initialViewState}
+        viewState={viewState}
+        onViewStateChange={(e: any) => setViewState(e.viewState)}
         controller={{ dragRotate: true }}
         layers={layers}
-        widgets={[new ZoomWidget(), new CompassWidget(), new FullscreenWidget()]}
+        onClick={(info: PickingInfo) => {
+          if (!onSelectLeg) return;
+          const o = info.object as any;
+          if (info.layer?.id === "rail") onSelectLeg(o?.properties?.order_index ?? null);
+          else if (info.layer?.id === "arcs") onSelectLeg(o?.order ?? null);
+          else onSelectLeg(null);
+        }}
+        widgets={[
+          // 左下に集約（右側は工程パネルのオーバーレイ用に空ける）
+          new ZoomWidget({ placement: "bottom-left" }),
+          new CompassWidget({ placement: "bottom-left" }),
+          new FullscreenWidget({ placement: "bottom-left" }),
+        ]}
         getTooltip={getTooltip}
       />
 
-      {/* タイトル（左上オーバーレイ） */}
-      <div className="pointer-events-none absolute left-3 top-3 rounded-xl bg-white/85 px-3 py-2 shadow-sm backdrop-blur">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-          <FaMapLocationDot className="text-cyan-700" /> 移動プラン（deck.gl）
-        </h2>
-      </div>
-
-      {/* 凡例（左下オーバーレイ） */}
-      <div className="pointer-events-none absolute bottom-3 left-3 rounded-xl bg-white/85 px-3 py-2 text-xs text-slate-600 shadow-sm backdrop-blur">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {usedModes.map((m) => (
-            <span key={m} className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-0.5 w-5 rounded" style={{ background: cssColor(rgb(m)) }} />
-              {MODE_LABEL[m] ?? m}
-            </span>
+      {/* レイヤー切替 + 表示操作（左上） */}
+      <div className="pointer-events-auto absolute left-3 top-3 flex flex-col items-start gap-2">
+        <div className="inline-flex overflow-hidden rounded-lg bg-white/90 shadow-sm backdrop-blur ring-1 ring-black/5">
+          {BASE_ORDER.map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setBase(id)}
+              className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                base === id ? "bg-cyan-700 text-white" : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              {BASEMAPS[id].label}
+            </button>
           ))}
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-1 w-5 rounded" style={{ background: cssColor(BORDER_RGB) }} />
-            国境
-          </span>
+        </div>
+        <div className="inline-flex gap-1.5">
+          <button
+            type="button"
+            onClick={toggle3D}
+            className="rounded-lg bg-white/90 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-slate-100"
+          >
+            {is3D ? "2D表示" : "3D表示"}
+          </button>
+          <button
+            type="button"
+            onClick={resetView}
+            className="rounded-lg bg-white/90 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-slate-100"
+          >
+            全体表示
+          </button>
+        </div>
+
+        {/* 凡例（操作群の下にまとめる） */}
+        <div className="max-w-[15rem] rounded-xl bg-white/85 px-3 py-2 text-xs text-slate-600 shadow-sm backdrop-blur">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {usedModes.map((m) => (
+              <span key={m} className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-0.5 w-5 rounded" style={{ background: cssColor(rgb(m)) }} />
+                {MODE_LABEL[m] ?? m}
+              </span>
+            ))}
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-1 w-5 rounded" style={{ background: cssColor(BORDER_RGB) }} />
+              国境
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-1 right-1 rounded bg-white/70 px-1.5 text-[10px] text-slate-500">
-        © OpenStreetMap contributors
+      <div className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 rounded bg-white/70 px-1.5 text-[10px] text-slate-500">
+        {cfg.attribution}
       </div>
     </div>
   );

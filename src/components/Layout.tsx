@@ -31,7 +31,7 @@ export default function Layout() {
       {/* ===== 左サイドメニュー（印刷時は非表示） ===== */}
       <aside className="no-print sticky top-0 z-[500] flex h-screen w-60 shrink-0 flex-col bg-gradient-to-b from-cyan-800 via-sky-800 to-blue-900 text-white">
         <div className="border-b border-white/10 px-5 py-5">
-          <p className="text-[10px] uppercase tracking-widest text-cyan-200/70">Honeymoon</p>
+          <p className="text-[10px] uppercase tracking-widest text-cyan-200/70">open-expedia</p>
           <h1 className="mt-1 text-base font-bold leading-snug">{data?.trip?.title ?? "しおり"}</h1>
           {data?.trip && (
             <dl className="mt-3 space-y-1.5 text-xs text-cyan-50/80">

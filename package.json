@@ -6,9 +6,9 @@
   "packageManager": "pnpm@9.15.0",
   "description": "スイス & 南仏ハネムーン しおり（SQLite永続化・旅程・予算・地図・PDF）",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c cyan,green \"node server/index.mjs\" \"vite\"",
+    "dev": "concurrently -k -n api,web -c cyan,green \"node --env-file-if-exists=.env server/index.mjs\" \"vite\"",
     "web": "vite",
-    "api": "node server/index.mjs",
+    "api": "node --env-file-if-exists=.env server/index.mjs",
     "db:init": "node db/seed.mjs",
     "db:reset": "node db/seed.mjs --reset",
     "build": "tsc -b && vite build",
@@ -20,12 +20,18 @@
     "@deck.gl/layers": "^9.3.5",
     "@deck.gl/react": "^9.3.5",
     "@deck.gl/widgets": "^9.3.5",
+    "@earendil-works/pi-ai": "^0.80.2",
+    "@earendil-works/pi-coding-agent": "^0.80.2",
     "@hono/node-server": "^1.13.7",
     "hono": "^4.6.14",
+    "lucide-react": "^1.21.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.6.0",
-    "react-router-dom": "^7.18.0"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.18.0",
+    "remark-gfm": "^4.0.1",
+    "typebox": "^1.3.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

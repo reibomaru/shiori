@@ -1,5 +1,17 @@
 // API クライアント。Vite の proxy 経由で /api を叩きます。
 import type { TripPayload } from "./types";
+import type { ChatMessage } from "./hooks/useSpotChat";
+
+/** チャットセッション一覧の 1 行（サーバの chat_sessions より）。 */
+export interface ChatSessionSummary {
+  id: string;
+  title: string | null;
+  message_count: number;
+  cost_usd: number;
+  created_at: string;
+  updated_at: string;
+  has_history: boolean;
+}
 
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -24,8 +36,15 @@ export const api = {
   createBudget: (body: Record<string, unknown>) => http(`/api/budget`, "POST", body),
   deleteBudget: (id: number) => http(`/api/budget/${id}`, "DELETE"),
 
+  createSpot: (body: Record<string, unknown>) => http(`/api/spots`, "POST", body),
   updateSpot: (id: number, patch: Record<string, unknown>) => http(`/api/spots/${id}`, "PUT", patch),
   deleteSpot: (id: number) => http(`/api/spots/${id}`, "DELETE"),
 
   updateRoute: (id: number, patch: Record<string, unknown>) => http(`/api/route/${id}`, "PUT", patch),
+
+  // ---- スポット候補チャットのセッション ----
+  listChatSessions: () => http<ChatSessionSummary[]>(`/api/spots/chat/sessions`, "GET"),
+  getChatSessionMessages: (id: string) =>
+    http<ChatMessage[]>(`/api/spots/chat/sessions/${id}/messages`, "GET"),
+  deleteChatSession: (id: string) => http(`/api/spots/chat/sessions/${id}`, "DELETE"),
 };

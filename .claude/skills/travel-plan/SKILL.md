@@ -54,6 +54,7 @@ node scripts/travel.mjs items <day_no>
 node scripts/travel.mjs add-route '<json>'  | edit-route <id> '<json>'
 node scripts/travel.mjs add-leg   '<json>'  | edit-leg   <id> '<json>' | rm-leg <id>
 node scripts/travel.mjs set-geojson <leg_id> <file> | set-gpx <leg_id> <file.gpx>
+node scripts/osrm-route.mjs <leg_id> '<spec>' [--dry] # OSRM で実線路ルートを補完して取込（recipes/route.md）
 node scripts/travel.mjs add-day  '<json>'   | edit-day   <id> '<json>'
 node scripts/travel.mjs add-item <day_no> '<json>' | edit-item <id> '<json>' | rm-item <id>
 node scripts/travel.mjs add-spot '<json>'   | edit-spot  <id> '<json>' | rm-spot <id>

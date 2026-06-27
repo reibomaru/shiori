@@ -99,7 +99,7 @@ node scripts/travel.mjs add-leg   '{"order_index":7,"from_name":"マルセイユ
 3. 既存の通し leg を `edit-leg` で「手前→新点」に書き換え、`add-leg` で「新点→次点」を追加。
    以降の leg の order_index も +1。最後に整合チェックで連番と点数を検算。
 
-## 経由地を削除（rm-route は無いので sql.mjs を使う）
+## 経由地を削除（rm-route で点を消し、leg 統合と order_index 振り直しはセットで）
 例：ジュネーブ→ニース→マルセイユ から **ニースを外す**（実例）。
 1. 出入りする2本の leg のうち片方を `rm-leg`、もう片方を `edit-leg` で「前点→後点」を直結に
    書き換え（from_name/to_name/mode/note を更新。古い geojson が残るなら `'{"geojson":null}'` でクリア）。
@@ -107,11 +107,11 @@ node scripts/travel.mjs add-leg   '{"order_index":7,"from_name":"マルセイユ
    node scripts/travel.mjs rm-leg 7
    node scripts/travel.mjs edit-leg 8 '{"from_name":"ジュネーブ","to_name":"マルセイユ","order_index":6,"mode":"train","note":"TGV（リヨン乗換）約3.5h","geojson":null}'
    ```
-2. **route の点自体を削除（CLI に無いので生SQL）**：
+2. **route の点自体を `rm-route` で削除**（order_index 振り直しと leg 統合は自動では行われない）：
    ```
-   node scripts/sql.mjs "DELETE FROM route WHERE id=8"          # ニース
+   node scripts/travel.mjs rm-route 8          # ニース
    ```
-3. 削除点より後ろの route 点を order_index −1 して連番に詰める：
+3. 削除点より後ろの route 点を order_index −1 して連番に詰める（複数行の一括更新は sql.mjs）：
    ```
    node scripts/sql.mjs "UPDATE route SET order_index=order_index-1 WHERE order_index>7"
    ```

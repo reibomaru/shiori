@@ -51,7 +51,7 @@ node scripts/travel.mjs summary                       # まず全体把握
 node scripts/travel.mjs route | legs | days | spots | budget
 node scripts/travel.mjs items <day_no>
 
-node scripts/travel.mjs add-route '<json>'  | edit-route <id> '<json>'
+node scripts/travel.mjs add-route '<json>'  | edit-route <id> '<json>' | rm-route <id>
 node scripts/travel.mjs add-leg   '<json>'  | edit-leg   <id> '<json>' | rm-leg <id>
 node scripts/travel.mjs set-geojson <leg_id> <file> | set-gpx <leg_id> <file.gpx>
 node scripts/osrm-route.mjs <leg_id> '<spec>' [--dry] # OSRM で実線路ルートを補完して取込（recipes/route.md）
@@ -63,14 +63,14 @@ node scripts/travel.mjs edit-trip '<json>'
 ```
 
 ### ② sql.mjs 生SQL（逃げ道・CLIに無い操作用）
-CLI に無い操作（**route の削除**、複数行の一括並べ替え、横断検索）はこちらで。
+CLI に無い操作（複数行の一括並べ替え、横断検索）はこちらで。
 
 ```
 node scripts/sql.mjs "<SQL>"
 ```
 - `SELECT/PRAGMA/WITH` は行を JSON、`INSERT/UPDATE/DELETE` は `{changes, lastInsertRowid}` を出力。
 - 文字列は SQL のシングルクォート、外側はダブルクォートで囲む。`'` は `''` でエスケープ。
-- **`rm-route` は CLI に存在しない**。経由地の削除は `node scripts/sql.mjs "DELETE FROM route WHERE id=?"`。
+- 経由地の削除は CLI の `rm-route <id>`。ただし order_index の振り直しと leg の統合は自動で行われないので、recipes/route.md の手順とセットで使う。
 - 破壊的操作は WHERE で id を厳密指定。広い WHERE で一括更新しない。
 - `items.day_id` は `days(id)` への FK（`ON DELETE CASCADE`）。day を消すと予定も全消し。
 

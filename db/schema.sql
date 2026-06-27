@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS spots (
   note        TEXT,
   source      TEXT,                  -- 出典（例: 地球の歩き方 p.123）
   want_level  INTEGER DEFAULT 3,     -- 行きたい度 1-5
+  icon        TEXT,                  -- 地図ピンのアイコン種別（未指定なら category から自動）
+  instagram   TEXT,                  -- 関連 Instagram 投稿 URL の JSON 配列（埋め込みギャラリー用）
   created_at  TEXT DEFAULT (datetime('now'))
 );
 
@@ -90,6 +92,20 @@ CREATE TABLE IF NOT EXISTS legs (
   note         TEXT
 );
 
+-- AI アシスタント（スポット候補チャット）のセッション索引。
+-- 会話本体は pi-coding-agent の JSONL（session_file）に永続化し、
+-- ここには一覧・resume 用のメタ情報だけを持つ。
+CREATE TABLE IF NOT EXISTS chat_sessions (
+  id            TEXT PRIMARY KEY,                 -- クライアント生成 UUID
+  session_file  TEXT,                             -- pi の JSONL セッションファイルの絶対パス
+  title         TEXT,                             -- 一覧表示用（最初のユーザー発言から生成）
+  message_count INTEGER NOT NULL DEFAULT 0,       -- ユーザー発言の回数
+  cost_usd      REAL NOT NULL DEFAULT 0,          -- 累計コスト（USD）
+  created_at    TEXT DEFAULT (datetime('now')),
+  updated_at    TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_items_day ON items(day_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_route_order ON route(order_index);
 CREATE INDEX IF NOT EXISTS idx_legs_order ON legs(order_index);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated ON chat_sessions(updated_at DESC);

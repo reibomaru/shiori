@@ -18,5 +18,19 @@ export function openDb() {
   const db = new DatabaseSync(DB_PATH);
   db.exec("PRAGMA foreign_keys = ON;");
   db.exec(readFileSync(SCHEMA_PATH, "utf8"));
+  migrate(db);
   return db;
+}
+
+/** 既存 DB 向けの軽量マイグレーション（CREATE TABLE IF NOT EXISTS は列追加しないため）。 */
+function migrate(db) {
+  addColumnIfMissing(db, "spots", "icon", "TEXT");
+  addColumnIfMissing(db, "spots", "instagram", "TEXT");
+}
+
+function addColumnIfMissing(db, table, column, type) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }

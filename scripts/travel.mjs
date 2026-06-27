@@ -21,20 +21,22 @@ function parseJson(s, label) {
   try { return JSON.parse(s); }
   catch (e) { console.error(`JSON の解析に失敗: ${e.message}`); process.exit(1); }
 }
+/** SQLite はプリミティブしかバインドできないため、配列/オブジェクトは JSON 文字列にする */
+const bindVal = (v) => (v !== null && typeof v === "object" ? JSON.stringify(v) : v);
 /** 許可フィールドだけ INSERT */
 function insert(table, obj, fields) {
   const cols = fields.filter((f) => obj[f] !== undefined);
   const ph = cols.map(() => "?").join(", ");
   const { lastInsertRowid } = db
     .prepare(`INSERT INTO ${table} (${cols.join(", ")}) VALUES (${ph})`)
-    .run(...cols.map((f) => obj[f]));
+    .run(...cols.map((f) => bindVal(obj[f])));
   return db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(lastInsertRowid);
 }
 function update(table, id, obj, fields) {
   const cols = fields.filter((f) => obj[f] !== undefined);
   if (!cols.length) { console.error("更新するフィールドがありません"); process.exit(1); }
   db.prepare(`UPDATE ${table} SET ${cols.map((c) => `${c} = ?`).join(", ")} WHERE id = ?`)
-    .run(...cols.map((f) => obj[f]), id);
+    .run(...cols.map((f) => bindVal(obj[f])), id);
   return db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
 }
 function dayIdByNo(no) {
@@ -43,7 +45,7 @@ function dayIdByNo(no) {
   return row.id;
 }
 
-const SPOT_FIELDS = ["name", "name_en", "category", "city", "country", "lat", "lng", "url", "note", "source", "want_level"];
+const SPOT_FIELDS = ["name", "name_en", "category", "city", "country", "lat", "lng", "url", "note", "source", "want_level", "icon", "instagram"];
 const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id"];
 const DAY_FIELDS = ["day_no", "date", "city", "title"];
 const BUDGET_FIELDS = ["sort_order", "category", "per_person", "note"];

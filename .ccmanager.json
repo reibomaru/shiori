@@ -1,7 +1,7 @@
 {
   "worktreeHooks": {
     "post_creation": {
-      "command": "git pull origin \"${CCMANAGER_BASE_BRANCH:-main}\"",
+      "command": "git pull origin \"${CCMANAGER_BASE_BRANCH:-main}\" && cp \"$CCMANAGER_GIT_ROOT/.env\" .env 2>/dev/null || true",
       "enabled": true
     }
   },

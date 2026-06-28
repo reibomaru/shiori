@@ -1,5 +1,29 @@
 // API クライアント。Vite の proxy 経由で /api を叩きます。
 import type { TripPayload } from "./types";
+import type { ChatMessage } from "./hooks/useSpotChat";
+
+/** チャットセッション一覧の 1 行（サーバの chat_sessions より）。 */
+export interface ChatSessionSummary {
+  id: string;
+  title: string | null;
+  message_count: number;
+  cost_usd: number;
+  created_at: string;
+  updated_at: string;
+  has_history: boolean;
+}
+
+/** Google マップの評価（★）・写真。Places API から取得し DB に30日キャッシュ。 */
+export interface SpotRating {
+  rating: number;
+  userRatingCount: number;
+  googleMapsUri: string | null;
+  photoUrls: string[]; // Places の写真 URL（lh3.googleusercontent.com）。複数枚。
+}
+export interface SpotRatingsResponse {
+  configured: boolean; // GOOGLE_MAPS_API_KEY が設定されているか（未設定でもキャッシュは返る）
+  ratings: Record<number, SpotRating | null>;
+}
 
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -24,8 +48,16 @@ export const api = {
   createBudget: (body: Record<string, unknown>) => http(`/api/budget`, "POST", body),
   deleteBudget: (id: number) => http(`/api/budget/${id}`, "DELETE"),
 
+  getSpotRatings: () => http<SpotRatingsResponse>(`/api/spots/ratings`, "GET"),
+  createSpot: (body: Record<string, unknown>) => http(`/api/spots`, "POST", body),
   updateSpot: (id: number, patch: Record<string, unknown>) => http(`/api/spots/${id}`, "PUT", patch),
   deleteSpot: (id: number) => http(`/api/spots/${id}`, "DELETE"),
 
   updateRoute: (id: number, patch: Record<string, unknown>) => http(`/api/route/${id}`, "PUT", patch),
+
+  // ---- スポット候補チャットのセッション ----
+  listChatSessions: () => http<ChatSessionSummary[]>(`/api/spots/chat/sessions`, "GET"),
+  getChatSessionMessages: (id: string) =>
+    http<ChatMessage[]>(`/api/spots/chat/sessions/${id}/messages`, "GET"),
+  deleteChatSession: (id: string) => http(`/api/spots/chat/sessions/${id}`, "DELETE"),
 };

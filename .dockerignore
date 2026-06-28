@@ -1,0 +1,10 @@
+# ビルドコンテキストから除外（ホストの node_modules は OS 差があるため使わない）。
+node_modules
+dist
+.git
+data
+.env
+*.log
+src
+public
+searxng

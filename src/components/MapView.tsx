@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import DeckGL from "@deck.gl/react";
 import { WebMercatorViewport, type PickingInfo } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
-import { BitmapLayer, GeoJsonLayer, ArcLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
+import { BitmapLayer, GeoJsonLayer, ArcLayer, ScatterplotLayer, TextLayer, IconLayer } from "@deck.gl/layers";
 import { ZoomWidget, CompassWidget, FullscreenWidget } from "@deck.gl/widgets";
 import "@deck.gl/widgets/stylesheet.css";
 import type { Feature, FeatureCollection } from "geojson";
-import type { RoutePoint, LegFeature } from "../types";
+import type { RoutePoint, LegFeature, Spot } from "../types";
+import { resolveSpotIcon, spotPinIcon } from "../spotIcons";
 import bordersData from "../data/borders.geojson.json";
 
 const COUNTRY_BORDERS = bordersData as unknown as FeatureCollection;
@@ -21,6 +22,8 @@ const MODE_RGB: Record<string, RGB> = {
 };
 const MODE_LABEL: Record<string, string> = { train: "鉄道", bus: "バス・登山", car: "車", flight: "飛行機", walk: "徒歩" };
 const BORDER_RGB: RGB = [220, 38, 38];
+// 行きたいスポット候補（都市・ルートと色を差別化：マゼンタ系）
+const SPOT_RGB: RGB = [219, 39, 119];
 const rgb = (m: string): RGB => MODE_RGB[m] ?? [100, 116, 139];
 const cssColor = (c: RGB) => `rgb(${c.join(",")})`;
 
@@ -75,15 +78,24 @@ const SAT_REFERENCE = "https://server.arcgisonline.com/ArcGIS/rest/services/Refe
 export default function MapView({
   route,
   legs,
+  spots = [],
   selectedLeg = null,
   onSelectLeg,
 }: {
   route: RoutePoint[];
   legs: LegFeature[];
+  spots?: Spot[];
   selectedLeg?: number | null;
   onSelectLeg?: (order: number | null) => void;
 }) {
   const [base, setBase] = useState<BaseId>("osm");
+  const [showSpots, setShowSpots] = useState(true);
+
+  // lat/lng を持つ候補スポットのみ地図に出せる。未設定分は注意表示用に件数を保持
+  const spotPoints = spots
+    .filter((s) => s.lat != null && s.lng != null)
+    .map((s) => ({ ...s, position: [s.lng as number, s.lat as number] as [number, number] }));
+  const spotsMissingCoords = spots.length - spotPoints.length;
 
   const cities = route
     .filter((p) => p.lat != null && p.lng != null)
@@ -227,6 +239,30 @@ export default function MapView({
       fontFamily: '"Hiragino Sans", system-ui, sans-serif',
       outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },
     }),
+    // 行きたいスポット候補：Google マップ保存リスト風のピン。
+    showSpots &&
+      new IconLayer({
+        id: "spots",
+        data: spotPoints, pickable: true,
+        getPosition: (d: any) => d.position,
+        getIcon: (d: any) => spotPinIcon(resolveSpotIcon(d)),
+        getSize: 46,
+        sizeUnits: "pixels",
+        billboard: true,
+        updateTriggers: { getIcon: spotPoints.map((s) => s.icon ?? s.category).join(",") },
+      }),
+    showSpots &&
+      new TextLayer({
+        id: "spot-labels",
+        data: spotPoints,
+        getPosition: (d: any) => d.position,
+        getText: (d: any) => d.name,
+        // 都市ラベルは上方向(-16)。候補ラベルはピンの下に出して干渉を避ける
+        getSize: 11, getColor: SPOT_RGB, getPixelOffset: [0, 6],
+        getTextAnchor: "middle", getAlignmentBaseline: "top",
+        fontFamily: '"Hiragino Sans", system-ui, sans-serif',
+        outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },
+      }),
   ].filter(Boolean) as any[];
 
   const getTooltip = ({ object, layer }: PickingInfo): any => {
@@ -245,6 +281,13 @@ export default function MapView({
     } else if (layer?.id === "cities" || layer?.id === "labels") {
       const o = object as any;
       html = `<b>${o.index + 1}. ${o.name}</b>${o.note ? "<br>" + o.note : ""}`;
+    } else if (layer?.id === "spots" || layer?.id === "spot-labels") {
+      const o = object as Spot;
+      const meta = [o.category, o.city || o.country].filter(Boolean).join(" · ");
+      html =
+        `<b>${resolveSpotIcon(o).emoji} ${o.name}</b>` +
+        (meta ? `<br>${meta}` : "") +
+        (o.note ? `<br>${o.note}` : "");
     } else return null;
     return { html, style: { background: "rgba(15,23,42,.92)", color: "#fff", fontSize: "12px", borderRadius: "6px", padding: "6px 8px" } };
   };
@@ -261,6 +304,8 @@ export default function MapView({
           const o = info.object as any;
           if (info.layer?.id === "rail") onSelectLeg(o?.properties?.order_index ?? null);
           else if (info.layer?.id === "arcs") onSelectLeg(o?.order ?? null);
+          // 候補スポットのクリックは区間選択に影響させない
+          else if (info.layer?.id === "spots" || info.layer?.id === "spot-labels") return;
           else onSelectLeg(null);
         }}
         widgets={[
@@ -303,6 +348,25 @@ export default function MapView({
           >
             全体表示
           </button>
+          {spots.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowSpots((v) => !v)}
+              aria-pressed={showSpots}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium shadow-sm ring-1 ring-black/5 backdrop-blur transition-colors ${
+                showSpots ? "bg-pink-600 text-white" : "bg-white/90 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              候補スポット
+              <span
+                className={`rounded-full px-1.5 text-[10px] ${
+                  showSpots ? "bg-white/25" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {spotPoints.length}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* 凡例（操作群の下にまとめる） */}
@@ -318,7 +382,18 @@ export default function MapView({
               <span className="inline-block h-1 w-5 rounded" style={{ background: cssColor(BORDER_RGB) }} />
               国境
             </span>
+            {showSpots && spots.length > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <span className="text-sm leading-none">📍</span>
+                候補スポット
+              </span>
+            )}
           </div>
+          {showSpots && spotsMissingCoords > 0 && (
+            <p className="mt-1 text-[11px] text-slate-400">
+              座標未設定のため非表示: {spotsMissingCoords} 件
+            </p>
+          )}
         </div>
       </div>
 

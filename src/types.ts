@@ -86,9 +86,11 @@ export interface Spot {
   lat: number | null;
   lng: number | null;
   url: string | null;
+  google_maps_url: string | null; // Google マップのリンク（口コミ・評価はリンク先で確認）
   note: string | null;
   source: string | null;
-  want_level: number;
+  icon: string | null;
+  instagram: string[]; // 関連 Instagram 投稿 URL（埋め込みギャラリー用）。API 側で JSON をパース済み。
   created_at: string;
 }
 

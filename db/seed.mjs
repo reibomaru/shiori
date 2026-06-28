@@ -231,11 +231,11 @@ budget.forEach((b, i) => insBudget.run(i, b.category, b.per_person, b.note));
 
 // ---- spots（行きたいスポット候補のサンプル）-----------------
 const spots = [
-  { name: "シヨン城", name_en: "Château de Chillon", category: "観光", city: "モントルー", country: "スイス", lat: 46.4143, lng: 6.9276, url: "https://www.chillon.ch/en/", note: "レマン湖畔の水城。ジュネーブから足を延ばせる候補。", source: "サンプル", want_level: 4 },
-  { name: "グラン・カニオン・デュ・ヴェルドン", name_en: "Gorges du Verdon", category: "自然", city: "プロヴァンス", country: "フランス", lat: 43.7494, lng: 6.3389, url: "https://www.verdontourisme.com/en/", note: "ヨーロッパのグランドキャニオン。マルセイユ前の候補。", source: "サンプル", want_level: 3 },
+  { name: "シヨン城", name_en: "Château de Chillon", category: "観光", city: "モントルー", country: "スイス", lat: 46.4143, lng: 6.9276, url: "https://www.chillon.ch/en/", google_maps_url: "https://maps.app.goo.gl/8YbY2Yq3Z4w5xK6n7", note: "レマン湖畔の水城。ジュネーブから足を延ばせる候補。", source: "サンプル" },
+  { name: "グラン・カニオン・デュ・ヴェルドン", name_en: "Gorges du Verdon", category: "自然", city: "プロヴァンス", country: "フランス", lat: 43.7494, lng: 6.3389, url: "https://www.verdontourisme.com/en/", google_maps_url: "https://maps.app.goo.gl/1Aa2Bb3Cc4Dd5Ee6", note: "ヨーロッパのグランドキャニオン。マルセイユ前の候補。", source: "サンプル" },
 ];
-const insSpot = db.prepare(`INSERT INTO spots (name, name_en, category, city, country, lat, lng, url, note, source, want_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-spots.forEach((s) => insSpot.run(s.name, s.name_en, s.category, s.city, s.country, s.lat, s.lng, s.url, s.note, s.source, s.want_level));
+const insSpot = db.prepare(`INSERT INTO spots (name, name_en, category, city, country, lat, lng, url, google_maps_url, note, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+spots.forEach((s) => insSpot.run(s.name, s.name_en, s.category, s.city, s.country, s.lat, s.lng, s.url, s.google_maps_url, s.note, s.source));
 
 console.log(`投入完了: trip=1, days=${count("days")}, items=${count("items")}, route=${count("route")}, legs=${count("legs")}, budget=${count("budget")}, spots=${count("spots")}`);
 db.close();

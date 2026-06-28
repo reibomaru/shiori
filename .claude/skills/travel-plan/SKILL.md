@@ -106,6 +106,8 @@ node scripts/sql.mjs "SELECT i.id, d.day_no, i.title FROM items i JOIN days d ON
    `days.id` と `day_no`、`legs.order_index` を取り違えない。
 2. 場所を挙げられたら **緯度経度(lat/lng) を知識で補完**して登録（地図ピンに必要）。
 3. **公式サイト等の URL は分かれば必ず入れる**（リンク保存が要件）。出典は spots の `source` に。
+   スポットは **Google マップのリンク（`google_maps_url`）も入れる**（口コミ・星評価はリンク先で
+   確認する方針なので、評価値などは shiori 側に保存しない）。
 4. 移動・経由地を変えたら **依存グラフに沿って下流(items/budget)も更新**する。
 5. 破壊的変更前で不安なら `cp data/travel.db data/travel.db.bak` でバックアップ。
 6. 書き終えたら **整合チェックを実行** → **何をどのテーブルにどう変えたか1行で要約** →

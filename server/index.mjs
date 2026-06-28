@@ -5,6 +5,9 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { openDb } from "../db/db.mjs";
+import * as spotsRepo from "../db/spots-repo.mjs";
+import { getSpotRatings, invalidateSpotCache } from "./places.mjs";
+import { registerSpotChatRoute } from "./agent/route.mjs";
 
 /** legs 行 → GeoJSON Feature */
 function legToFeature(l) {
@@ -45,7 +48,7 @@ app.get("/api/trip", (c) => {
   // legs: GeoJSON Feature の配列として返す（フロントはそのまま <GeoJSON> で描画）
   const legs = db.prepare("SELECT * FROM legs ORDER BY order_index").all().map(legToFeature);
   const budget = db.prepare("SELECT * FROM budget ORDER BY sort_order, id").all();
-  const spots = db.prepare("SELECT * FROM spots ORDER BY want_level DESC, created_at DESC").all();
+  const spots = spotsRepo.listSpots(db);
   return c.json({ trip, days, route, legs, budget, spots });
 });
 
@@ -114,25 +117,25 @@ app.delete("/api/budget/:id", (c) => {
 });
 
 // ---- spots（行きたいスポット ライブラリ） ------------------
-const SPOT_FIELDS = ["name", "name_en", "category", "city", "country", "lat", "lng", "url", "note", "source", "want_level"];
-app.get("/api/spots", (c) => c.json(db.prepare("SELECT * FROM spots ORDER BY want_level DESC, created_at DESC").all()));
-app.post("/api/spots", async (c) => {
-  const b = await c.req.json();
-  const { lastInsertRowid } = db
-    .prepare(`INSERT INTO spots (name, name_en, category, city, country, lat, lng, url, note, source, want_level)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(b.name ?? "（無題）", b.name_en ?? null, b.category ?? null, b.city ?? null, b.country ?? null,
-         b.lat ?? null, b.lng ?? null, b.url ?? null, b.note ?? null, b.source ?? null, b.want_level ?? 3);
-  return c.json(db.prepare("SELECT * FROM spots WHERE id = ?").get(lastInsertRowid));
+// Google マップの評価（★）を Places API でライブ取得（DB 非永続化）。
+// /api/spots/:id（PUT/DELETE）とはメソッド・パスが異なるため衝突しない。
+app.get("/api/spots/ratings", async (c) => {
+  const spots = spotsRepo.listSpots(db);
+  return c.json(await getSpotRatings(db, spots));
 });
+app.get("/api/spots", (c) => c.json(spotsRepo.listSpots(db)));
+app.post("/api/spots", async (c) => c.json(spotsRepo.createSpot(db, await c.req.json())));
 app.put("/api/spots/:id", async (c) => {
-  updateRow("spots", c.req.param("id"), await c.req.json(), SPOT_FIELDS);
-  return c.json(db.prepare("SELECT * FROM spots WHERE id = ?").get(c.req.param("id")));
+  const id = c.req.param("id");
+  const patch = await c.req.json();
+  // 名称・都市・国が変わると別の場所になり得るので Places キャッシュを無効化する。
+  if (["name", "city", "country"].some((k) => k in patch)) invalidateSpotCache(db, id);
+  return c.json(spotsRepo.updateSpot(db, id, patch));
 });
-app.delete("/api/spots/:id", (c) => {
-  db.prepare("DELETE FROM spots WHERE id = ?").run(c.req.param("id"));
-  return c.json({ ok: true });
-});
+app.delete("/api/spots/:id", (c) => c.json(spotsRepo.deleteSpot(db, c.req.param("id"))));
+
+// ---- spots チャット（AI エージェントによる候補編集の提案）----
+registerSpotChatRoute(app, db);
 
 // ---- route ------------------------------------------------
 const ROUTE_FIELDS = ["order_index", "name", "lat", "lng", "hub", "leg_type", "note"];

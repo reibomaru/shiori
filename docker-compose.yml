@@ -1,0 +1,42 @@
+# しおりアプリのバックエンド一式を Docker で起動する。
+#
+#   docker compose up -d --build   # api(:8080) を起動
+#   docker compose logs -f api      # ログ確認
+#   docker compose down             # 停止
+#
+# フロント（Vite）はホスト側で `pnpm web` を実行する想定。Vite の proxy が
+# /api を http://localhost:8080（= この api コンテナ）へ転送する。
+#
+# 必要な環境変数は .env（GEMINI_API_KEY など）から読み込む。
+services:
+  # ---- Hono API サーバー（旅程・予算・地図・スポット + AI チャット）----
+  api:
+    build: .
+    container_name: shiori-api
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # web_search は websearchapi.ai（WEBSEARCH_API_KEY は .env から）を使う。
+      - TRAVEL_DB=/app/data/travel.db
+    volumes:
+      # SQLite とエージェントのセッションファイルをホストと共有・永続化。
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # ---- （未使用）SearXNG の設定だけ残置。web_search は websearchapi.ai に移行済み ----
+  # profiles を付けているので通常の `docker compose up` では起動しない。
+  # 起動したい場合は `docker compose --profile searxng up searxng`。
+  searxng:
+    image: searxng/searxng:latest
+    container_name: shiori-searxng
+    profiles:
+      - searxng
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8888/
+    restart: unless-stopped

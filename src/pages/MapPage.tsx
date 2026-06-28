@@ -13,7 +13,7 @@ export default function MapPage() {
     <div className="relative h-full w-full overflow-hidden">
       {/* 地図：全面 */}
       <div className="absolute inset-0">
-        <MapView route={data.route} legs={data.legs} selectedLeg={selectedLeg} onSelectLeg={setSelectedLeg} />
+        <MapView route={data.route} legs={data.legs} spots={data.spots} selectedLeg={selectedLeg} onSelectLeg={setSelectedLeg} />
       </div>
 
       {/* 移動の工程：地図上にオーバーレイ（背景は透過） */}

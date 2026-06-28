@@ -7,13 +7,28 @@
 
 ### フィールド
 `name`(必須) / `name_en` / `category`(観光/食事/自然/美術館…) / `city` /
-`country`(スイス/フランス) / `lat`,`lng` / `url` / `note` /
-`source`(出典 例:地球の歩き方 p.210) / `want_level`(1–5)
+`country`(スイス/フランス) / `lat`,`lng` / `url`(公式サイト) /
+`google_maps_url`(Google マップのリンク) / `note` /
+`source`(出典 例:地球の歩き方 p.210) /
+`icon`(地図ピンのアイコン種別。未指定なら category から自動)
+
+口コミ・星評価は `google_maps_url` のリンク先で確認する方針。**評価値などは shiori 側に
+重複保存しない**（`want_level` などの評価フィールドは廃止済み）。
+
+`icon` のキー: `pin`/`sightseeing`/`nature`/`food`/`cafe`/`hotel`/`castle`/
+`museum`/`shopping`/`view`/`beach`/`star`。通常は **category を入れれば自動で
+それらしいピン**になるので省略可。明示したいときだけ指定する。
+
+`instagram` は関連 Instagram 投稿 URL の **配列**（候補カードに埋め込み表示）。
+公開投稿の `…/p/{code}/`・`/reel/{code}/`・`/tv/{code}/` 形式を手動で指定する。
+```
+node scripts/travel.mjs edit-spot 1 '{"instagram":["https://www.instagram.com/p/ABC123/","https://www.instagram.com/reel/XYZ789/"]}'
+```
 
 ### 操作
 ```
 node scripts/travel.mjs spots
-node scripts/travel.mjs add-spot '{"name":"シヨン城","name_en":"Château de Chillon","category":"観光","city":"モントルー","country":"スイス","lat":46.4143,"lng":6.9276,"url":"https://www.chillon.ch/en/","note":"レマン湖畔の水城","source":"地球の歩き方","want_level":4}'
+node scripts/travel.mjs add-spot '{"name":"シヨン城","name_en":"Château de Chillon","category":"観光","city":"モントルー","country":"スイス","lat":46.4143,"lng":6.9276,"url":"https://www.chillon.ch/en/","google_maps_url":"https://maps.app.goo.gl/...","note":"レマン湖畔の水城","source":"地球の歩き方"}'
 node scripts/travel.mjs edit-spot <id> '<json>'
 node scripts/travel.mjs rm-spot <id>
 ```

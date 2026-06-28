@@ -70,7 +70,8 @@ CREATE TABLE IF NOT EXISTS items (
   url         TEXT,
   url_label   TEXT,
   cost        INTEGER,                        -- 1人あたり概算（円）
-  spot_id     INTEGER REFERENCES spots(id) ON DELETE SET NULL
+  spot_id     INTEGER REFERENCES spots(id) ON DELETE SET NULL,
+  leg_id      INTEGER REFERENCES legs(id)  ON DELETE SET NULL   -- 移動区間（legs）由来の予定の紐づけ
 );
 
 -- 地図に描くルート（順番に線で結ぶ主要地点）

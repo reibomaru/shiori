@@ -32,6 +32,7 @@ export interface Item {
   url_label: string | null;
   cost: number | null;
   spot_id: number | null;
+  leg_id: number | null;
 }
 
 export interface Day {

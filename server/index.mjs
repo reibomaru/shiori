@@ -77,15 +77,15 @@ app.delete("/api/days/:id", (c) => {
 });
 
 // ---- items ------------------------------------------------
-const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id"];
+const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id", "leg_id"];
 app.post("/api/items", async (c) => {
   const b = await c.req.json();
   const maxOrder = db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM items WHERE day_id = ?").get(b.day_id).m;
   const { lastInsertRowid } = db
-    .prepare(`INSERT INTO items (day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .prepare(`INSERT INTO items (day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id, leg_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(b.day_id, b.sort_order ?? maxOrder + 1, b.time ?? null, b.type ?? "spot", b.title ?? "（無題）",
-         b.note ?? null, b.url ?? null, b.url_label ?? null, b.cost ?? null, b.spot_id ?? null);
+         b.note ?? null, b.url ?? null, b.url_label ?? null, b.cost ?? null, b.spot_id ?? null, b.leg_id ?? null);
   return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(lastInsertRowid));
 });
 app.put("/api/items/:id", async (c) => {

@@ -24,7 +24,11 @@ const NAV = [
 export default function Layout() {
   const { data, error } = useTrip();
   const { pathname } = useLocation();
-  const fullBleed = pathname.startsWith("/map") || pathname.startsWith("/spots"); // 地図・候補は全画面（余白なし）
+  // 地図・候補・旅程（ビルダー）は全画面（余白なし）。
+  const fullBleed =
+    pathname.startsWith("/map") ||
+    pathname.startsWith("/spots") ||
+    pathname.startsWith("/itinerary");
   const [navOpen, setNavOpen] = useState(true);
 
   return (

@@ -9,21 +9,33 @@
 //     geocode）はツール内で完結してよい（副作用なし）。
 // ============================================================
 import { defineTool } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import * as spotsRepo from "../../db/spots-repo.mjs";
+import type { DatabaseSync } from "node:sqlite";
+import * as spotsRepo from "../../db/spots-repo.ts";
+import type { EmitFn } from "./runner.ts";
+
+/** createSpotTools のオプション。 */
+export interface SpotToolsOptions {
+  db: DatabaseSync;
+  emit: EmitFn;
+  /** websearchapi.ai の API キー */
+  webSearchApiKey: string;
+}
 
 /** 提案ごとに振る一時 ID（フロントの承認ボタンと突き合わせる用）。 */
 let proposalSeq = 0;
-function nextTempId() {
+function nextTempId(): string {
   proposalSeq += 1;
   return `prop-${Date.now()}-${proposalSeq}`;
 }
 
-const text = (s) => ({ content: [{ type: "text", text: s }] });
+const text = (s: string): AgentToolResult<unknown> =>
+  ({ content: [{ type: "text", text: s }], details: undefined }) as AgentToolResult<unknown>;
 
 /** スポット下書きから、提案に載せるフィールドだけ抜き出す。 */
-function pickDraft(p) {
-  const draft = {};
+function pickDraft(p: Record<string, unknown>): Record<string, unknown> {
+  const draft: Record<string, unknown> = {};
   for (const k of spotsRepo.SPOT_FIELDS) {
     if (p[k] !== undefined && p[k] !== null) draft[k] = p[k];
   }
@@ -31,7 +43,7 @@ function pickDraft(p) {
 }
 
 /** HTML をざっくりプレーンテキストへ（fetch_url 用）。 */
-function htmlToText(html) {
+function htmlToText(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -46,12 +58,8 @@ function htmlToText(html) {
 
 /**
  * リクエスト 1 回分のツール一式を生成する。
- * @param {object} opts
- * @param {import("node:sqlite").DatabaseSync} opts.db
- * @param {(event: string, data: object) => Promise<void>} opts.emit  SSE 送出
- * @param {string} opts.webSearchApiKey  websearchapi.ai の API キー
  */
-export function createSpotTools({ db, emit, webSearchApiKey }) {
+export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions): ToolDefinition[] {
   const list_spots = defineTool({
     name: "list_spots",
     label: "候補一覧",
@@ -101,12 +109,12 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
     async execute(_id, p) {
       const op = p.id != null ? "update" : "create";
       let current = null;
-      if (op === "update") {
+      if (p.id != null) {
         current = spotsRepo.getSpot(db, p.id);
         if (!current) return text(`id=${p.id} の候補が見つかりません。list_spots で id を確認してください。`);
       }
       const tempId = nextTempId();
-      const spot = pickDraft(p);
+      const spot = pickDraft(p as Record<string, unknown>);
       await emit("proposal", { tempId, op, id: p.id ?? null, spot, current });
       return text(
         `${op === "update" ? "更新" : "追加"}の提案を表示しました（「${p.name}」）。` +
@@ -201,11 +209,11 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
       }
 
       // 地名: /place/<name>/   座標: !3d<lat>!4d<lng>（実地点）優先、無ければ @lat,lng（地図中心）
-      let name = null;
+      let name: string | null = null;
       const pm = url.match(/\/place\/([^/@?]+)/);
       if (pm) name = decodeURIComponent(pm[1].replace(/\+/g, " "));
-      let lat = null;
-      let lng = null;
+      let lat: number | null = null;
+      let lng: number | null = null;
       const dm = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
       if (dm) {
         lat = Number(dm[1]);
@@ -291,7 +299,7 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
           console.error(`[web_search] HTTP ${res.status} query="${p.query}"`);
           return text(`検索失敗: HTTP ${res.status}（websearchapi.ai）`);
         }
-        const data = await res.json();
+        const data = await res.json() as { organic?: Array<{ title?: string; url?: string; description?: string }> };
         const results = (data.organic ?? []).slice(0, limit);
         console.log(`[web_search] query="${p.query}" → ${results.length} 件`);
         if (results.length === 0) return text("検索結果が見つかりませんでした。");

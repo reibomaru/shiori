@@ -1,0 +1,25 @@
+{
+  // バックエンド（server / db / scripts）向けの型チェック専用設定。
+  // 実行は Node 標準の型ストリップ（node *.ts）で行うため emit はしない。
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    // 型ストリップで実行するため、消去可能な構文のみ・import type を厳密に要求する。
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["server", "db", "scripts", "shared"]
+}

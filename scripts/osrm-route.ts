@@ -7,7 +7,7 @@
 //    環境変数 OSRM_BASE で差し替え可（例: 自前ホストや道路用 OSRM）。
 //
 //  使い方:
-//    node scripts/osrm-route.mjs <leg_id> '<spec>' [--eps 0.0006] [--dry] [--out <file>]
+//    node scripts/osrm-route.ts <leg_id> '<spec>' [--eps 0.0006] [--dry] [--out <file>]
 //
 //  <spec> は経由点。3 つの書き方を受け付ける（座標は必ず lng,lat 順）:
 //    1) "6.14,46.20;4.86,45.76;5.37,43.30"     … ; 区切り。単一ルートとしてルーティング
@@ -20,78 +20,89 @@
 //  実距離/直線距離の比も出力する（迂回検知用。1.x 台が目安、大きいと経由点不足を疑う）。
 // ============================================================
 import { writeFileSync } from "node:fs";
-import { openDb } from "../db/db.mjs";
+import { openDb } from "../db/db.ts";
+
+/** [lng, lat] の座標。 */
+type Coord = number[];
+/** サブ区間。route はルーティング、line は直線で橋渡し。 */
+interface Seg {
+  route?: Coord[];
+  line?: Coord[];
+}
 
 const BASE = process.env.OSRM_BASE || "https://signal.eu.org/osm/eu/route/v1/train";
 
 const argv = process.argv.slice(2);
 const legId = argv[0];
 const specRaw = argv[1];
-const flag = (n, def) => { const i = argv.indexOf(n); return i >= 0 ? (argv[i + 1] ?? true) : def; };
+function flag<T>(n: string, def: T): string | true | T {
+  const i = argv.indexOf(n);
+  return i >= 0 ? (argv[i + 1] ?? true) : def;
+}
 const EPS = Number(flag("--eps", 0.0006));
 const DRY = argv.includes("--dry");
 const OUT = flag("--out", null);
 
 if (!legId || !specRaw) {
-  console.error(`使い方: node scripts/osrm-route.mjs <leg_id> '<spec>' [--eps 0.0006] [--dry] [--out file]
+  console.error(`使い方: node scripts/osrm-route.ts <leg_id> '<spec>' [--eps 0.0006] [--dry] [--out file]
   spec 例: "6.14,46.20;4.86,45.76;5.37,43.30"
            [{"route":[[8.31,47.05],[8.55,47.05]]},{"line":[[8.55,47.05],[8.59,46.64]]}]`);
   process.exit(1);
 }
 
 // ---- spec を segs（[{route|line: [[lng,lat],...]}, ...]）に正規化 ----
-function parseSpec(s) {
+function parseSpec(s: string): Seg[] {
   const t = s.trimStart();
   if (t.startsWith("[") || t.startsWith("{")) {
     const j = JSON.parse(s);
     const arr = Array.isArray(j) ? j : [j];
-    if (arr.length && Array.isArray(arr[0])) return [{ route: arr }]; // [[lng,lat],...]
-    return arr; // [{route|line:[...]}]
+    if (arr.length && Array.isArray(arr[0])) return [{ route: arr as Coord[] }]; // [[lng,lat],...]
+    return arr as Seg[]; // [{route|line:[...]}]
   }
   // "lng,lat;lng,lat;..." 形式
   const pts = s.split(";").map((p) => p.split(",").map(Number));
   return [{ route: pts }];
 }
 
-const hav = (a, b) => { const R = 6371, r = (x) => x * Math.PI / 180;
+const hav = (a: Coord, b: Coord): number => { const R = 6371, r = (x: number) => x * Math.PI / 180;
   const dLa = r(b[1] - a[1]), dLo = r(b[0] - a[0]);
   const v = Math.sin(dLa / 2) ** 2 + Math.cos(r(a[1])) * Math.cos(r(b[1])) * Math.sin(dLo / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(v)); };
 
 // Douglas-Peucker（度単位の平面近似）
-function dp(pts, eps) {
+function dp(pts: Coord[], eps: number): Coord[] {
   if (pts.length < 3) return pts;
-  const sd = (p, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1];
+  const sd = (p: Coord, a: Coord, b: Coord): number => { const dx = b[0] - a[0], dy = b[1] - a[1];
     if (!dx && !dy) return Math.hypot(p[0] - a[0], p[1] - a[1]);
     const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)));
     return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy)); };
-  const keep = new Array(pts.length).fill(false);
+  const keep = new Array<boolean>(pts.length).fill(false);
   keep[0] = keep[pts.length - 1] = true;
-  const st = [[0, pts.length - 1]];
-  while (st.length) { const [s, e] = st.pop(); let md = 0, mi = -1;
+  const st: Array<[number, number]> = [[0, pts.length - 1]];
+  while (st.length) { const [s, e] = st.pop()!; let md = 0, mi = -1;
     for (let i = s + 1; i < e; i++) { const d = sd(pts[i], pts[s], pts[e]); if (d > md) { md = d; mi = i; } }
     if (md > eps && mi > 0) { keep[mi] = true; st.push([s, mi], [mi, e]); } }
   return pts.filter((_, i) => keep[i]);
 }
 
-async function route(pts) {
+async function route(pts: Coord[]): Promise<{ coords: Coord[]; dist: number }> {
   const url = `${BASE}/${pts.map((p) => `${p[0]},${p[1]}`).join(";")}?overview=full&geometries=geojson&steps=false&continue_straight=false`;
   const c = new AbortController(); const t = setTimeout(() => c.abort(), 60000);
   try {
     const res = await fetch(url, { signal: c.signal });
-    const j = await res.json();
+    const j = await res.json() as { code?: string; routes?: Array<{ geometry: { coordinates: Coord[] }; distance: number }> };
     if (j.code !== "Ok" || !j.routes?.[0]) throw new Error(`OSRM code=${j.code}`);
     return { coords: j.routes[0].geometry.coordinates, dist: j.routes[0].distance };
   } finally { clearTimeout(t); }
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 const segs = parseSpec(specRaw);
-let all = [], dist = 0, origN = 0;
+let all: Coord[] = [], dist = 0, origN = 0;
 for (let i = 0; i < segs.length; i++) {
   const seg = segs[i];
-  let coords;
+  let coords: Coord[];
   if (seg.line) {
     coords = seg.line;
     for (let k = 0; k < coords.length - 1; k++) dist += hav(coords[k], coords[k + 1]) * 1000;
@@ -110,14 +121,14 @@ for (let i = 0; i < segs.length; i++) {
 const simp = dp(all, EPS);
 const straight = hav(all[0], all[all.length - 1]);
 const geom = { type: "LineString", coordinates: simp };
-const stats = {
+const stats: Record<string, unknown> = {
   leg: Number(legId), origPoints: origN, points: simp.length,
   routeKm: +(dist / 1000).toFixed(1), straightKm: +straight.toFixed(1),
   ratio: +(dist / 1000 / straight).toFixed(2),
 };
 
 if (OUT) {
-  writeFileSync(OUT, JSON.stringify({ type: "Feature", properties: { leg: Number(legId) }, geometry: geom }));
+  writeFileSync(OUT as string, JSON.stringify({ type: "Feature", properties: { leg: Number(legId) }, geometry: geom }));
   stats.wroteFile = OUT;
 }
 
@@ -126,7 +137,9 @@ if (DRY) {
   console.log(JSON.stringify(stats, null, 2));
 } else {
   const db = openDb();
-  const row = db.prepare("SELECT id, from_name, to_name FROM legs WHERE id=?").get(Number(legId));
+  const row = db.prepare("SELECT id, from_name, to_name FROM legs WHERE id=?").get(Number(legId)) as
+    | { id: number; from_name: string | null; to_name: string | null }
+    | undefined;
   if (!row) { console.error(`leg id=${legId} が見つかりません`); process.exit(1); }
   db.prepare("UPDATE legs SET geojson=? WHERE id=?").run(JSON.stringify(geom), Number(legId));
   db.close();

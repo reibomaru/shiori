@@ -14,7 +14,7 @@
 |---|---|
 | 永続化 | **SQLite**（Node 標準 `node:sqlite`／ネイティブビルド不要） |
 | API | **Hono**（`@hono/node-server`） |
-| 入力UX | **Claude Code Skill** `travel-entry` ＋ `scripts/travel.mjs` CLI |
+| 入力UX | **Claude Code Skill** `travel-entry` ＋ `scripts/travel.ts` CLI |
 | 表示/編集 | **React + Vite + react-leaflet**（地図は OpenStreetMap・APIキー不要） |
 | 出力 | 印刷CSS（ブラウザの「PDFに保存」） |
 
@@ -45,12 +45,12 @@ Claude Code で `travel-entry` Skill を使い、ガイドブックを見なが�
 内部的には次の CLI を使います:
 
 ```bash
-node scripts/travel.mjs summary                    # 現状確認
-node scripts/travel.mjs add-spot '{"name":"…", "url":"…"}'
-node scripts/travel.mjs add-item 7 '{"time":"15:00","type":"spot","title":"…"}'
+node scripts/travel.ts summary                    # 現状確認
+node scripts/travel.ts add-spot '{"name":"…", "url":"…"}'
+node scripts/travel.ts add-item 7 '{"time":"15:00","type":"spot","title":"…"}'
 ```
 
-`node scripts/travel.mjs` を引数なしで実行するとコマンド一覧が出ます。
+`node scripts/travel.ts` を引数なしで実行するとコマンド一覧が出ます。
 
 ## AI アシスタントでスポットを追加・編集する（候補画面のチャット）
 
@@ -119,17 +119,17 @@ pnpm web                        # フロント(Vite:5173) はホストで起動
 手持ちの **GPX**（鉄道アプリ・Komoot・Garmin 等からエクスポート）も取り込めます（自動変換）:
 
 ```bash
-node scripts/travel.mjs legs                                    # 区間と現在の点数
-node scripts/travel.mjs set-geojson 3 ~/Downloads/route.geojson # GeoJSONを取込
-node scripts/travel.mjs set-gpx 3 ~/Downloads/route.gpx         # GPXを取込（→GeoJSONに変換）
+node scripts/travel.ts legs                                    # 区間と現在の点数
+node scripts/travel.ts set-geojson 3 ~/Downloads/route.geojson # GeoJSONを取込
+node scripts/travel.ts set-gpx 3 ~/Downloads/route.gpx         # GPXを取込（→GeoJSONに変換）
 ```
 
 ## ディレクトリ
 
 ```
-db/        schema.sql / db.mjs(接続) / seed.mjs(初期データ)
-server/    index.mjs  Hono API
-scripts/   travel.mjs CLI（Skill から利用）
+db/        schema.sql / db.ts(接続) / seed.ts(初期データ)
+server/    index.ts  Hono API
+scripts/   travel.ts CLI（Skill から利用）
 src/       React（App / components / api / types）
 .claude/skills/travel-entry/  情報入力 Skill
 data/      travel.db（SQLite・自動生成）

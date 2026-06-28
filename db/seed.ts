@@ -1,16 +1,69 @@
 // ============================================================
 //  初期データ投入スクリプト
-//   node db/seed.mjs          … 空のときだけ投入（既存データは保持）
-//   node db/seed.mjs --reset  … 全削除してから投入し直す
+//   node db/seed.ts          … 空のときだけ投入（既存データは保持）
+//   node db/seed.ts --reset  … 全削除してから投入し直す
 // ============================================================
-import { openDb } from "./db.mjs";
-import { toLineString } from "./geo.mjs";
+import { openDb } from "./db.ts";
+import { toLineString } from "./geo.ts";
+import type { LatLng } from "./geo.ts";
+import type { ItemType } from "../shared/types.ts";
 
 const RESET = process.argv.includes("--reset");
 const db = openDb();
 
-function count(table) {
-  return db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
+function count(table: string): number {
+  return (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
+}
+
+interface SeedItem {
+  time?: string;
+  type: ItemType;
+  title: string;
+  note?: string;
+  url?: string;
+  url_label?: string;
+  cost?: number;
+}
+interface SeedDay {
+  day_no: number;
+  date: string;
+  city: string;
+  title: string;
+  items: SeedItem[];
+}
+interface SeedRoute {
+  name: string;
+  lat: number;
+  lng: number;
+  hub: number;
+  leg_type: string;
+  note: string | null;
+}
+interface SeedLeg {
+  order_index: number;
+  from_name: string;
+  to_name: string;
+  mode: string;
+  coords: LatLng[] | null;
+  note: string;
+}
+interface SeedBudget {
+  category: string;
+  per_person: number;
+  note: string;
+}
+interface SeedSpot {
+  name: string;
+  name_en: string;
+  category: string;
+  city: string;
+  country: string;
+  lat: number;
+  lng: number;
+  url: string;
+  google_maps_url: string;
+  note: string;
+  source: string;
 }
 
 if (RESET) {
@@ -40,7 +93,7 @@ db.prepare(
 );
 
 // ---- days & items -----------------------------------------
-const days = [
+const days: SeedDay[] = [
   {
     day_no: 1, date: "2026-09-12", city: "ルツェルン",
     title: "日本 → チューリッヒ → ルツェルンへ",
@@ -163,7 +216,7 @@ for (const d of days) {
 }
 
 // ---- route -------------------------------------------------
-const route = [
+const route: SeedRoute[] = [
   { name: "成田／羽田", lat: 35.5494, lng: 139.7798, hub: 0, leg_type: "flight", note: null },
   { name: "チューリッヒ空港", lat: 47.4647, lng: 8.5492, hub: 0, leg_type: "flight", note: null },
   { name: "ルツェルン", lat: 47.0502, lng: 8.3093, hub: 1, leg_type: "train", note: "Day 1–2｜カペル橋・リギ山" },
@@ -181,7 +234,7 @@ route.forEach((r, i) => insRoute.run(i, r.name, r.lat, r.lng, r.hub, r.leg_type,
 // order_index は route の (i)→(i+1) 区間に対応。
 // 鉄道区間は経路の通過地点を GPX 化して保存（実際の GPX に差し替え可能）。
 // 空路は gpx を持たず、地図では破線でフォールバック表示。
-const legs = [
+const legs: SeedLeg[] = [
   { order_index: 0, from_name: "成田／羽田", to_name: "チューリッヒ", mode: "flight", coords: null, note: "国際線（直行 約14h）" },
   {
     order_index: 1, from_name: "チューリッヒ", to_name: "ルツェルン", mode: "train", note: "SBB 直通 約1h",
@@ -216,7 +269,7 @@ legs.forEach((l) => {
 });
 
 // ---- budget ------------------------------------------------
-const budget = [
+const budget: SeedBudget[] = [
   { category: "航空券（日本⇄欧州 往復・国際線）", per_person: 220000, note: "9月想定。経由便で抑える前提。" },
   { category: "スイス国内交通（Swiss Travel Pass＋氷河特急＋登山鉄道）", per_person: 140000, note: "8日パス2等＋氷河特急座席指定＋ユングフラウ/ゴルナーグラート割引運賃。" },
   { category: "スイス→南仏 移動（ジュネーブ→ニース、ニース→マルセイユ）", per_person: 40000, note: "フライト＋TGV。" },
@@ -230,7 +283,7 @@ const insBudget = db.prepare(`INSERT INTO budget (sort_order, category, per_pers
 budget.forEach((b, i) => insBudget.run(i, b.category, b.per_person, b.note));
 
 // ---- spots（行きたいスポット候補のサンプル）-----------------
-const spots = [
+const spots: SeedSpot[] = [
   { name: "シヨン城", name_en: "Château de Chillon", category: "観光", city: "モントルー", country: "スイス", lat: 46.4143, lng: 6.9276, url: "https://www.chillon.ch/en/", google_maps_url: "https://maps.app.goo.gl/8YbY2Yq3Z4w5xK6n7", note: "レマン湖畔の水城。ジュネーブから足を延ばせる候補。", source: "サンプル" },
   { name: "グラン・カニオン・デュ・ヴェルドン", name_en: "Gorges du Verdon", category: "自然", city: "プロヴァンス", country: "フランス", lat: 43.7494, lng: 6.3389, url: "https://www.verdontourisme.com/en/", google_maps_url: "https://maps.app.goo.gl/1Aa2Bb3Cc4Dd5Ee6", note: "ヨーロッパのグランドキャニオン。マルセイユ前の候補。", source: "サンプル" },
 ];

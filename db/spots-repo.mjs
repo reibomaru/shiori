@@ -8,7 +8,7 @@
 /** spots テーブルで部分更新を許可するカラム。 */
 export const SPOT_FIELDS = [
   "name", "name_en", "category", "city", "country",
-  "lat", "lng", "url", "note", "source", "want_level", "icon", "instagram",
+  "lat", "lng", "url", "google_maps_url", "note", "source", "icon", "instagram",
 ];
 
 /** spots 行: instagram(JSON文字列) を配列にパースして返す。 */
@@ -32,10 +32,10 @@ export function normalizeSpotBody(b) {
   return b;
 }
 
-/** 全候補を取得（行きたい度の高い順）。 */
+/** 全候補を取得（新しい順）。 */
 export function listSpots(db) {
   return db
-    .prepare("SELECT * FROM spots ORDER BY want_level DESC, created_at DESC")
+    .prepare("SELECT * FROM spots ORDER BY created_at DESC, id DESC")
     .all()
     .map(spotRow);
 }
@@ -49,12 +49,12 @@ export function getSpot(db, id) {
 export function createSpot(db, body) {
   const b = normalizeSpotBody({ ...body });
   const { lastInsertRowid } = db
-    .prepare(`INSERT INTO spots (name, name_en, category, city, country, lat, lng, url, note, source, want_level, icon, instagram)
+    .prepare(`INSERT INTO spots (name, name_en, category, city, country, lat, lng, url, google_maps_url, note, source, icon, instagram)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(
       b.name ?? "（無題）", b.name_en ?? null, b.category ?? null, b.city ?? null, b.country ?? null,
-      b.lat ?? null, b.lng ?? null, b.url ?? null, b.note ?? null, b.source ?? null,
-      b.want_level ?? 3, b.icon ?? null, b.instagram ?? null,
+      b.lat ?? null, b.lng ?? null, b.url ?? null, b.google_maps_url ?? null, b.note ?? null, b.source ?? null,
+      b.icon ?? null, b.instagram ?? null,
     );
   return getSpot(db, lastInsertRowid);
 }

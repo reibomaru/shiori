@@ -26,13 +26,27 @@ CREATE TABLE IF NOT EXISTS spots (
   country     TEXT,                  -- スイス / フランス など
   lat         REAL,
   lng         REAL,
-  url         TEXT,                  -- 公式サイト・Googleマップ等
+  url         TEXT,                  -- 公式サイト等
+  google_maps_url TEXT,              -- Google マップのリンク（口コミ・評価はこのリンク先で確認するため shiori には保存しない）
   note        TEXT,
   source      TEXT,                  -- 出典（例: 地球の歩き方 p.123）
-  want_level  INTEGER DEFAULT 3,     -- 行きたい度 1-5
   icon        TEXT,                  -- 地図ピンのアイコン種別（未指定なら category から自動）
   instagram   TEXT,                  -- 関連 Instagram 投稿 URL の JSON 配列（埋め込みギャラリー用）
   created_at  TEXT DEFAULT (datetime('now'))
+);
+
+-- Google Places から取得した情報のキャッシュ（スポットごと・API コスト削減用）。
+-- place_id は無期限保存可。評価・写真などのコンテンツは規約上 最大30日でリフレッシュする。
+-- 写真の実体は保存せず、表示用 URL（lh3.googleusercontent.com）だけを持つ。
+-- これは純粋なキャッシュなので、消えても再取得できる（spots を消すと CASCADE で消える）。
+CREATE TABLE IF NOT EXISTS spot_place_cache (
+  spot_id      INTEGER PRIMARY KEY REFERENCES spots(id) ON DELETE CASCADE,
+  place_id     TEXT,                 -- Google の place_id（無期限保存可・リフレッシュは Place Details で安く）
+  rating       REAL,                 -- 評価（★）
+  rating_count INTEGER,              -- 評価件数
+  maps_uri     TEXT,                 -- Google マップの URL
+  photos       TEXT,                 -- 表示用写真 URL の JSON 配列
+  fetched_at   TEXT                  -- 取得時刻（datetime('now') / UTC）。30日でリフレッシュ判定。
 );
 
 -- 1日の枠

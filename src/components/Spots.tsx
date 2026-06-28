@@ -1,20 +1,124 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaCompass, FaLink, FaStar, FaRegStar, FaInstagram, FaXmark } from "react-icons/fa6";
+import {
+  FaCompass,
+  FaLink,
+  FaMapLocationDot,
+  FaStar,
+  FaImages,
+  FaChevronLeft,
+  FaChevronRight,
+  FaInstagram,
+  FaXmark,
+} from "react-icons/fa6";
 import type { Spot } from "../types";
-import { api } from "../api";
+import { api, type SpotRating } from "../api";
 import { SPOT_ICONS, resolveSpotIcon } from "../spotIcons";
 import InstagramGallery, { normalizePermalink } from "./InstagramGallery";
 import ConfirmDialog from "./ConfirmDialog";
 
-function Stars({ n }: { n: number }) {
-  const v = Math.max(0, Math.min(5, n));
+/** Google マップの評価バッジ（Places API でライブ取得した rating を表示）。 */
+function RatingBadge({ rating, count }: { rating: number; count: number }) {
   return (
-    <span className="inline-flex items-center text-amber-400">
-      {Array.from({ length: 5 }, (_, i) =>
-        i < v ? <FaStar key={i} className="text-xs" /> : <FaRegStar key={i} className="text-xs" />
-      )}
+    <span
+      className="inline-flex items-center gap-1"
+      title="Google マップの評価（クチコミはリンク先で確認）"
+    >
+      <FaStar className="text-[11px] text-amber-400" />
+      <span className="font-semibold text-slate-700">{rating.toFixed(1)}</span>
+      {count > 0 && <span className="text-slate-400">({count.toLocaleString()})</span>}
     </span>
+  );
+}
+
+/**
+ * Google マップの写真カルーセル。縦が切れないよう object-contain で全体を表示し、
+ * 横に余白が出てもよい（背景でレターボックス）。矢印・ドット・カウンターで切替。
+ */
+function PhotoCarousel({ urls, alt }: { urls: string[]; alt: string }) {
+  const [idx, setIdx] = useState(0);
+  if (urls.length === 0) return null;
+  const n = urls.length;
+  const go = (d: number) => setIdx((i) => (i + d + n) % n);
+  return (
+    <div className="relative select-none overflow-hidden rounded-lg bg-slate-100">
+      <img src={urls[idx]} alt={`${alt} の写真 ${idx + 1}`} className="mx-auto h-80 w-full object-contain" />
+      {n > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={() => go(-1)}
+            aria-label="前の写真"
+            className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition hover:bg-black/60"
+          >
+            <FaChevronLeft />
+          </button>
+          <button
+            type="button"
+            onClick={() => go(1)}
+            aria-label="次の写真"
+            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition hover:bg-black/60"
+          >
+            <FaChevronRight />
+          </button>
+          <div className="absolute bottom-2 right-3 rounded-full bg-black/50 px-2 py-0.5 text-xs font-medium text-white">
+            {idx + 1} / {n}
+          </div>
+          <div className="absolute inset-x-0 bottom-2 flex justify-center">
+            <div className="flex gap-1.5 rounded-full bg-black/30 px-2 py-1">
+              {urls.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setIdx(i)}
+                  aria-label={`${i + 1} 枚目へ`}
+                  className={`h-1.5 rounded-full transition-all ${i === idx ? "w-4 bg-white" : "w-1.5 bg-white/60 hover:bg-white/90"}`}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Google マップの埋め込み地図（API キー不要の output=embed 形式）。
+ * 名称・都市・国から検索クエリを組み、地図＋場所カード（星評価）を表示する。
+ * クチコミ本文は Google 側が iframe 埋め込みを禁止（X-Frame-Options）しているため、
+ * カード内のリンクや「Google マップ」リンクから別タブで確認する。
+ */
+function GoogleMapEmbed({ spot }: { spot: Spot }) {
+  const query = [spot.name, spot.city, spot.country].filter(Boolean).join(" ");
+  if (!query) return null;
+  const src = `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=15&hl=ja&output=embed`;
+  return (
+    <div className="overflow-hidden rounded-lg ring-1 ring-slate-200">
+      <iframe
+        title={`${spot.name} の Google マップ`}
+        src={src}
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        allowFullScreen
+        className="block h-72 w-full border-0"
+      />
+    </div>
+  );
+}
+
+/** Google マップへのリンク。口コミ・評価はリンク先で確認する（shiori には保存しない）。 */
+function GoogleMapsLink({ url, onClick }: { url: string; onClick?: (e: React.MouseEvent) => void }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline"
+    >
+      <FaMapLocationDot className="text-[10px]" /> Google マップ
+    </a>
   );
 }
 
@@ -143,6 +247,26 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
   const [pendingDelete, setPendingDelete] = useState<Spot | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Google マップの評価（★）。Places API でライブ取得し DB には保存しない。
+  // キー未設定・取得失敗時は ★ を出さないだけ（地図やリンクはそのまま）。
+  const [ratings, setRatings] = useState<Record<number, SpotRating | null>>({});
+  const idsKey = spots.map((s) => s.id).join(",");
+  useEffect(() => {
+    if (spots.length === 0) return;
+    let cancelled = false;
+    api
+      .getSpotRatings()
+      .then((r) => {
+        if (!cancelled) setRatings(r.ratings ?? {});
+      })
+      .catch(() => {
+        /* 取得失敗時は ★ なしで続行 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [idsKey, spots.length]);
+
   // モーダルはサイドバーを覆わず、本文（<main>）エリア内で中央寄せにする。
   // サイドバーの開閉で幅が変わるので main の位置・幅を実測して追従させる。
   const rootRef = useRef<HTMLDivElement>(null);
@@ -186,7 +310,7 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
   }
 
   return (
-    <div ref={rootRef}>
+    <div ref={rootRef} className="mx-auto max-w-5xl">
       <ConfirmDialog
         open={pendingDelete !== null}
         title="候補を削除しますか？"
@@ -209,16 +333,26 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
           まだ候補がありません。Skill から登録してみましょう。
         </p>
       ) : (
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <ul className="flex flex-wrap gap-3">
           {spots.map((s) => {
             const igCount = s.instagram?.length ?? 0;
             return (
               <li
                 key={s.id}
                 onClick={() => setOpenId(s.id)}
-                className="cursor-pointer rounded-lg border border-slate-200 bg-white p-3 transition-colors hover:border-cyan-300 hover:bg-slate-50"
+                className="flex min-w-0 basis-[calc(50%-0.375rem)] max-w-md cursor-pointer flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-colors hover:border-cyan-300 hover:bg-slate-50"
               >
-                <div className="flex items-start gap-2">
+                {/* Google マップの写真の 1 枚目をカバーに（DB に30日キャッシュ）。 */}
+                {ratings[s.id]?.photoUrls?.[0] && (
+                  <img
+                    src={ratings[s.id]!.photoUrls[0]}
+                    alt={s.name}
+                    loading="lazy"
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                    className="aspect-video w-full object-cover"
+                  />
+                )}
+                <div className="flex items-start gap-2 p-3">
                   <div onClick={(e) => e.stopPropagation()}>
                     <IconPicker spot={s} reload={reload} />
                   </div>
@@ -231,10 +365,15 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
                       {s.country && <span>{s.country}</span>}
                       {s.city && <span>· {s.city}</span>}
                       {s.category && <span className="rounded bg-slate-100 px-1.5 py-0.5">{s.category}</span>}
-                      <Stars n={s.want_level} />
+                      {ratings[s.id] && (
+                        <RatingBadge rating={ratings[s.id]!.rating} count={ratings[s.id]!.userRatingCount} />
+                      )}
                     </div>
                     {s.note && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{s.note}</p>}
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-xs">
+                      {s.google_maps_url && (
+                        <GoogleMapsLink url={s.google_maps_url} onClick={(e) => e.stopPropagation()} />
+                      )}
                       {s.url && (
                         <a
                           href={s.url}
@@ -290,6 +429,15 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
             {/* ヘッダー＋基本情報（開いているスポットのもの） */}
             {openSpot && (
               <>
+                {/* トップ画像は 1 枚目を幅いっぱいに表示（縦は多少切れてよい）。 */}
+                {ratings[openSpot.id]?.photoUrls?.[0] && (
+                  <img
+                    src={ratings[openSpot.id]!.photoUrls[0]}
+                    alt={openSpot.name}
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                    className="h-48 w-full rounded-t-2xl object-cover"
+                  />
+                )}
                 <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5">
                   <div className="flex items-start gap-3">
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-2xl leading-none">
@@ -308,7 +456,12 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
                         {openSpot.category && (
                           <span className="rounded bg-slate-100 px-1.5 py-0.5">{openSpot.category}</span>
                         )}
-                        <Stars n={openSpot.want_level} />
+                        {ratings[openSpot.id] && (
+                          <RatingBadge
+                            rating={ratings[openSpot.id]!.rating}
+                            count={ratings[openSpot.id]!.userRatingCount}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -321,10 +474,11 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
                     <FaXmark size={20} />
                   </button>
                 </div>
-                {(openSpot.note || openSpot.url || openSpot.source) && (
+                {(openSpot.note || openSpot.url || openSpot.google_maps_url || openSpot.source) && (
                   <div className="space-y-3 px-5 pt-4">
                     {openSpot.note && <p className="text-sm text-slate-600">{openSpot.note}</p>}
                     <div className="flex flex-wrap items-center gap-3 text-xs">
+                      {openSpot.google_maps_url && <GoogleMapsLink url={openSpot.google_maps_url} />}
                       {openSpot.url && (
                         <a
                           href={openSpot.url}
@@ -339,6 +493,43 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
                     </div>
                   </div>
                 )}
+                {/* Google の写真（2 枚目以降）を、縦が切れないカルーセルで表示。 */}
+                {(ratings[openSpot.id]?.photoUrls?.length ?? 0) > 1 && (
+                  <div className="space-y-1.5 p-5 pt-4">
+                    <h4 className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+                      <FaImages className="text-amber-500" /> Google の写真
+                    </h4>
+                    <PhotoCarousel
+                      key={openSpot.id}
+                      urls={ratings[openSpot.id]!.photoUrls.slice(1)}
+                      alt={openSpot.name}
+                    />
+                  </div>
+                )}
+                {/* Google マップ（埋め込み地図＋場所カード）。開いているスポットの分だけ
+                    マウントし、閉じれば iframe も破棄する（多数の地図を同時ロードしない）。 */}
+                <div className="space-y-1.5 p-5 pt-4">
+                  <h4 className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+                    <FaMapLocationDot className="text-emerald-700" /> Google マップ
+                  </h4>
+                  <GoogleMapEmbed spot={openSpot} />
+                  <p className="text-xs text-slate-400">
+                    星評価・写真はカード内に表示されます。クチコミ本文は{" "}
+                    {openSpot.google_maps_url ? (
+                      <a
+                        href={openSpot.google_maps_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-emerald-700 hover:underline"
+                      >
+                        Google マップ
+                      </a>
+                    ) : (
+                      "Google マップ"
+                    )}{" "}
+                    で確認できます。
+                  </p>
+                </div>
               </>
             )}
 

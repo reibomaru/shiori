@@ -45,7 +45,7 @@ function dayIdByNo(no) {
   return row.id;
 }
 
-const SPOT_FIELDS = ["name", "name_en", "category", "city", "country", "lat", "lng", "url", "note", "source", "want_level", "icon", "instagram"];
+const SPOT_FIELDS = ["name", "name_en", "category", "city", "country", "lat", "lng", "url", "google_maps_url", "note", "source", "icon", "instagram"];
 const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id"];
 const DAY_FIELDS = ["day_no", "date", "city", "title"];
 const BUDGET_FIELDS = ["sort_order", "category", "per_person", "note"];
@@ -65,7 +65,7 @@ switch (cmd) {
 
   // ---- spots（行きたい候補） ----
   case "spots":
-    out(db.prepare("SELECT * FROM spots ORDER BY want_level DESC, id").all());
+    out(db.prepare("SELECT * FROM spots ORDER BY created_at DESC, id DESC").all());
     break;
   case "add-spot":
     out(insert("spots", parseJson(args[0], "spot"), SPOT_FIELDS));
@@ -180,7 +180,7 @@ switch (cmd) {
   edit-trip <json>
 
 例:
-  node scripts/travel.mjs add-spot '{"name":"シヨン城","city":"モントルー","country":"スイス","lat":46.4143,"lng":6.9276,"url":"https://www.chillon.ch/","want_level":4,"source":"地球の歩き方 p.210"}'
+  node scripts/travel.mjs add-spot '{"name":"シヨン城","city":"モントルー","country":"スイス","lat":46.4143,"lng":6.9276,"url":"https://www.chillon.ch/","google_maps_url":"https://maps.app.goo.gl/...","source":"地球の歩き方 p.210"}'
   node scripts/travel.mjs add-item 7 '{"time":"15:00","type":"spot","title":"シヨン城","note":"レマン湖畔の水城","url":"https://www.chillon.ch/"}'
   node scripts/travel.mjs legs                          # 区間と現在の点数を確認
   node scripts/travel.mjs set-geojson 3 ~/Downloads/glacier-express.geojson  # GeoJSON取込

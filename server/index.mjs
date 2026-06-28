@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { openDb } from "../db/db.mjs";
 import * as spotsRepo from "../db/spots-repo.mjs";
+import { getSpotRatings, invalidateSpotCache } from "./places.mjs";
 import { registerSpotChatRoute } from "./agent/route.mjs";
 
 /** legs 行 → GeoJSON Feature */
@@ -116,9 +117,21 @@ app.delete("/api/budget/:id", (c) => {
 });
 
 // ---- spots（行きたいスポット ライブラリ） ------------------
+// Google マップの評価（★）を Places API でライブ取得（DB 非永続化）。
+// /api/spots/:id（PUT/DELETE）とはメソッド・パスが異なるため衝突しない。
+app.get("/api/spots/ratings", async (c) => {
+  const spots = spotsRepo.listSpots(db);
+  return c.json(await getSpotRatings(db, spots));
+});
 app.get("/api/spots", (c) => c.json(spotsRepo.listSpots(db)));
 app.post("/api/spots", async (c) => c.json(spotsRepo.createSpot(db, await c.req.json())));
-app.put("/api/spots/:id", async (c) => c.json(spotsRepo.updateSpot(db, c.req.param("id"), await c.req.json())));
+app.put("/api/spots/:id", async (c) => {
+  const id = c.req.param("id");
+  const patch = await c.req.json();
+  // 名称・都市・国が変わると別の場所になり得るので Places キャッシュを無効化する。
+  if (["name", "city", "country"].some((k) => k in patch)) invalidateSpotCache(db, id);
+  return c.json(spotsRepo.updateSpot(db, id, patch));
+});
 app.delete("/api/spots/:id", (c) => c.json(spotsRepo.deleteSpot(db, c.req.param("id"))));
 
 // ---- spots チャット（AI エージェントによる候補編集の提案）----

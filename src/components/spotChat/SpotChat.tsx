@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { FaPaperPlane, FaRobot, FaStop, FaWandMagicSparkles, FaImage, FaXmark, FaPlus, FaTrash } from "react-icons/fa6";
+import { FaPaperPlane, FaStop, FaWandMagicSparkles, FaImage, FaXmark, FaTrash } from "react-icons/fa6";
 import { PanelRightClose } from "lucide-react";
 import { api } from "../../api";
 import { type AttachedImage, type Proposal, type UseSpotChat } from "../../hooks/useSpotChat";
@@ -109,7 +109,15 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
       />
       {/* ヘッダ: 会話履歴はセレクトボックスで選択 */}
       <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5">
-        <FaRobot className="shrink-0 text-cyan-700" />
+        {onClose && (
+          <button
+            onClick={onClose}
+            title="チャットを閉じる"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          >
+            <PanelRightClose size={16} />
+          </button>
+        )}
         <SessionSelect
           value={activeId}
           options={[
@@ -120,14 +128,8 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
             const s = sessions.find((x) => x.id === id);
             if (s) void selectSession(s);
           }}
+          onCreate={newSession}
         />
-        <button
-          onClick={newSession}
-          title="新しい会話"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-700 text-white transition-colors hover:bg-cyan-600"
-        >
-          <FaPlus className="text-xs" />
-        </button>
         {activeSaved && (
           <button
             onClick={() => setConfirmDelete(true)}
@@ -135,15 +137,6 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
           >
             <FaTrash className="text-xs" />
-          </button>
-        )}
-        {onClose && (
-          <button
-            onClick={onClose}
-            title="チャットを閉じる"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-          >
-            <PanelRightClose size={16} />
           </button>
         )}
       </div>

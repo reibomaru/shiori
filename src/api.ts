@@ -13,6 +13,18 @@ export interface ChatSessionSummary {
   has_history: boolean;
 }
 
+/** Google マップの評価（★）・写真。Places API から取得し DB に30日キャッシュ。 */
+export interface SpotRating {
+  rating: number;
+  userRatingCount: number;
+  googleMapsUri: string | null;
+  photoUrls: string[]; // Places の写真 URL（lh3.googleusercontent.com）。複数枚。
+}
+export interface SpotRatingsResponse {
+  configured: boolean; // GOOGLE_MAPS_API_KEY が設定されているか（未設定でもキャッシュは返る）
+  ratings: Record<number, SpotRating | null>;
+}
+
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -36,6 +48,7 @@ export const api = {
   createBudget: (body: Record<string, unknown>) => http(`/api/budget`, "POST", body),
   deleteBudget: (id: number) => http(`/api/budget/${id}`, "DELETE"),
 
+  getSpotRatings: () => http<SpotRatingsResponse>(`/api/spots/ratings`, "GET"),
   createSpot: (body: Record<string, unknown>) => http(`/api/spots`, "POST", body),
   updateSpot: (id: number, patch: Record<string, unknown>) => http(`/api/spots/${id}`, "PUT", patch),
   deleteSpot: (id: number) => http(`/api/spots/${id}`, "DELETE"),

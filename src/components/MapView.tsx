@@ -239,17 +239,17 @@ export default function MapView({
       fontFamily: '"Hiragino Sans", system-ui, sans-serif',
       outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },
     }),
-    // 行きたいスポット候補：Google マップ保存リスト風のピン。want_level が高いほど大きく表示
+    // 行きたいスポット候補：Google マップ保存リスト風のピン。
     showSpots &&
       new IconLayer({
         id: "spots",
         data: spotPoints, pickable: true,
         getPosition: (d: any) => d.position,
         getIcon: (d: any) => spotPinIcon(resolveSpotIcon(d)),
-        getSize: (d: any) => 38 + Math.max(0, Math.min(5, d.want_level ?? 0)) * 4,
+        getSize: 46,
         sizeUnits: "pixels",
         billboard: true,
-        updateTriggers: { getIcon: spotPoints.map((s) => s.icon ?? s.category).join(","), getSize: showSpots },
+        updateTriggers: { getIcon: spotPoints.map((s) => s.icon ?? s.category).join(",") },
       }),
     showSpots &&
       new TextLayer({
@@ -283,13 +283,10 @@ export default function MapView({
       html = `<b>${o.index + 1}. ${o.name}</b>${o.note ? "<br>" + o.note : ""}`;
     } else if (layer?.id === "spots" || layer?.id === "spot-labels") {
       const o = object as Spot;
-      const lv = Math.max(0, Math.min(5, o.want_level ?? 0));
       const meta = [o.category, o.city || o.country].filter(Boolean).join(" · ");
-      const stars = "★".repeat(lv) + "☆".repeat(5 - lv);
       html =
         `<b>${resolveSpotIcon(o).emoji} ${o.name}</b>` +
         (meta ? `<br>${meta}` : "") +
-        `<br><span style="color:#f9a8d4">${stars}</span>` +
         (o.note ? `<br>${o.note}` : "");
     } else return null;
     return { html, style: { background: "rgba(15,23,42,.92)", color: "#fff", fontSize: "12px", borderRadius: "6px", padding: "6px 8px" } };

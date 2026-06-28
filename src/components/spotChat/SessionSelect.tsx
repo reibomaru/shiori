@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Plus } from "lucide-react";
 
 export type SessionOption = { id: string; title?: string | null };
 
 /**
  * 会話履歴を選ぶためのカスタムドロップダウン。
  * ネイティブ <select> だと OS 依存の見た目になり一覧が読みづらいため、自前で実装している。
+ * onCreate を渡すと、先頭に「新しい会話」を作成する項目を表示する（追加可能なセレクト）。
  */
 export default function SessionSelect({
   value,
   options,
   onSelect,
+  onCreate,
 }: {
   value: string;
   options: SessionOption[];
   onSelect: (id: string) => void;
+  onCreate?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -44,6 +47,24 @@ export default function SessionSelect({
       </button>
       {open && (
         <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+          {onCreate && (
+            <>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCreate();
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-medium text-cyan-700 transition-colors hover:bg-cyan-50"
+                >
+                  <Plus size={13} className="shrink-0" />
+                  <span>新しい会話を作成</span>
+                </button>
+              </li>
+              <li aria-hidden className="my-1 border-t border-slate-100" />
+            </>
+          )}
           {options.map((o) => {
             const selected = o.id === value;
             return (

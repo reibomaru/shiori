@@ -66,9 +66,9 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
         (s) =>
           `#${s.id} ${s.name}${s.name_en ? ` (${s.name_en})` : ""} / ${s.country ?? "?"}${
             s.city ? "・" + s.city : ""
-          } / ${s.category ?? "未分類"} / 行きたい度${s.want_level} / 座標${
+          } / ${s.category ?? "未分類"} / 座標${
             s.lat != null && s.lng != null ? "あり" : "なし"
-          }`,
+          }${s.google_maps_url ? " / Mapリンクあり" : ""}`,
       );
       return text(`現在 ${spots.length} 件:\n${lines.join("\n")}`);
     },
@@ -82,17 +82,17 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
     country: Type.Optional(Type.String({ description: "国名（スイス / フランス など）" })),
     lat: Type.Optional(Type.Number({ description: "緯度。不明なら省略可" })),
     lng: Type.Optional(Type.Number({ description: "経度。不明なら省略可" })),
-    url: Type.Optional(Type.String({ description: "公式サイトや Google マップの URL" })),
+    url: Type.Optional(Type.String({ description: "公式サイトの URL" })),
+    google_maps_url: Type.Optional(Type.String({ description: "Google マップのリンク。口コミ・評価はリンク先で確認するため、評価値などは保存しない" })),
     note: Type.Optional(Type.String({ description: "メモ・見どころ" })),
     source: Type.Optional(Type.String({ description: "情報の出典（URL やサイト名）" })),
-    want_level: Type.Optional(Type.Number({ description: "行きたい度 1〜5（不明なら 3）" })),
   };
 
   const propose_upsert_spot = defineTool({
     name: "propose_upsert_spot",
     label: "候補の追加/更新を提案",
     description:
-      "スポットの新規追加（id 省略）または既存候補の更新（id 指定）をユーザーに提案する。DB には書き込まず、ユーザーが UI で承認して初めて保存される。緯度経度は分かる範囲で埋め、出典(source)と URL もできるだけ付ける。",
+      "スポットの新規追加（id 省略）または既存候補の更新（id 指定）をユーザーに提案する。DB には書き込まず、ユーザーが UI で承認して初めて保存される。緯度経度は分かる範囲で埋め、出典(source)・公式 URL・Google マップのリンク(google_maps_url)もできるだけ付ける。口コミや星評価はリンク先で見られるので保存しない。",
     promptSnippet: "propose_upsert_spot({id?, name, ...}) — 追加/更新を提案（保存はユーザー承認後）",
     parameters: Type.Object({
       id: Type.Optional(Type.Number({ description: "更新対象の既存スポット id。新規追加なら省略" })),
@@ -227,7 +227,7 @@ export function createSpotTools({ db, emit, webSearchApiKey }) {
         `地名: ${name ?? "(不明)"}\n` +
           `lat: ${lat ?? "(不明)"}\nlng: ${lng ?? "(不明)"}\n` +
           `解決後URL: ${url}\n` +
-          `この name/lat/lng を使って propose_upsert_spot で提案してください（url にはこの解決後URL か元の共有URLを入れてよい）。`,
+          `この name/lat/lng を使って propose_upsert_spot で提案してください（google_maps_url にはこの解決後URL か元の共有URLを入れる）。`,
       );
     },
   });

@@ -18,13 +18,14 @@ const TEXT_FIELDS: { key: string; label: string; wide?: boolean }[] = [
   { key: "city", label: "都市" },
   { key: "country", label: "国" },
   { key: "url", label: "URL", wide: true },
+  { key: "google_maps_url", label: "Google マップ URL", wide: true },
   { key: "source", label: "出典", wide: true },
 ];
 
 function toDraft(p: Proposal): Draft {
   const base = { ...(p.current ?? {}), ...(p.spot ?? {}) } as Record<string, unknown>;
   const d: Draft = {};
-  for (const k of [...TEXT_FIELDS.map((f) => f.key), "note", "lat", "lng", "want_level"]) {
+  for (const k of [...TEXT_FIELDS.map((f) => f.key), "note", "lat", "lng"]) {
     const v = base[k];
     d[k] = v === null || v === undefined ? "" : String(v);
   }
@@ -41,11 +42,11 @@ function toBody(d: Draft): Record<string, unknown> {
     city: d.city?.trim() || null,
     country: d.country?.trim() || null,
     url: d.url?.trim() || null,
+    google_maps_url: d.google_maps_url?.trim() || null,
     source: d.source?.trim() || null,
     note: d.note?.trim() || null,
     lat: num(d.lat),
     lng: num(d.lng),
-    want_level: d.want_level?.trim() === "" ? 3 : Math.max(1, Math.min(5, Number(d.want_level) || 3)),
   };
 }
 
@@ -115,19 +116,6 @@ export default function ProposalCard({
               onChange={(e) => set("lng", e.target.value)}
               className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400"
             />
-          </label>
-          <label>
-            <span className="block text-[10px] font-medium text-slate-500">行きたい度 (1-5)</span>
-            <select
-              value={draft.want_level || "3"}
-              disabled={resolved}
-              onChange={(e) => set("want_level", e.target.value)}
-              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400"
-            >
-              {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n} value={n}>{"★".repeat(n)}</option>
-              ))}
-            </select>
           </label>
           <label className="col-span-2">
             <span className="block text-[10px] font-medium text-slate-500">メモ</span>

@@ -8,48 +8,75 @@
 // ============================================================
 import { existsSync } from "node:fs";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
-import { summarizeToolInput } from "./runner.mjs";
+import { summarizeToolInput } from "./runner.ts";
+
+/** メッセージ内の content ブロック（テキスト / 画像 / ツール呼び出し）。 */
+interface ContentBlock {
+  type?: string;
+  text?: string;
+  data?: string;
+  mimeType?: string;
+  id?: string;
+  name?: string;
+  arguments?: unknown;
+}
+
+/** ツール実行 chip（フロント表示用）。 */
+interface ChatTool {
+  id: string;
+  name: string;
+  detail: string | undefined;
+}
+
+/** フロントに返す会話メッセージ。 */
+export interface ChatMessage {
+  role: "user" | "assistant";
+  text: string;
+  tools: ChatTool[];
+  proposals: never[];
+  images: string[];
+}
 
 /** AssistantMessage.content / UserMessage.content からテキストを連結。 */
-function extractText(content) {
+function extractText(content: unknown): string {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
-  return content
+  return (content as ContentBlock[])
     .filter((b) => b && b.type === "text" && typeof b.text === "string")
-    .map((b) => b.text)
+    .map((b) => b.text ?? "")
     .join("");
 }
 
 /** UserMessage.content から画像（data URL）を取り出す。 */
-function extractImages(content) {
+function extractImages(content: unknown): string[] {
   if (!Array.isArray(content)) return [];
-  return content
+  return (content as ContentBlock[])
     .filter((b) => b && b.type === "image" && typeof b.data === "string")
     .map((b) => `data:${b.mimeType || "image/png"};base64,${b.data}`);
 }
 
 /** AssistantMessage.content から ToolCall を chip 用に取り出す。 */
-function extractTools(content) {
+function extractTools(content: unknown): ChatTool[] {
   if (!Array.isArray(content)) return [];
-  return content
+  return (content as ContentBlock[])
     .filter((b) => b && b.type === "toolCall")
-    .map((b) => ({ id: b.id, name: b.name, detail: summarizeToolInput(b.name, b.arguments) }));
+    .map((b) => ({ id: b.id ?? "", name: b.name ?? "", detail: summarizeToolInput(b.name ?? "", b.arguments) }));
 }
 
 /**
  * セッションファイルを読み、ChatMessage[] を返す。
  * ファイルが無い / 壊れている場合は空配列。
  */
-export function readSessionMessages(sessionFile) {
+export function readSessionMessages(sessionFile: string | undefined): ChatMessage[] {
   if (!sessionFile || !existsSync(sessionFile)) return [];
-  let entries;
+  let entries: Array<{ type?: string; message?: { role?: string; content?: unknown } }>;
   try {
-    entries = SessionManager.open(sessionFile).getBranch();
+    entries = SessionManager.open(sessionFile).getBranch() as typeof entries;
   } catch {
     return [];
   }
 
-  const messages = [];
+  const messages: ChatMessage[] = [];
   for (const entry of entries) {
     if (entry.type !== "message" || !entry.message) continue;
     const m = entry.message;

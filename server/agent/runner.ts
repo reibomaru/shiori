@@ -18,7 +18,17 @@ import {
   createAgentSession,
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { getModel } from "@earendil-works/pi-ai/compat";
+
+/** SSE 送出関数（route.ts から渡される）。 */
+export type EmitFn = (event: string, data: unknown) => Promise<void> | void;
+
+/** 添付画像（base64）。 */
+export interface AgentImage {
+  data: string;
+  mimeType: string;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
@@ -55,9 +65,17 @@ const SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「行きたい
 7. 複数スポットの提案は propose_upsert_spot を複数回呼ぶ。
 8. 応答は日本語で簡潔に。`;
 
+/** 1 ターン分の usage。 */
+export interface TurnUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadInputTokens: number;
+  costUSD: number;
+}
+
 /** turn_end メッセージから 1 ターン分の usage を取り出す。 */
-function extractUsage(message) {
-  const u = message?.usage;
+function extractUsage(message: unknown): TurnUsage {
+  const u = (message as { usage?: { input?: number; output?: number; cacheRead?: number; cost?: { total?: number } } } | undefined)?.usage;
   if (!u) return { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, costUSD: 0 };
   return {
     inputTokens: u.input ?? 0,
@@ -68,20 +86,21 @@ function extractUsage(message) {
 }
 
 /** tool 引数を chip 用に 1 行へ要約。 */
-export function summarizeToolInput(name, input) {
-  if (!input) return undefined;
-  const s = (v) => (typeof v === "string" && v ? v : undefined);
+export function summarizeToolInput(name: string, input: unknown): string | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const o = input as Record<string, unknown>;
+  const s = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
   switch (name) {
     case "web_search":
-      return s(input.query);
+      return s(o.query);
     case "geocode":
-      return s(input.query);
+      return s(o.query);
     case "fetch_url":
-      return s(input.url);
+      return s(o.url);
     case "propose_upsert_spot":
-      return s(input.name);
+      return s(o.name);
     case "propose_delete_spot":
-      return input.id != null ? `#${input.id}` : undefined;
+      return o.id != null ? `#${o.id}` : undefined;
     default:
       return undefined;
   }
@@ -89,18 +108,33 @@ export function summarizeToolInput(name, input) {
 
 export class MissingApiKeyError extends Error {}
 
+/** runSpotAgent のパラメータ。 */
+export interface RunSpotAgentParams {
+  /** ユーザー入力 */
+  prompt: string;
+  /** 前ターンの pi セッションファイル */
+  resumeSessionFile?: string;
+  /** リクエスト用ツール一式 */
+  customTools: ToolDefinition[];
+  /** SSE 送出 */
+  emit: EmitFn;
+  /** 添付画像（base64） */
+  images?: AgentImage[];
+  signal?: AbortSignal;
+}
+
 /**
  * 1 プロンプト分のエージェント応答をストリームする。
- * @param {object} params
- * @param {string} params.prompt          ユーザー入力
- * @param {string|undefined} params.resumeSessionFile  前ターンの pi セッションファイル
- * @param {import("./tools.mjs").createSpotTools} params.customTools  リクエスト用ツール一式
- * @param {(event: string, data: object) => Promise<void>} params.emit  SSE 送出
- * @param {Array<{data: string, mimeType: string}>=} params.images  添付画像（base64）
- * @param {AbortSignal=} params.signal
- * @returns {Promise<string|undefined>}  次回 resume 用の pi セッションファイルパス
+ * @returns 次回 resume 用の pi セッションファイルパス
  */
-export async function runSpotAgent({ prompt, resumeSessionFile, customTools, emit, images, signal }) {
+export async function runSpotAgent({
+  prompt,
+  resumeSessionFile,
+  customTools,
+  emit,
+  images,
+  signal,
+}: RunSpotAgentParams): Promise<string | undefined> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new MissingApiKeyError("GEMINI_API_KEY が未設定です。サーバの環境変数に設定してください。");
@@ -111,7 +145,9 @@ export async function runSpotAgent({ prompt, resumeSessionFile, customTools, emi
   const authStorage = AuthStorage.create();
   authStorage.setRuntimeApiKey(PROVIDER, apiKey);
   const modelRegistry = ModelRegistry.create(authStorage);
-  const model = modelRegistry.find(PROVIDER, MODEL_ID) ?? getModel(PROVIDER, MODEL_ID);
+  // getModel は静的なモデルカタログに対する強い generic 型を持つため、
+  // 環境変数由来の動的な文字列では型が合わない。実行時の解決に委ねて never で渡す。
+  const model = modelRegistry.find(PROVIDER, MODEL_ID) ?? getModel(PROVIDER as never, MODEL_ID as never);
   // モデルが解決できないと createAgentSession が既定プロバイダ（amazon-bedrock）に
   // 黙ってフォールバックし「No API key found for amazon-bedrock」になる。
   // 原因が分かりにくいので、ここで明示的に弾く。
@@ -137,7 +173,8 @@ export async function runSpotAgent({ prompt, resumeSessionFile, customTools, emi
     ? SessionManager.open(resumeSessionFile)
     : SessionManager.create(ROOT, SESSION_DIR);
 
-  let session;
+  let session: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
+  const onAbort = (): void => void session?.abort();
   try {
     const created = await createAgentSession({
       cwd: ROOT,
@@ -154,7 +191,6 @@ export async function runSpotAgent({ prompt, resumeSessionFile, customTools, emi
     });
     session = created.session;
 
-    const onAbort = () => void session?.abort();
     if (signal) {
       if (signal.aborted) onAbort();
       else signal.addEventListener("abort", onAbort, { once: true });
@@ -164,7 +200,7 @@ export async function runSpotAgent({ prompt, resumeSessionFile, customTools, emi
       void (async () => {
         try {
           if (event.type === "message_update") {
-            const ame = event.assistantMessageEvent;
+            const ame = event.assistantMessageEvent as { type?: string; delta?: string };
             if (ame?.type === "text_delta" && typeof ame.delta === "string" && ame.delta) {
               await emit("text_delta", { chunk: ame.delta });
             }
@@ -185,7 +221,7 @@ export async function runSpotAgent({ prompt, resumeSessionFile, customTools, emi
 
     const imageContents = (images ?? [])
       .filter((im) => im && typeof im.data === "string" && typeof im.mimeType === "string")
-      .map((im) => ({ type: "image", data: im.data, mimeType: im.mimeType }));
+      .map((im) => ({ type: "image" as const, data: im.data, mimeType: im.mimeType }));
 
     try {
       await session.prompt(prompt, imageContents.length ? { images: imageContents } : undefined);

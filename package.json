@@ -6,12 +6,13 @@
   "packageManager": "pnpm@9.15.0",
   "description": "スイス & 南仏ハネムーン しおり（SQLite永続化・旅程・予算・地図・PDF）",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c cyan,green \"node --env-file-if-exists=.env server/index.mjs\" \"vite\"",
+    "dev": "concurrently -k -n api,web -c cyan,green \"node --env-file-if-exists=.env server/index.ts\" \"vite\"",
     "web": "vite",
-    "api": "node --env-file-if-exists=.env server/index.mjs",
-    "db:init": "node db/seed.mjs",
-    "db:reset": "node db/seed.mjs --reset",
-    "build": "tsc -b && vite build",
+    "api": "node --env-file-if-exists=.env server/index.ts",
+    "db:init": "node db/seed.ts",
+    "db:reset": "node db/seed.ts --reset",
+    "typecheck": "tsc -b && tsc -p tsconfig.server.json",
+    "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
     "@types/geojson": "^7946.0.16",
+    "@types/node": "^26.0.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",

@@ -1,6 +1,6 @@
 # レシピ：旅程（days / items）
 
-`/itinerary` の日ごとの予定を編集する。CLI(`travel.mjs`)でも生SQL(`sql.mjs`)でも編集可。
+`/itinerary` の日ごとの予定を編集する。CLI(`travel.ts`)でも生SQL(`sql.ts`)でも編集可。
 単純な追加・修正は CLI、複数行の並べ替え・横断検索は生SQL が向く。
 
 ## データの形
@@ -15,47 +15,47 @@
 
 ## 確認系（書く前に必ず）
 ```
-node scripts/travel.mjs days
-node scripts/travel.mjs items <day_no>
+node scripts/travel.ts days
+node scripts/travel.ts items <day_no>
 # 生SQLなら：
-node scripts/sql.mjs "SELECT i.id,i.sort_order,i.time,i.type,i.title FROM items i JOIN days d ON d.id=i.day_id WHERE d.day_no=3 ORDER BY i.sort_order"
+node scripts/sql.ts "SELECT i.id,i.sort_order,i.time,i.type,i.title FROM items i JOIN days d ON d.id=i.day_id WHERE d.day_no=3 ORDER BY i.sort_order"
 ```
 
 ## 予定の追加（day_no=3 の末尾に1件）
 ```
-node scripts/travel.mjs add-item 3 '{"time":"18:30","type":"meal","title":"夕食：チーズフォンデュ","note":"旧市街のレストラン","cost":6000}'
+node scripts/travel.ts add-item 3 '{"time":"18:30","type":"meal","title":"夕食：チーズフォンデュ","note":"旧市街のレストラン","cost":6000}'
 ```
 `add-item` は `sort_order` 省略時に「その日の最大+1」を自動採番。途中に差し込むなら
 後続を +1 してから追加するか、`sort_order` を明示する。
 
 ## 予定の修正
 ```
-node scripts/travel.mjs items 2                         # id を確認
-node scripts/travel.mjs edit-item 8 '{"time":"10:00","title":"カペル橋と旧市街さんぽ"}'
+node scripts/travel.ts items 2                         # id を確認
+node scripts/travel.ts edit-item 8 '{"time":"10:00","title":"カペル橋と旧市街さんぽ"}'
 ```
 
 ## 同じ日の中で並べ替え（sort_order を入れ替える）
 ```
-node scripts/sql.mjs "SELECT id,sort_order FROM items WHERE id IN (8,9)"
-node scripts/sql.mjs "UPDATE items SET sort_order=3 WHERE id=8"
-node scripts/sql.mjs "UPDATE items SET sort_order=2 WHERE id=9"
+node scripts/sql.ts "SELECT id,sort_order FROM items WHERE id IN (8,9)"
+node scripts/sql.ts "UPDATE items SET sort_order=3 WHERE id=8"
+node scripts/sql.ts "UPDATE items SET sort_order=2 WHERE id=9"
 ```
 
 ## 予定を別の日に移す（day_id を変更）
 `edit-item` は `day_id`・`sort_order` も変更できる（day_id は **days.id** を渡す）。
 ```
-node scripts/travel.mjs edit-item 34 '{"day_id":8,"sort_order":1,"time":"19:30"}'
+node scripts/travel.ts edit-item 34 '{"day_id":8,"sort_order":1,"time":"19:30"}'
 ```
 
 ## 予定の削除 / 日付・都市・見出しの修正
 ```
-node scripts/travel.mjs rm-item 12
-node scripts/travel.mjs edit-day 4 '{"date":"2026-09-15","city":"ツェルマット","title":"ツェルマット｜ゴルナーグラート"}'
+node scripts/travel.ts rm-item 12
+node scripts/travel.ts edit-day 4 '{"date":"2026-09-15","city":"ツェルマット","title":"ツェルマット｜ゴルナーグラート"}'
 ```
 
 ## 日を増やす / 減らす（移動プラン変更に伴う日構成の組み替え）
 ```
-node scripts/travel.mjs add-day '{"day_no":12,"date":"2026-09-23","city":"アヴィニョン","title":"アヴィニョン｜法王庁"}'
+node scripts/travel.ts add-day '{"day_no":12,"date":"2026-09-23","city":"アヴィニョン","title":"アヴィニョン｜法王庁"}'
 ```
 - `day_no` は表示順の基準。途中に挿入するなら後続の day_no を繰り上げる。
 - **day を消すと `items` も CASCADE で全消し**。残したい予定があれば先に `edit-item` で別日へ移す。

@@ -43,30 +43,30 @@ spots（行きたい候補）──昇格──▶ items（その日の予定に
 
 ## 2つのインターフェイス
 
-### ① travel.mjs CLI（主・推奨）
+### ① travel.ts CLI（主・推奨）
 構造化された読み書き。JSON は **シングルクォート**で囲む。
 
 ```
-node scripts/travel.mjs summary                       # まず全体把握
-node scripts/travel.mjs route | legs | days | spots | budget
-node scripts/travel.mjs items <day_no>
+node scripts/travel.ts summary                       # まず全体把握
+node scripts/travel.ts route | legs | days | spots | budget
+node scripts/travel.ts items <day_no>
 
-node scripts/travel.mjs add-route '<json>'  | edit-route <id> '<json>' | rm-route <id>
-node scripts/travel.mjs add-leg   '<json>'  | edit-leg   <id> '<json>' | rm-leg <id>
-node scripts/travel.mjs set-geojson <leg_id> <file> | set-gpx <leg_id> <file.gpx>
-node scripts/osrm-route.mjs <leg_id> '<spec>' [--dry] # OSRM で実線路ルートを補完して取込（recipes/route.md）
-node scripts/travel.mjs add-day  '<json>'   | edit-day   <id> '<json>'
-node scripts/travel.mjs add-item <day_no> '<json>' | edit-item <id> '<json>' | rm-item <id>
-node scripts/travel.mjs add-spot '<json>'   | edit-spot  <id> '<json>' | rm-spot <id>
-node scripts/travel.mjs add-budget '<json>' | edit-budget <id> '<json>'
-node scripts/travel.mjs edit-trip '<json>'
+node scripts/travel.ts add-route '<json>'  | edit-route <id> '<json>' | rm-route <id>
+node scripts/travel.ts add-leg   '<json>'  | edit-leg   <id> '<json>' | rm-leg <id>
+node scripts/travel.ts set-geojson <leg_id> <file> | set-gpx <leg_id> <file.gpx>
+node scripts/osrm-route.ts <leg_id> '<spec>' [--dry] # OSRM で実線路ルートを補完して取込（recipes/route.md）
+node scripts/travel.ts add-day  '<json>'   | edit-day   <id> '<json>'
+node scripts/travel.ts add-item <day_no> '<json>' | edit-item <id> '<json>' | rm-item <id>
+node scripts/travel.ts add-spot '<json>'   | edit-spot  <id> '<json>' | rm-spot <id>
+node scripts/travel.ts add-budget '<json>' | edit-budget <id> '<json>'
+node scripts/travel.ts edit-trip '<json>'
 ```
 
-### ② sql.mjs 生SQL（逃げ道・CLIに無い操作用）
+### ② sql.ts 生SQL（逃げ道・CLIに無い操作用）
 CLI に無い操作（複数行の一括並べ替え、横断検索）はこちらで。
 
 ```
-node scripts/sql.mjs "<SQL>"
+node scripts/sql.ts "<SQL>"
 ```
 - `SELECT/PRAGMA/WITH` は行を JSON、`INSERT/UPDATE/DELETE` は `{changes, lastInsertRowid}` を出力。
 - 文字列は SQL のシングルクォート、外側はダブルクォートで囲む。`'` は `''` でエスケープ。
@@ -80,21 +80,21 @@ node scripts/sql.mjs "<SQL>"
 
 ```
 # 1) route点数 = legs数 + 1 か（移動プランの基本不変条件）
-node scripts/sql.mjs "SELECT (SELECT COUNT(*) FROM route) rpts, (SELECT COUNT(*) FROM legs) legs"
+node scripts/sql.ts "SELECT (SELECT COUNT(*) FROM route) rpts, (SELECT COUNT(*) FROM legs) legs"
 
 # 2) route.order_index に飛び・重複が無いか
-node scripts/sql.mjs "SELECT order_index, COUNT(*) c FROM route GROUP BY order_index HAVING c>1"
-node scripts/sql.mjs "SELECT order_index FROM route ORDER BY order_index"   # 0,1,2,… の連番か目視
+node scripts/sql.ts "SELECT order_index, COUNT(*) c FROM route GROUP BY order_index HAVING c>1"
+node scripts/sql.ts "SELECT order_index FROM route ORDER BY order_index"   # 0,1,2,… の連番か目視
 
 # 3) 各 leg の from/to が route の隣接ペアと一致するか
-node scripts/sql.mjs "SELECT l.order_index, l.from_name, l.to_name, ra.name route_from, rb.name route_to FROM legs l LEFT JOIN route ra ON ra.order_index=l.order_index LEFT JOIN route rb ON rb.order_index=l.order_index+1 ORDER BY l.order_index"
+node scripts/sql.ts "SELECT l.order_index, l.from_name, l.to_name, ra.name route_from, rb.name route_to FROM legs l LEFT JOIN route ra ON ra.order_index=l.order_index LEFT JOIN route rb ON rb.order_index=l.order_index+1 ORDER BY l.order_index"
 
 # 4) 旅程の都市が地図ルートに存在するか（移動プランと旅程のズレ検出）
 #    ※「帰国」など route に無い終端は想定内。それ以外が出たら片側の直し忘れ
-node scripts/sql.mjs "SELECT DISTINCT city FROM days WHERE city NOT IN (SELECT name FROM route)"
+node scripts/sql.ts "SELECT DISTINCT city FROM days WHERE city NOT IN (SELECT name FROM route)"
 
 # 5) 削除したはずの地名が予定に残っていないか（例：ニースを外したら）
-node scripts/sql.mjs "SELECT i.id, d.day_no, i.title FROM items i JOIN days d ON d.id=i.day_id WHERE i.title LIKE '%ニース%' OR i.note LIKE '%ニース%'"
+node scripts/sql.ts "SELECT i.id, d.day_no, i.title FROM items i JOIN days d ON d.id=i.day_id WHERE i.title LIKE '%ニース%' OR i.note LIKE '%ニース%'"
 ```
 
 手動クロスチェック（クエリ化しにくい分）：各 leg の `mode` と、対応する `items` の移動アイテム

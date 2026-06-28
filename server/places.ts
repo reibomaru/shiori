@@ -12,20 +12,49 @@
 //     保存する（写真の実体は保存しない）。写真1枚=1課金。
 //   - API キー未設定でも、DB にキャッシュがあればそれを返す（取得だけ行わない）。
 // ============================================================
+import type { DatabaseSync, SQLInputValue } from "node:sqlite";
+import type { Spot } from "../shared/types.ts";
+import type { SpotPlaceCacheRow } from "../db/types.ts";
 
 const SEARCH_ENDPOINT = "https://places.googleapis.com/v1/places:searchText";
 const PHOTO_MAX_WIDTH = 1000; // 取得する写真の最大幅（px）。カルーセルで大きく見るため広めに。
 const PHOTO_COUNT = 6; // 1 スポットあたり解決する写真の最大枚数（Place Photo は 1 枚=1課金）。
 const REFRESH_MS = 30 * 24 * 60 * 60 * 1000; // キャッシュのリフレッシュ間隔（30日・規約上限）。
 
-const apiKey = () => process.env.GOOGLE_MAPS_API_KEY ?? "";
+const apiKey = (): string => process.env.GOOGLE_MAPS_API_KEY ?? "";
 
-// ---- DB キャッシュ ------------------------------------------
-function readCache(db, spotId) {
-  return db.prepare("SELECT * FROM spot_place_cache WHERE spot_id = ?").get(spotId) ?? null;
+/** API レスポンスとして返すスポットの評価・写真。 */
+export interface SpotRatingValue {
+  rating: number;
+  userRatingCount: number;
+  googleMapsUri: string | null;
+  photoUrls: string[];
 }
 
-function writeCache(db, spotId, v) {
+/** Places API から取り出した保存用の値。 */
+interface FetchedPlace {
+  placeId: string | null;
+  rating: number;
+  ratingCount: number;
+  mapsUri: string | null;
+  photoUrls: string[];
+}
+
+/** Places API（Text Search / Place Details）の place オブジェクト（必要分のみ）。 */
+interface PlaceApiResult {
+  id?: string;
+  rating?: number;
+  userRatingCount?: number;
+  googleMapsUri?: string;
+  photos?: Array<{ name?: string }>;
+}
+
+// ---- DB キャッシュ ------------------------------------------
+function readCache(db: DatabaseSync, spotId: SQLInputValue): SpotPlaceCacheRow | null {
+  return (db.prepare("SELECT * FROM spot_place_cache WHERE spot_id = ?").get(spotId) as SpotPlaceCacheRow | undefined) ?? null;
+}
+
+function writeCache(db: DatabaseSync, spotId: SQLInputValue, v: FetchedPlace): void {
   db.prepare(
     `INSERT INTO spot_place_cache (spot_id, place_id, rating, rating_count, maps_uri, photos, fetched_at)
      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
@@ -37,23 +66,23 @@ function writeCache(db, spotId, v) {
 }
 
 /** spots を消したとき以外（名称等の編集時）に手動でキャッシュを無効化する。 */
-export function invalidateSpotCache(db, spotId) {
+export function invalidateSpotCache(db: DatabaseSync, spotId: SQLInputValue): void {
   db.prepare("DELETE FROM spot_place_cache WHERE spot_id = ?").run(spotId);
 }
 
-function isFresh(row) {
+function isFresh(row: SpotPlaceCacheRow | null): boolean {
   if (!row?.fetched_at) return false;
   const t = Date.parse(row.fetched_at.replace(" ", "T") + "Z"); // SQLite datetime('now') は UTC
   return Number.isFinite(t) && Date.now() - t < REFRESH_MS;
 }
 
 /** キャッシュ行 → API レスポンス値（評価が無ければ null）。 */
-function rowToValue(row) {
+function rowToValue(row: SpotPlaceCacheRow | null): SpotRatingValue | null {
   if (!row || row.rating == null) return null;
-  let photoUrls = [];
+  let photoUrls: string[] = [];
   try {
-    const v = JSON.parse(row.photos ?? "[]");
-    if (Array.isArray(v)) photoUrls = v.filter((u) => typeof u === "string");
+    const v: unknown = JSON.parse(row.photos ?? "[]");
+    if (Array.isArray(v)) photoUrls = v.filter((u): u is string => typeof u === "string");
   } catch {
     /* 壊れた JSON は空配列 */
   }
@@ -61,18 +90,18 @@ function rowToValue(row) {
 }
 
 // ---- Places API 取得 ---------------------------------------
-function queryFor(spot) {
+function queryFor(spot: Spot): string {
   return [spot.name, spot.city, spot.country].filter(Boolean).join(" ").trim();
 }
 
 /** 写真リソース名 → 公開画像 URL（lh3.googleusercontent.com）。失敗時 null。 */
-async function resolvePhotoUrl(photoName, signal) {
+async function resolvePhotoUrl(photoName: string, signal?: AbortSignal): Promise<string | null> {
   if (!photoName) return null;
   const url = `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=${PHOTO_MAX_WIDTH}&skipHttpRedirect=true`;
   try {
     const res = await fetch(url, { headers: { "X-Goog-Api-Key": apiKey() }, signal: signal ?? undefined });
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = await res.json() as { photoUri?: string };
     return data.photoUri ?? null;
   } catch {
     return null;
@@ -80,10 +109,10 @@ async function resolvePhotoUrl(photoName, signal) {
 }
 
 /** place オブジェクト（Text Search / Place Details 共通）→ 保存用の値。 */
-async function placeToValue(p, signal) {
+async function placeToValue(p: PlaceApiResult | undefined, signal?: AbortSignal): Promise<FetchedPlace | null> {
   if (!p || typeof p.rating !== "number") return null;
-  const names = (p.photos ?? []).slice(0, PHOTO_COUNT).map((ph) => ph.name).filter(Boolean);
-  const photoUrls = (await Promise.all(names.map((n) => resolvePhotoUrl(n, signal)))).filter(Boolean);
+  const names = (p.photos ?? []).slice(0, PHOTO_COUNT).map((ph) => ph.name).filter((n): n is string => !!n);
+  const photoUrls = (await Promise.all(names.map((n) => resolvePhotoUrl(n, signal)))).filter((u): u is string => !!u);
   return {
     placeId: p.id ?? null,
     rating: p.rating,
@@ -97,14 +126,14 @@ const PLACE_FIELDS_DETAILS = "id,displayName,rating,userRatingCount,googleMapsUr
 const PLACE_FIELDS_SEARCH = "places.id,places.displayName,places.rating,places.userRatingCount,places.googleMapsUri,places.photos";
 
 /** place_id 既知なら Place Details（安い）、無ければ Text Search で取得。 */
-async function fetchPlace(spot, knownPlaceId, signal) {
+async function fetchPlace(spot: Spot, knownPlaceId: string | null | undefined, signal?: AbortSignal): Promise<FetchedPlace | null> {
   try {
     if (knownPlaceId) {
       const res = await fetch(`https://places.googleapis.com/v1/places/${knownPlaceId}`, {
         headers: { "X-Goog-Api-Key": apiKey(), "X-Goog-FieldMask": PLACE_FIELDS_DETAILS },
         signal: signal ?? undefined,
       });
-      if (res.ok) return await placeToValue(await res.json(), signal);
+      if (res.ok) return await placeToValue((await res.json()) as PlaceApiResult, signal);
       // place_id が無効化された等は Text Search にフォールバック
     }
     const query = queryFor(spot);
@@ -124,22 +153,27 @@ async function fetchPlace(spot, knownPlaceId, signal) {
       console.error(`[places] HTTP ${res.status} query="${query}" ${body.slice(0, 200)}`);
       return null;
     }
-    return await placeToValue((await res.json()).places?.[0], signal);
+    return await placeToValue(((await res.json()) as { places?: PlaceApiResult[] }).places?.[0], signal);
   } catch (err) {
     console.error("[places] fetch error:", err instanceof Error ? err.message : err);
     return null;
   }
 }
 
+/** 複数スポットの評価＋写真の取得結果。 */
+export interface SpotRatingsResult {
+  configured: boolean;
+  ratings: Record<number, SpotRatingValue | null>;
+}
+
 /**
  * 複数スポットの評価＋写真を取得する。DB キャッシュ（30日）を優先し、
  * 期限切れ・未取得のものだけ Places API を叩いて DB に保存する。
- * @returns {Promise<{configured: boolean, ratings: Record<number, object|null>}>}
  */
-export async function getSpotRatings(db, spots, signal) {
+export async function getSpotRatings(db: DatabaseSync, spots: Spot[], signal?: AbortSignal): Promise<SpotRatingsResult> {
   const hasKey = !!apiKey();
   const entries = await Promise.all(
-    spots.map(async (s) => {
+    spots.map(async (s): Promise<[number, SpotRatingValue | null]> => {
       const row = readCache(db, s.id);
       if (isFresh(row)) return [s.id, rowToValue(row)];
       if (!hasKey) return [s.id, rowToValue(row)]; // キー無し: 期限切れでもあるものは返す

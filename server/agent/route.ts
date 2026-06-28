@@ -15,9 +15,12 @@
 //    done {} / error { message }
 // ============================================================
 import { existsSync, rmSync } from "node:fs";
+import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { createSpotTools } from "./tools.mjs";
-import { runSpotAgent, MissingApiKeyError } from "./runner.mjs";
+import type { DatabaseSync } from "node:sqlite";
+import { createSpotTools } from "./tools.ts";
+import { runSpotAgent, MissingApiKeyError } from "./runner.ts";
+import type { AgentImage, EmitFn } from "./runner.ts";
 import {
   upsertSession,
   getSessionFile,
@@ -25,13 +28,13 @@ import {
   listSessions,
   getSession,
   deleteSession,
-} from "./sessions.mjs";
-import { readSessionMessages } from "./history.mjs";
+} from "./sessions.ts";
+import { readSessionMessages } from "./history.ts";
 
 const WEBSEARCH_API_KEY = process.env.WEBSEARCH_API_KEY ?? "";
 
 /** Hono アプリにチャット関連ルートを登録する。 */
-export function registerSpotChatRoute(app, db) {
+export function registerSpotChatRoute(app: Hono, db: DatabaseSync): void {
   // ---- セッション一覧 -------------------------------------
   app.get("/api/spots/chat/sessions", (c) => c.json(listSessions(db)));
 
@@ -58,19 +61,25 @@ export function registerSpotChatRoute(app, db) {
 
   // ---- 会話（SSE）-----------------------------------------
   app.post("/api/spots/chat", async (c) => {
-    const body = await c.req.json().catch(() => ({}));
+    const body = (await c.req.json().catch(() => ({}))) as {
+      sessionId?: unknown;
+      message?: unknown;
+      images?: unknown;
+    };
     const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
     let message = typeof body.message === "string" ? body.message.trim() : "";
-    const images = Array.isArray(body.images)
-      ? body.images
-          .filter((im) => im && typeof im.data === "string" && typeof im.mimeType === "string")
+    const images: AgentImage[] = Array.isArray(body.images)
+      ? (body.images as Array<{ data?: unknown; mimeType?: unknown }>)
+          .filter((im): im is AgentImage => !!im && typeof im.data === "string" && typeof im.mimeType === "string")
           .slice(0, 4)
       : [];
 
     return streamSSE(c, async (stream) => {
       let costUSD = 0;
-      const emit = (event, data) => {
-        if (event === "usage" && data && typeof data.costUSD === "number") costUSD += data.costUSD;
+      const emit: EmitFn = (event, data) => {
+        if (event === "usage" && data && typeof (data as { costUSD?: unknown }).costUSD === "number") {
+          costUSD += (data as { costUSD: number }).costUSD;
+        }
         return stream.writeSSE({ event, data: JSON.stringify(data) });
       };
 

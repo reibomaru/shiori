@@ -5,7 +5,12 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FaGripVertical, FaXmark, FaPen, FaLink, FaCompass, FaRoute, FaCheck } from "react-icons/fa6";
 import type { Block, BlockPatch } from "./builderModel";
-import { ITEM_META, ITEM_TYPES, yen } from "../../itemMeta";
+import type { ItemType } from "../../types";
+import { ITEM_META, yen } from "../../itemMeta";
+
+// 編集パネルで選べる種別は非移動系のみ。移動（鉄道/飛行機/バス等）の作成は
+// 「移動タブ」の OSRM ルート作成に限定する（ルート情報を伴うため）。
+const EDITABLE_TYPES: ItemType[] = ["spot", "meal", "hotel", "free"];
 
 /** ドラッグ中のオーバーレイや一覧で使う、ブロックの本体表示（アイコン＋タイトル＋費用＋由来）。 */
 export function BlockBody({ block }: { block: Block }) {
@@ -79,26 +84,29 @@ function Editor({
 
   return (
     <div className="mt-2 space-y-2 rounded-lg bg-slate-50 p-2.5 ring-1 ring-slate-200">
-      <div className="flex flex-wrap gap-1">
-        {ITEM_TYPES.map((t) => {
-          const m = ITEM_META[t];
-          const on = draft.type === t;
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setDraft((d) => ({ ...d, type: t }))}
-              title={m.label}
-              className={`flex h-7 w-7 items-center justify-center rounded-lg text-sm transition ${
-                on ? "text-white" : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100"
-              }`}
-              style={on ? { background: m.color } : undefined}
-            >
-              <m.Icon />
-            </button>
-          );
-        })}
-      </div>
+      {/* 種別ピッカーは非移動系のみ。移動由来のブロック（leg_id あり）では種別を変えない。 */}
+      {block.leg_id == null && (
+        <div className="flex flex-wrap gap-1">
+          {EDITABLE_TYPES.map((t) => {
+            const m = ITEM_META[t];
+            const on = draft.type === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setDraft((d) => ({ ...d, type: t }))}
+                title={m.label}
+                className={`flex h-7 w-7 items-center justify-center rounded-lg text-sm transition ${
+                  on ? "text-white" : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100"
+                }`}
+                style={on ? { background: m.color } : undefined}
+              >
+                <m.Icon />
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <input
           className={`${fieldCls} min-w-[12rem] flex-1`}

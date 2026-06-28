@@ -25,6 +25,24 @@ export interface SpotRatingsResponse {
   ratings: Record<number, SpotRating | null>;
 }
 
+/** ジオコーディング結果（地名→座標）。 */
+export interface GeocodeResult {
+  name: string; // 短い名称（from_name 用）
+  label: string; // 表示用の詳細（名称, 都市, 州, 国）
+  lng: number;
+  lat: number;
+}
+
+/** OSRM の経路候補（移動データ作成用）。 */
+export interface OsrmRoute {
+  distance: number; // m
+  duration: number; // s
+  geometry: { type: "LineString"; coordinates: [number, number][] };
+  via?: string; // 主な経路（道路名のまとめ）
+  roads?: string[]; // 経由する主な道路名
+  waypoints?: string[]; // 通過する町名（逆ジオコード）
+}
+
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -40,6 +58,10 @@ export const api = {
 
   updateTrip: (patch: Record<string, unknown>) => http("/api/trip", "PUT", patch),
 
+  createDay: (body: Record<string, unknown>) => http(`/api/days`, "POST", body),
+  updateDay: (id: number, patch: Record<string, unknown>) => http(`/api/days/${id}`, "PUT", patch),
+  deleteDay: (id: number) => http(`/api/days/${id}`, "DELETE"),
+
   updateItem: (id: number, patch: Record<string, unknown>) => http(`/api/items/${id}`, "PUT", patch),
   createItem: (body: Record<string, unknown>) => http(`/api/items`, "POST", body),
   deleteItem: (id: number) => http(`/api/items/${id}`, "DELETE"),
@@ -54,6 +76,20 @@ export const api = {
   deleteSpot: (id: number) => http(`/api/spots/${id}`, "DELETE"),
 
   updateRoute: (id: number, patch: Record<string, unknown>) => http(`/api/route/${id}`, "PUT", patch),
+
+  createLeg: (body: Record<string, unknown>) => http(`/api/legs`, "POST", body),
+  // 地名→座標（Photon）。lat/lon を渡すと近傍を優先。
+  geocode: (q: string, bias?: { lat: number; lng: number }) =>
+    http<{ results: GeocodeResult[]; error?: string }>(
+      `/api/geocode?q=${encodeURIComponent(q)}${bias ? `&lat=${bias.lat}&lon=${bias.lng}` : ""}`,
+      "GET"
+    ),
+  // OSRM の経路候補を取得（from/to は "lng,lat"）。
+  osrmRoute: (from: string, to: string, profile = "driving") =>
+    http<{ routes: OsrmRoute[]; error?: string }>(
+      `/api/osrm?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&profile=${profile}`,
+      "GET"
+    ),
 
   // ---- スポット候補チャットのセッション ----
   listChatSessions: () => http<ChatSessionSummary[]>(`/api/spots/chat/sessions`, "GET"),

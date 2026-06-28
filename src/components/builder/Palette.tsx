@@ -10,10 +10,11 @@ import {
   FaPlus,
   FaChevronDown,
 } from "react-icons/fa6";
-import type { LegFeature, Spot } from "../../types";
+import type { LegFeature, RoutePoint, Spot } from "../../types";
 import { ITEM_META } from "../../itemMeta";
 import { legItemType, spotItemType } from "./builderModel";
 import type { BuilderDay } from "./builderModel";
+import LegCreator, { type Place } from "./LegCreator";
 
 type Tab = "spots" | "legs";
 
@@ -130,17 +131,21 @@ function PaletteCard({
 export default function Palette({
   spots,
   legs,
+  route,
   days,
   placed,
   onAddSpot,
   onAddLeg,
+  onLegCreated,
 }: {
   spots: Spot[];
   legs: LegFeature[];
+  route: RoutePoint[];
   days: BuilderDay[];
   placed: PlacedIndex;
   onAddSpot: (spot: Spot, dayId: number) => void;
   onAddLeg: (leg: LegFeature, dayId: number) => void;
+  onLegCreated: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("spots");
   const [q, setQ] = useState("");
@@ -159,6 +164,17 @@ export default function Palette({
     .filter(matchLeg)
     .filter((l) => !unplacedOnly || (placed.legs.get(l.properties.id) ?? []).length === 0)
     .sort((a, b) => a.properties.order_index - b.properties.order_index);
+
+  // 移動作成（OSRM）の出発地・目的地候補：座標を持つルート地点＋スポット。
+  const places: Place[] = [
+    ...route
+      .filter((p) => p.lat != null && p.lng != null)
+      .map((p) => ({ name: p.name, lng: p.lng as number, lat: p.lat as number })),
+    ...spots
+      .filter((s) => s.lat != null && s.lng != null)
+      .map((s) => ({ name: s.name, lng: s.lng as number, lat: s.lat as number })),
+  ];
+  const nextOrderIndex = legs.reduce((m, l) => Math.max(m, l.properties.order_index), -1) + 1;
 
   const tabBtn = (t: Tab, Icon: typeof FaCompass, label: string, n: number) => (
     <button
@@ -222,9 +238,12 @@ export default function Palette({
               );
             })
           ))}
+        {tab === "legs" && (
+          <LegCreator places={places} nextOrderIndex={nextOrderIndex} onCreated={onLegCreated} />
+        )}
         {tab === "legs" &&
           (visibleLegs.length === 0 ? (
-            <p className="py-8 text-center text-xs text-slate-400">該当する移動区間がありません</p>
+            <p className="py-6 text-center text-xs text-slate-400">移動区間がありません。上の「移動を作成」で追加できます。</p>
           ) : (
             visibleLegs.map((l) => {
               const meta = ITEM_META[legItemType(l.properties.mode)];

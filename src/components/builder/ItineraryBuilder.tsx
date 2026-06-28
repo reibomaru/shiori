@@ -18,9 +18,9 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { FaPlus, FaCircleInfo, FaRegCalendarDays } from "react-icons/fa6";
+import { FaPlus, FaCircleInfo, FaRegCalendarDays, FaPen, FaCheck, FaTrashCan } from "react-icons/fa6";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
-import type { Day, LegFeature, Spot } from "../../types";
+import type { Day, LegFeature, RoutePoint, Spot } from "../../types";
 import { yen } from "../../itemMeta";
 import { api } from "../../api";
 import { useTrip } from "../../store";
@@ -50,27 +50,25 @@ const dayKey = (id: number) => `day:${id}`;
 const dayIdFromKey = (key: string) => Number(key.slice(4));
 
 // ---- 1 日のカード（ドロップ先＋並べ替えコンテナ） --------------------------
-function DayColumn({
+const dayField =
+  "rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-cyan-500 focus:outline-none";
+
+function DayHeader({
   day,
-  onTimeChange,
-  onTimeCommit,
   onSave,
-  onRemove,
-  onAddManual,
+  onDelete,
 }: {
   day: BuilderDay;
-  onTimeChange: (uid: number, v: string) => void;
-  onTimeCommit: (uid: number, v: string) => void;
-  onSave: (uid: number, patch: BlockPatch) => void;
-  onRemove: (uid: number) => void;
-  onAddManual: () => void;
+  onSave: (patch: { date?: string | null; city?: string | null; title?: string | null }) => void;
+  onDelete: () => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: dayKey(day.id) });
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ date: day.date, city: day.city, title: day.title });
   const dayCost = day.blocks.reduce((s, b) => s + (b.cost ?? 0), 0);
 
-  return (
-    <section className="day-card rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-      <header className="mb-3 flex items-baseline gap-3 border-b border-slate-100 pb-2.5">
+  if (!editing) {
+    return (
+      <header className="mb-3 flex items-start gap-3 border-b border-slate-100 pb-2.5">
         <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white">
           <span className="text-[9px] leading-none opacity-80">DAY</span>
           <span className="text-lg font-bold leading-none">{day.day_no}</span>
@@ -83,7 +81,101 @@ function DayColumn({
           </div>
           {day.title && <h3 className="mt-0.5 truncate text-base font-bold text-slate-800">{day.title}</h3>}
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            setDraft({ date: day.date, city: day.city, title: day.title });
+            setEditing(true);
+          }}
+          className="no-print shrink-0 rounded p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
+          aria-label="この日を編集"
+        >
+          <FaPen className="text-xs" />
+        </button>
       </header>
+    );
+  }
+
+  return (
+    <header className="no-print mb-3 border-b border-slate-100 pb-3">
+      <div className="flex items-center gap-2">
+        <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white">
+          <span className="text-[9px] leading-none opacity-80">DAY</span>
+          <span className="text-lg font-bold leading-none">{day.day_no}</span>
+        </div>
+        <input
+          type="date"
+          value={draft.date ?? ""}
+          onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value || null }))}
+          className={`${dayField} w-40`}
+        />
+        <input
+          value={draft.city ?? ""}
+          onChange={(e) => setDraft((d) => ({ ...d, city: e.target.value || null }))}
+          placeholder="都市"
+          className={`${dayField} w-32`}
+        />
+      </div>
+      <input
+        value={draft.title ?? ""}
+        onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value || null }))}
+        placeholder="この日のタイトル"
+        className={`${dayField} mt-2 w-full`}
+      />
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            onSave(draft);
+            setEditing(false);
+          }}
+          className="inline-flex items-center gap-1 rounded-md bg-cyan-600 px-3 py-1 text-sm font-semibold text-white hover:bg-cyan-700"
+        >
+          <FaCheck className="text-xs" /> 保存
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          className="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-200"
+        >
+          閉じる
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-rose-600 hover:bg-rose-50"
+        >
+          <FaTrashCan className="text-xs" /> この日を削除
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function DayColumn({
+  day,
+  onTimeChange,
+  onTimeCommit,
+  onSave,
+  onRemove,
+  onAddManual,
+  onDaySave,
+  onDayDelete,
+}: {
+  day: BuilderDay;
+  onTimeChange: (uid: number, v: string) => void;
+  onTimeCommit: (uid: number, v: string) => void;
+  onSave: (uid: number, patch: BlockPatch) => void;
+  onRemove: (uid: number) => void;
+  onAddManual: () => void;
+  onDaySave: (patch: { date?: string | null; city?: string | null; title?: string | null }) => void;
+  onDayDelete: () => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: dayKey(day.id) });
+
+  return (
+    <section className="day-card rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+      <DayHeader day={day} onSave={onDaySave} onDelete={onDayDelete} />
 
       <SortableContext items={day.blocks.map((b) => String(b.id))} strategy={verticalListSortingStrategy}>
         <ul
@@ -125,16 +217,19 @@ export default function ItineraryBuilder({
   days: srcDays,
   spots,
   legs,
+  route,
 }: {
   days: Day[];
   spots: Spot[];
   legs: LegFeature[];
+  route: RoutePoint[];
 }) {
   const { reload } = useTrip();
   const [days, setDays] = useState<BuilderDay[]>(() => seedDays(srcDays));
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [activeBlock, setActiveBlock] = useState<Block | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ id: number; title: string } | null>(null);
+  const [pendingDeleteDay, setPendingDeleteDay] = useState<BuilderDay | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -233,6 +328,35 @@ export default function ItineraryBuilder({
   async function removeBlock(id: number) {
     setDays((prev) => prev.map((d) => ({ ...d, blocks: d.blocks.filter((b) => b.id !== id) })));
     if (id > 0) await api.deleteItem(id);
+    reload();
+  }
+
+  // ---- 日（days）の操作 ---------------------------------------------------
+  async function addDay() {
+    const last = days[days.length - 1];
+    const dayNo = days.reduce((m, d) => Math.max(m, d.day_no), 0) + 1;
+    const date = nextDate(last?.date ?? null);
+    const created = (await api.createDay({ day_no: dayNo, date, city: null, title: null })) as {
+      id: number;
+      day_no: number;
+      date: string | null;
+      city: string | null;
+      title: string | null;
+    };
+    setDays((prev) => [...prev, { ...created, blocks: [] }]);
+    reload();
+  }
+  async function saveDay(
+    dayId: number,
+    patch: { date?: string | null; city?: string | null; title?: string | null }
+  ) {
+    setDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, ...patch } : d)));
+    await api.updateDay(dayId, patch);
+    reload();
+  }
+  async function deleteDay(dayId: number) {
+    setDays((prev) => prev.filter((d) => d.id !== dayId));
+    await api.deleteDay(dayId);
     reload();
   }
 
@@ -335,8 +459,16 @@ export default function ItineraryBuilder({
                     setPendingRemove({ id, title: b?.title ?? "" });
                   }}
                   onAddManual={() => addBlock(d.id, newBlockManual(), -1)}
+                  onDaySave={(patch) => saveDay(d.id, patch)}
+                  onDayDelete={() => setPendingDeleteDay(d)}
                 />
               ))}
+              <button
+                onClick={addDay}
+                className="no-print flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-cyan-300 py-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-50"
+              >
+                <FaPlus className="text-xs" /> 日を追加
+              </button>
             </div>
           </div>
 
@@ -346,10 +478,12 @@ export default function ItineraryBuilder({
               <Palette
                 spots={spots}
                 legs={legs}
+                route={route}
                 days={days}
                 placed={placed}
                 onAddSpot={(s, dayId) => addBlock(dayId, newBlockFromSpot(s), -1)}
                 onAddLeg={(l, dayId) => addBlock(dayId, newBlockFromLeg(l), -1)}
+                onLegCreated={reload}
               />
             </aside>
           )}
@@ -379,8 +513,37 @@ export default function ItineraryBuilder({
         }}
         onCancel={() => setPendingRemove(null)}
       />
+
+      <ConfirmDialog
+        open={pendingDeleteDay !== null}
+        title="この日を削除しますか？"
+        message={
+          pendingDeleteDay
+            ? `Day${pendingDeleteDay.day_no}${
+                pendingDeleteDay.title ? `「${pendingDeleteDay.title}」` : ""
+              } と、この日の予定（${pendingDeleteDay.blocks.length}件）をすべて削除します。この操作は取り消せません。`
+            : undefined
+        }
+        onConfirm={() => {
+          if (pendingDeleteDay) deleteDay(pendingDeleteDay.id);
+          setPendingDeleteDay(null);
+        }}
+        onCancel={() => setPendingDeleteDay(null)}
+      />
     </div>
   );
+}
+
+/** 末尾の日の翌日（YYYY-MM-DD）。基準が無ければ null。 */
+function nextDate(base: string | null): string | null {
+  if (!base) return null;
+  const dt = new Date(base + "T00:00:00");
+  if (isNaN(dt.getTime())) return null;
+  dt.setDate(dt.getDate() + 1);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 /** index 位置に挿入（index<0 なら末尾）。 */

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DeckGL from "@deck.gl/react";
-import { WebMercatorViewport, type PickingInfo } from "@deck.gl/core";
+import { WebMercatorViewport, FlyToInterpolator, type PickingInfo } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
 import { BitmapLayer, GeoJsonLayer, ArcLayer, ScatterplotLayer, TextLayer, IconLayer } from "@deck.gl/layers";
 import { ZoomWidget, CompassWidget, FullscreenWidget } from "@deck.gl/widgets";
@@ -81,15 +81,26 @@ export default function MapView({
   spots = [],
   selectedLeg = null,
   onSelectLeg,
+  onSelectSpot,
+  focusSpotId = null,
+  rightInset = 0,
+  onVisibleSpotsChange,
+  showSpots = true,
 }: {
   route: RoutePoint[];
   legs: LegFeature[];
   spots?: Spot[];
   selectedLeg?: number | null;
   onSelectLeg?: (order: number | null) => void;
+  onSelectSpot?: (id: number) => void;
+  focusSpotId?: number | null;
+  rightInset?: number; // 右オーバーレイ（工程パネル）の幅。中心をその分だけ可視領域へ寄せる
+  onVisibleSpotsChange?: (ids: number[]) => void; // いま地図に見えているスポット id
+  showSpots?: boolean; // 候補スポットのピン表示/非表示（パネルのチェックで切替）
 }) {
   const [base, setBase] = useState<BaseId>("osm");
-  const [showSpots, setShowSpots] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastVisibleKey = useRef<string>("");
 
   // lat/lng を持つ候補スポットのみ地図に出せる。未設定分は注意表示用に件数を保持
   const spotPoints = spots
@@ -136,6 +147,86 @@ export default function MapView({
   const is3D = (viewState.pitch ?? 0) > 0;
   const toggle3D = () => setViewState((v: any) => ({ ...v, pitch: is3D ? 0 : 45, transitionDuration: 400 }));
   const resetView = () => setViewState({ ...initialViewState, transitionDuration: 600 });
+
+  // スポットが選択されたら、その位置へ滑らかに移動（座標があるもののみ）。
+  // 右側の工程パネルに隠れないよう、可視領域（パネルの左側）の中心へ寄せる。
+  useEffect(() => {
+    if (focusSpotId == null) return;
+    const s = spots.find((x) => x.id === focusSpotId);
+    if (!s || s.lat == null || s.lng == null) return;
+    setViewState((v: any) => {
+      const zoom = Math.max(v.zoom ?? 8, 9.5);
+      let longitude = s.lng as number;
+      let latitude = s.lat as number;
+      const el = containerRef.current;
+      if (el && rightInset > 0) {
+        try {
+          const vp = new WebMercatorViewport({
+            width: el.clientWidth,
+            height: el.clientHeight,
+            longitude,
+            latitude,
+            zoom,
+            pitch: v.pitch ?? 0,
+            bearing: v.bearing ?? 0,
+          });
+          // 地図中心をスポットの右（東）へ inset/2 px ずらすと、スポットは可視領域の中央に来る
+          const [lng2, lat2] = vp.unproject([el.clientWidth / 2 + rightInset / 2, el.clientHeight / 2]);
+          longitude = lng2;
+          latitude = lat2;
+        } catch {
+          /* 失敗時はスポット中心にフォールバック */
+        }
+      }
+      return {
+        ...v,
+        longitude,
+        latitude,
+        zoom,
+        transitionDuration: 900,
+        transitionInterpolator: new FlyToInterpolator({ speed: 1.4 }),
+      };
+    });
+    // spots/rightInset は選択時点の値を使えばよい。focusSpotId の変化時のみ移動する
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusSpotId]);
+
+  // いま地図に見えている（ピン表示中＋ビューポート内・パネルに隠れない）スポットを親へ通知。
+  // 一覧の並び替えに使う。集合が変わったときだけ通知して再描画の連鎖を抑える。
+  useEffect(() => {
+    if (!onVisibleSpotsChange) return;
+    const el = containerRef.current;
+    let ids: number[] = [];
+    if (el && showSpots && el.clientWidth > 0) {
+      try {
+        const vp = new WebMercatorViewport({
+          width: el.clientWidth,
+          height: el.clientHeight,
+          longitude: viewState.longitude,
+          latitude: viewState.latitude,
+          zoom: viewState.zoom,
+          pitch: viewState.pitch ?? 0,
+          bearing: viewState.bearing ?? 0,
+        });
+        const maxX = el.clientWidth - Math.max(0, rightInset);
+        const h = el.clientHeight;
+        ids = spotPoints
+          .filter((s) => {
+            const [x, y] = vp.project(s.position);
+            return x >= 0 && x <= maxX && y >= 0 && y <= h;
+          })
+          .map((s) => s.id);
+      } catch {
+        /* 投影失敗時は通知しない */
+      }
+    }
+    const key = ids.join(",");
+    if (key !== lastVisibleKey.current) {
+      lastVisibleKey.current = key;
+      onVisibleSpotsChange(ids);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewState, showSpots, rightInset, spots.map((s) => s.id).join(",")]);
 
   const usedModes = Array.from(new Set([...detailed.map((f) => f.properties.mode), ...arcs.map((a) => a.mode)]));
   const cfg = BASEMAPS[base];
@@ -239,7 +330,7 @@ export default function MapView({
       fontFamily: '"Hiragino Sans", system-ui, sans-serif',
       outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },
     }),
-    // 行きたいスポット候補：Google マップ保存リスト風のピン。
+    // 行きたいスポット候補：Google マップ保存リスト風のピン。表示/非表示は凡例のチェックで切替。
     showSpots &&
       new IconLayer({
         id: "spots",
@@ -293,7 +384,7 @@ export default function MapView({
   };
 
   return (
-    <div className="relative h-full w-full bg-slate-200">
+    <div ref={containerRef} className="relative h-full w-full bg-slate-200">
       <DeckGL
         viewState={viewState}
         onViewStateChange={(e: any) => setViewState(e.viewState)}
@@ -304,9 +395,10 @@ export default function MapView({
           const o = info.object as any;
           if (info.layer?.id === "rail") onSelectLeg(o?.properties?.order_index ?? null);
           else if (info.layer?.id === "arcs") onSelectLeg(o?.order ?? null);
-          // 候補スポットのクリックは区間選択に影響させない
-          else if (info.layer?.id === "spots" || info.layer?.id === "spot-labels") return;
-          else onSelectLeg(null);
+          // 候補スポットのクリックは区間選択ではなく詳細表示を開く
+          else if (info.layer?.id === "spots" || info.layer?.id === "spot-labels") {
+            if (o?.id != null) onSelectSpot?.(o.id);
+          } else onSelectLeg(null);
         }}
         widgets={[
           // 左下に集約（右側は工程パネルのオーバーレイ用に空ける）
@@ -348,25 +440,6 @@ export default function MapView({
           >
             全体表示
           </button>
-          {spots.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowSpots((v) => !v)}
-              aria-pressed={showSpots}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium shadow-sm ring-1 ring-black/5 backdrop-blur transition-colors ${
-                showSpots ? "bg-pink-600 text-white" : "bg-white/90 text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              候補スポット
-              <span
-                className={`rounded-full px-1.5 text-[10px] ${
-                  showSpots ? "bg-white/25" : "bg-slate-100 text-slate-500"
-                }`}
-              >
-                {spotPoints.length}
-              </span>
-            </button>
-          )}
         </div>
 
         {/* 凡例（操作群の下にまとめる） */}

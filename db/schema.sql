@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS trip (
   end_date    TEXT,
   travelers   TEXT,
   party_size  INTEGER DEFAULT 2,
-  fx_note     TEXT
+  fx_note     TEXT,
+  memo        TEXT                   -- 旅全体のフリーテキストメモ（Markdown）
 );
 
 -- 行きたいスポットのライブラリ（地球の歩き方などから登録していく場所）

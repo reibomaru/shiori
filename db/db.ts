@@ -27,6 +27,7 @@ function migrate(db: DatabaseSync): void {
   addColumnIfMissing(db, "spots", "icon", "TEXT");
   addColumnIfMissing(db, "spots", "instagram", "TEXT");
   addColumnIfMissing(db, "spots", "google_maps_url", "TEXT");
+  addColumnIfMissing(db, "trip", "memo", "TEXT");
   // 旧「行きたい度」は廃止（評価は Google マップのリンク先で確認する方針）。
   dropColumnIfExists(db, "spots", "want_level");
 }

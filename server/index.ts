@@ -64,7 +64,7 @@ app.get("/api/trip", (c) => {
 
 // ---- trip メタ --------------------------------------------
 app.put("/api/trip", async (c) => {
-  updateRow("trip", 1, await c.req.json(), ["title", "subtitle", "start_date", "end_date", "travelers", "party_size", "fx_note"]);
+  updateRow("trip", 1, await c.req.json(), ["title", "subtitle", "start_date", "end_date", "travelers", "party_size", "fx_note", "memo"]);
   return c.json(db.prepare("SELECT * FROM trip WHERE id = 1").get());
 });
 

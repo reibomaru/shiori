@@ -87,15 +87,15 @@ app.delete("/api/days/:id", (c) => {
 });
 
 // ---- items ------------------------------------------------
-const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id"];
+const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id", "leg_id"];
 app.post("/api/items", async (c) => {
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM items WHERE day_id = ?").get(b.day_id) as { m: number }).m;
   const { lastInsertRowid } = db
-    .prepare(`INSERT INTO items (day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .prepare(`INSERT INTO items (day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id, leg_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(b.day_id, b.sort_order ?? maxOrder + 1, b.time ?? null, b.type ?? "spot", b.title ?? "（無題）",
-         b.note ?? null, b.url ?? null, b.url_label ?? null, b.cost ?? null, b.spot_id ?? null);
+         b.note ?? null, b.url ?? null, b.url_label ?? null, b.cost ?? null, b.spot_id ?? null, b.leg_id ?? null);
   return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(lastInsertRowid));
 });
 app.put("/api/items/:id", async (c) => {
@@ -185,6 +185,112 @@ app.put("/api/legs/:id", async (c) => {
 app.delete("/api/legs/:id", (c) => {
   db.prepare("DELETE FROM legs WHERE id = ?").run(c.req.param("id"));
   return c.json({ ok: true });
+});
+
+// ---- OSRM ルート候補（移動データ作成用）------------------
+// 座標→町名（Photon reverse）。通過点サマリ用。失敗時は null。
+async function reverseGeocode(lon: number, lat: number) {
+  try {
+    const base = (process.env.PHOTON_URL || "https://photon.komoot.io").replace(/\/$/, "");
+    const lang = process.env.PHOTON_LANG || "en";
+    const res = await fetch(`${base}/reverse?lon=${lon}&lat=${lat}&lang=${lang}`, {
+      headers: { "User-Agent": "honeymoon-shiori/1.0" },
+    });
+    if (!res.ok) return null;
+    const d: any = await res.json();
+    const p = d.features?.[0]?.properties;
+    if (!p) return null;
+    // 町・市レベルを優先（道路名や番地より旅程の「通過点」として分かりやすい）。
+    return p.city || p.town || p.village || p.county || p.district || p.name || p.state || null;
+  } catch {
+    return null;
+  }
+}
+
+// 出発地・目的地（経度,緯度）から OSRM で複数の経路候補を取得して返す。
+// 公開デモサーバ（driving のみ）を既定に、OSRM_URL で差し替え可能。
+app.get("/api/osrm", async (c) => {
+  const from = c.req.query("from"); // "lng,lat"
+  const to = c.req.query("to"); // "lng,lat"
+  const profile = c.req.query("profile") || "driving";
+  if (!from || !to) return c.json({ error: "from と to（'lng,lat'）が必要です" }, 400);
+  const base = (process.env.OSRM_URL || "https://router.project-osrm.org").replace(/\/$/, "");
+  // steps=true で各ステップの道路名を取得し、候補を区別できる「主な経路」を作る。
+  const url = `${base}/route/v1/${profile}/${from};${to}?alternatives=3&overview=full&geometries=geojson&steps=true`;
+  const res = await fetch(url, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
+  if (!res.ok) return c.json({ error: `OSRM ${res.status}` }, 502);
+  const data: any = await res.json();
+  if (data.code && data.code !== "Ok") return c.json({ error: data.code, routes: [] });
+  const routes = await Promise.all(
+    (data.routes || []).map(async (r: any) => {
+      const legs = r.legs || [];
+      // まず leg.summary（主要道路）を使い、無ければ steps の道路名から組み立てる。
+      const legSummaries = legs.map((l: any) => l.summary).filter(Boolean);
+      let via = legSummaries.join(" / ");
+      const names: string[] = [];
+      for (const leg of legs)
+        for (const st of leg.steps || []) {
+          const n = (st.name || "").trim();
+          if (n && n !== "-" && !names.includes(n)) names.push(n);
+        }
+      if (!via) via = names.slice(0, 6).join(" → ");
+      // ルート上の数点を逆ジオコードして「通過する町名」を作る（候補の中身が分かるように）。
+      const coords = r.geometry?.coordinates || [];
+      const waypoints: string[] = [];
+      if (coords.length > 3) {
+        for (const f of [0.25, 0.5, 0.75]) {
+          const [lon, lat] = coords[Math.floor(f * (coords.length - 1))];
+          const place = await reverseGeocode(lon, lat);
+          if (place && waypoints[waypoints.length - 1] !== place) waypoints.push(place);
+        }
+      }
+      return {
+        distance: r.distance, // m
+        duration: r.duration, // s
+        geometry: r.geometry, // GeoJSON LineString（[lng,lat]）
+        via, // 主な経路（道路名）
+        roads: names.slice(0, 8), // 経由する主な道路名（先頭から）
+        waypoints, // 通過する町名（逆ジオコード）
+      };
+    })
+  );
+  return c.json({ routes });
+});
+
+// ---- ジオコーディング（地名→座標の入力補完用）------------
+// Photon（OSM ベース・キー不要）へのプロキシ。CORS 回避と利用ポリシー遵守のため
+// サーバ経由にする。lat/lon を渡すと近傍を優先（location bias）。
+app.get("/api/geocode", async (c) => {
+  const q = (c.req.query("q") || "").trim();
+  if (q.length < 2) return c.json({ results: [] });
+  const lat = c.req.query("lat");
+  const lon = c.req.query("lon");
+  // tag=aeroway:aerodrome のような OSM タグで種別を絞る（例: 空港検索）。カンマ区切り可。
+  const tags = (c.req.query("tag") || "").split(",").map((t) => t.trim()).filter(Boolean);
+  const base = (process.env.PHOTON_URL || "https://photon.komoot.io").replace(/\/$/, "");
+  const params = new URLSearchParams({ q, limit: "6", lang: process.env.PHOTON_LANG || "en" });
+  if (lat && lon) {
+    params.set("lat", lat);
+    params.set("lon", lon);
+  }
+  for (const t of tags) params.append("osm_tag", t);
+  const res = await fetch(`${base}/api/?${params}`, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
+  if (!res.ok) return c.json({ error: `geocode ${res.status}`, results: [] }, 502);
+  const data: any = await res.json();
+  const results = (data.features || [])
+    .map((f: any) => {
+      const p = f.properties || {};
+      const [lng, lat2] = f.geometry?.coordinates || [];
+      const parts = [
+        p.name,
+        p.city && p.city !== p.name ? p.city : null,
+        p.state,
+        p.country,
+      ].filter(Boolean);
+      return { name: p.name || parts[0] || q, label: parts.join(", "), lng, lat: lat2 };
+    })
+    .filter((r: any) => r.lng != null && r.lat != null);
+  return c.json({ results });
 });
 
 // ---- ルート / ヘルスチェック（ブラウザで開いたときの確認用）----

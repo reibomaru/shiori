@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { TbLayoutSidebarRightExpand } from "react-icons/tb";
 import { useTrip } from "../store";
@@ -19,6 +19,18 @@ export default function MapPage() {
   const [showSpots, setShowSpots] = useState(true);
 
   const spots = data?.spots ?? [];
+  // 旅程に組み込まれた移動（leg_id）を、旅程の記載順（日→予定順）に並べた leg id 配列。
+  const orderedLegIds = useMemo(() => {
+    const ids: number[] = [];
+    const seen = new Set<number>();
+    for (const d of [...(data?.days ?? [])].sort((a, b) => a.day_no - b.day_no))
+      for (const it of [...d.items].sort((a, b) => a.sort_order - b.sort_order))
+        if (it.leg_id != null && !seen.has(it.leg_id)) {
+          seen.add(it.leg_id);
+          ids.push(it.leg_id);
+        }
+    return ids;
+  }, [data?.days]);
   // 詳細を開いている候補スポットは URL クエリ（?spot=<id>）で保持し、共有・復元できるようにする
   const [searchParams, setSearchParams] = useSearchParams();
   const rawSpot = searchParams.get("spot");
@@ -120,6 +132,7 @@ export default function MapPage() {
           rightInset={panelOpen ? panelWidth : 0}
           onVisibleSpotsChange={setVisibleSpotIds}
           showSpots={showSpots}
+          itineraryLegOrder={orderedLegIds}
         />
       </div>
 
@@ -150,6 +163,7 @@ export default function MapPage() {
             selectedLeg={selectedLeg}
             onSelectLeg={setSelectedLeg}
             onClose={() => setPanelOpen(false)}
+            itineraryLegOrder={orderedLegIds}
           />
         </div>
       ) : (

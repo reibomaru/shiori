@@ -14,6 +14,15 @@ import {
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
 import { yen } from "../itemMeta";
+import type { Day, TripMeta } from "../types";
+
+/** 期間は旅程（各日の日付）の最小〜最大から算出。日付が無ければ trip メタにフォールバック。 */
+function tripPeriod(days: Day[], trip: TripMeta) {
+  const dates = days.map((d) => d.date).filter((d): d is string => !!d).sort();
+  const start = dates[0] ?? trip.start_date;
+  const end = dates[dates.length - 1] ?? trip.end_date;
+  return `${start ?? ""} 〜 ${end ?? ""}`;
+}
 
 const NAV = [
   { to: "/map", label: "地図", Icon: FaMapLocationDot },
@@ -26,7 +35,11 @@ const NAV = [
 export default function Layout() {
   const { data, error } = useTrip();
   const { pathname } = useLocation();
-  const fullBleed = pathname.startsWith("/map") || pathname.startsWith("/spots"); // 地図・候補は全画面（余白なし）
+  // 地図・候補・旅程（ビルダー）は全画面（余白なし）。
+  const fullBleed =
+    pathname.startsWith("/map") ||
+    pathname.startsWith("/spots") ||
+    pathname.startsWith("/itinerary");
   const [navOpen, setNavOpen] = useState(true);
 
   return (
@@ -62,7 +75,7 @@ export default function Layout() {
             <dl className="mt-3 space-y-1.5 text-xs text-cyan-50/80">
               <div className="flex items-center gap-2">
                 <FaRegCalendar className="shrink-0 opacity-70" />
-                <span>{data.trip.start_date} 〜 {data.trip.end_date}</span>
+                <span>{tripPeriod(data.days, data.trip)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <FaUserGroup className="shrink-0 opacity-70" />

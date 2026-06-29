@@ -36,6 +36,7 @@ export default function MoveProcess({
   selectedLeg = null,
   onSelectLeg,
   onClose,
+  itineraryLegOrder = [],
 }: {
   legs: LegFeature[];
   spots?: Spot[];
@@ -50,8 +51,17 @@ export default function MoveProcess({
   selectedLeg?: number | null;
   onSelectLeg?: (order: number | null) => void;
   onClose?: () => void;
+  itineraryLegOrder?: number[]; // 旅程に組み込まれた leg id を旅程順に並べた配列
 }) {
-  const ordered = [...legs].sort((a, b) => a.properties.order_index - b.properties.order_index);
+  // 旅程に移動が組み込まれていれば、その記載順で表示（地図の番号と一致）。
+  // 無ければ従来どおり order_index 順で全件表示。
+  const legById = new Map(legs.map((l) => [l.properties.id, l]));
+  const itinLegs = itineraryLegOrder
+    .map((id) => legById.get(id))
+    .filter((f): f is LegFeature => !!f);
+  const ordered = itinLegs.length
+    ? itinLegs
+    : [...legs].sort((a, b) => a.properties.order_index - b.properties.order_index);
   // 各セクションの開閉（既定は開く）
   const [legsOpen, setLegsOpen] = useState(true);
   const [spotsOpen, setSpotsOpen] = useState(true);

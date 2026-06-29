@@ -23,7 +23,7 @@ export function openDb() {
 }
 
 /** 既存 DB 向けの軽量マイグレーション（CREATE TABLE IF NOT EXISTS は列追加しないため）。 */
-function migrate(db) {
+function migrate(db: DatabaseSync): void {
   addColumnIfMissing(db, "spots", "icon", "TEXT");
   addColumnIfMissing(db, "spots", "instagram", "TEXT");
   addColumnIfMissing(db, "spots", "google_maps_url", "TEXT");
@@ -33,15 +33,15 @@ function migrate(db) {
   dropColumnIfExists(db, "spots", "want_level");
 }
 
-function addColumnIfMissing(db, table, column, type) {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+function addColumnIfMissing(db: DatabaseSync, table: string, column: string, type: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (!cols.some((c) => c.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
   }
 }
 
-function dropColumnIfExists(db, table, column) {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+function dropColumnIfExists(db: DatabaseSync, table: string, column: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (cols.some((c) => c.name === column)) {
     db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
   }

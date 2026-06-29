@@ -4,13 +4,23 @@
 // ============================================================
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { openDb } from "../db/db.mjs";
-import * as spotsRepo from "../db/spots-repo.mjs";
-import { getSpotRatings, invalidateSpotCache } from "./places.mjs";
-import { registerSpotChatRoute } from "./agent/route.mjs";
+import type { SQLInputValue } from "node:sqlite";
+import { openDb } from "../db/db.ts";
+import * as spotsRepo from "../db/spots-repo.ts";
+import { getSpotRatings, invalidateSpotCache } from "./places.ts";
+import { registerSpotChatRoute } from "./agent/route.ts";
+import type {
+  TripMeta,
+  Day,
+  Item,
+  RoutePoint,
+  BudgetItem,
+  LegFeature,
+} from "../shared/types.ts";
+import type { LegRow } from "../db/types.ts";
 
 /** legs 行 → GeoJSON Feature */
-function legToFeature(l) {
+function legToFeature(l: LegRow): LegFeature {
   return {
     type: "Feature",
     properties: { id: l.id, order_index: l.order_index, from: l.from_name, to: l.to_name, mode: l.mode, note: l.note },
@@ -24,11 +34,11 @@ const PORT = Number(process.env.PORT || 8080);
 
 // ---- 共通ヘルパー ------------------------------------------
 /** 許可フィールドだけで UPDATE を組み立てる（部分更新対応） */
-function updateRow(table, id, body, allowed) {
+function updateRow(table: string, id: SQLInputValue, body: Record<string, unknown>, allowed: string[]): boolean {
   const keys = Object.keys(body).filter((k) => allowed.includes(k));
   if (keys.length === 0) return false;
   const setClause = keys.map((k) => `${k} = ?`).join(", ");
-  const values = keys.map((k) => body[k]);
+  const values = keys.map((k) => body[k] as SQLInputValue);
   db.prepare(`UPDATE ${table} SET ${setClause} WHERE id = ?`).run(...values, id);
   return true;
 }
@@ -40,14 +50,14 @@ app.onError((err, c) => {
 
 // ---- 全データ取得（React の初期ロード） ---------------------
 app.get("/api/trip", (c) => {
-  const trip = db.prepare("SELECT * FROM trip WHERE id = 1").get() || null;
-  const days = db.prepare("SELECT * FROM days ORDER BY day_no").all();
-  const allItems = db.prepare("SELECT * FROM items ORDER BY day_id, sort_order, time").all();
+  const trip = (db.prepare("SELECT * FROM trip WHERE id = 1").get() as unknown as TripMeta | undefined) || null;
+  const days = db.prepare("SELECT * FROM days ORDER BY day_no").all() as unknown as Day[];
+  const allItems = db.prepare("SELECT * FROM items ORDER BY day_id, sort_order, time").all() as unknown as Item[];
   for (const d of days) d.items = allItems.filter((it) => it.day_id === d.id);
-  const route = db.prepare("SELECT * FROM route ORDER BY order_index").all();
+  const route = db.prepare("SELECT * FROM route ORDER BY order_index").all() as unknown as RoutePoint[];
   // legs: GeoJSON Feature の配列として返す（フロントはそのまま <GeoJSON> で描画）
-  const legs = db.prepare("SELECT * FROM legs ORDER BY order_index").all().map(legToFeature);
-  const budget = db.prepare("SELECT * FROM budget ORDER BY sort_order, id").all();
+  const legs = (db.prepare("SELECT * FROM legs ORDER BY order_index").all() as unknown as LegRow[]).map(legToFeature);
+  const budget = db.prepare("SELECT * FROM budget ORDER BY sort_order, id").all() as unknown as BudgetItem[];
   const spots = spotsRepo.listSpots(db);
   return c.json({ trip, days, route, legs, budget, spots });
 });
@@ -80,7 +90,7 @@ app.delete("/api/days/:id", (c) => {
 const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id", "leg_id"];
 app.post("/api/items", async (c) => {
   const b = await c.req.json();
-  const maxOrder = db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM items WHERE day_id = ?").get(b.day_id).m;
+  const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM items WHERE day_id = ?").get(b.day_id) as { m: number }).m;
   const { lastInsertRowid } = db
     .prepare(`INSERT INTO items (day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id, leg_id)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -101,7 +111,7 @@ app.delete("/api/items/:id", (c) => {
 const BUDGET_FIELDS = ["sort_order", "category", "per_person", "note"];
 app.post("/api/budget", async (c) => {
   const b = await c.req.json();
-  const maxOrder = db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM budget").get().m;
+  const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM budget").get() as { m: number }).m;
   const { lastInsertRowid } = db
     .prepare("INSERT INTO budget (sort_order, category, per_person, note) VALUES (?, ?, ?, ?)")
     .run(b.sort_order ?? maxOrder + 1, b.category ?? "（費目）", b.per_person ?? 0, b.note ?? null);
@@ -141,7 +151,7 @@ registerSpotChatRoute(app, db);
 const ROUTE_FIELDS = ["order_index", "name", "lat", "lng", "hub", "leg_type", "note"];
 app.post("/api/route", async (c) => {
   const b = await c.req.json();
-  const maxOrder = db.prepare("SELECT COALESCE(MAX(order_index), -1) AS m FROM route").get().m;
+  const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) AS m FROM route").get() as { m: number }).m;
   const { lastInsertRowid } = db
     .prepare("INSERT INTO route (order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .run(b.order_index ?? maxOrder + 1, b.name ?? "（地点）", b.lat ?? null, b.lng ?? null, b.hub ?? 0, b.leg_type ?? null, b.note ?? null);
@@ -164,13 +174,13 @@ app.post("/api/legs", async (c) => {
   const { lastInsertRowid } = db
     .prepare("INSERT INTO legs (order_index, from_name, to_name, mode, geojson, note) VALUES (?, ?, ?, ?, ?, ?)")
     .run(b.order_index ?? 0, b.from_name ?? null, b.to_name ?? null, b.mode ?? "train", geojson, b.note ?? null);
-  return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(lastInsertRowid)));
+  return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(lastInsertRowid) as LegRow));
 });
 app.put("/api/legs/:id", async (c) => {
   const b = await c.req.json();
   if (b.geojson != null && typeof b.geojson !== "string") b.geojson = JSON.stringify(b.geojson);
   updateRow("legs", c.req.param("id"), b, LEG_FIELDS);
-  return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(c.req.param("id"))));
+  return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(c.req.param("id")) as LegRow));
 });
 app.delete("/api/legs/:id", (c) => {
   db.prepare("DELETE FROM legs WHERE id = ?").run(c.req.param("id"));
@@ -179,7 +189,7 @@ app.delete("/api/legs/:id", (c) => {
 
 // ---- OSRM ルート候補（移動データ作成用）------------------
 // 座標→町名（Photon reverse）。通過点サマリ用。失敗時は null。
-async function reverseGeocode(lon, lat) {
+async function reverseGeocode(lon: number, lat: number) {
   try {
     const base = (process.env.PHOTON_URL || "https://photon.komoot.io").replace(/\/$/, "");
     const lang = process.env.PHOTON_LANG || "en";
@@ -187,7 +197,7 @@ async function reverseGeocode(lon, lat) {
       headers: { "User-Agent": "honeymoon-shiori/1.0" },
     });
     if (!res.ok) return null;
-    const d = await res.json();
+    const d: any = await res.json();
     const p = d.features?.[0]?.properties;
     if (!p) return null;
     // 町・市レベルを優先（道路名や番地より旅程の「通過点」として分かりやすい）。
@@ -209,15 +219,15 @@ app.get("/api/osrm", async (c) => {
   const url = `${base}/route/v1/${profile}/${from};${to}?alternatives=3&overview=full&geometries=geojson&steps=true`;
   const res = await fetch(url, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
   if (!res.ok) return c.json({ error: `OSRM ${res.status}` }, 502);
-  const data = await res.json();
+  const data: any = await res.json();
   if (data.code && data.code !== "Ok") return c.json({ error: data.code, routes: [] });
   const routes = await Promise.all(
-    (data.routes || []).map(async (r) => {
+    (data.routes || []).map(async (r: any) => {
       const legs = r.legs || [];
       // まず leg.summary（主要道路）を使い、無ければ steps の道路名から組み立てる。
-      const legSummaries = legs.map((l) => l.summary).filter(Boolean);
+      const legSummaries = legs.map((l: any) => l.summary).filter(Boolean);
       let via = legSummaries.join(" / ");
-      const names = [];
+      const names: string[] = [];
       for (const leg of legs)
         for (const st of leg.steps || []) {
           const n = (st.name || "").trim();
@@ -226,7 +236,7 @@ app.get("/api/osrm", async (c) => {
       if (!via) via = names.slice(0, 6).join(" → ");
       // ルート上の数点を逆ジオコードして「通過する町名」を作る（候補の中身が分かるように）。
       const coords = r.geometry?.coordinates || [];
-      const waypoints = [];
+      const waypoints: string[] = [];
       if (coords.length > 3) {
         for (const f of [0.25, 0.5, 0.75]) {
           const [lon, lat] = coords[Math.floor(f * (coords.length - 1))];
@@ -266,9 +276,9 @@ app.get("/api/geocode", async (c) => {
   for (const t of tags) params.append("osm_tag", t);
   const res = await fetch(`${base}/api/?${params}`, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
   if (!res.ok) return c.json({ error: `geocode ${res.status}`, results: [] }, 502);
-  const data = await res.json();
+  const data: any = await res.json();
   const results = (data.features || [])
-    .map((f) => {
+    .map((f: any) => {
       const p = f.properties || {};
       const [lng, lat2] = f.geometry?.coordinates || [];
       const parts = [
@@ -279,7 +289,7 @@ app.get("/api/geocode", async (c) => {
       ].filter(Boolean);
       return { name: p.name || parts[0] || q, label: parts.join(", "), lng, lat: lat2 };
     })
-    .filter((r) => r.lng != null && r.lat != null);
+    .filter((r: any) => r.lng != null && r.lat != null);
   return c.json({ results });
 });
 
@@ -294,7 +304,7 @@ const server = serve({ fetch: app.fetch, port: PORT }, () => {
 });
 
 // ポート使用中などの起動エラーをクリーンに扱う
-server.on("error", (err) => {
+server.on("error", (err: NodeJS.ErrnoException) => {
   if (err.code === "EADDRINUSE") {
     console.error(`✖ ポート ${PORT} は既に使用中です。既存のサーバーを停止してから再実行してください。`);
   } else {
@@ -305,7 +315,7 @@ server.on("error", (err) => {
 
 // グレースフルシャットダウン（Ctrl+C / SIGTERM でポートと DB を解放して正常終了）
 let closing = false;
-function shutdown(signal) {
+function shutdown(signal: string): void {
   if (closing) return;
   closing = true;
   console.log(`\n${signal} を受信。サーバーを停止します…`);

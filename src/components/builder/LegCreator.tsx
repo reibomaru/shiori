@@ -50,12 +50,14 @@ function PlaceInput({
   value,
   onChange,
   placeholder,
+  tag,
 }: {
   places: Place[];
   bias?: { lat: number; lng: number };
   value: Place | null;
   onChange: (p: Place) => void;
   placeholder: string;
+  tag?: string; // OSM 種別フィルタ（例: 空港 = aeroway:aerodrome）
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -75,7 +77,7 @@ function PlaceInput({
     setLoading(true);
     timer.current = setTimeout(async () => {
       try {
-        const r = await api.geocode(kw, bias);
+        const r = await api.geocode(kw, bias, tag);
         setResults(r.results ?? []);
       } catch {
         setResults([]);
@@ -86,7 +88,7 @@ function PlaceInput({
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [q, bias?.lat, bias?.lng]);
+  }, [q, bias?.lat, bias?.lng, tag]);
 
   const kw = q.trim().toLowerCase();
   const knownMatches = (kw ? places.filter((p) => p.name.toLowerCase().includes(kw)) : places).slice(0, 6);
@@ -354,11 +356,11 @@ export default function LegCreator({
                   /* 飛行機：空港を直接入力（経由地つき）。OSRM は使わない。 */
                   <div className="space-y-2">
                     <label className="block text-xs font-semibold text-slate-500">空港（出発 → 経由 → 到着）</label>
-                    <PlaceInput places={places} bias={bias} value={from} onChange={setFrom} placeholder="出発空港（地名で検索）" />
+                    <PlaceInput places={places} bias={bias} tag="aeroway:aerodrome" value={from} onChange={setFrom} placeholder="出発空港（地名で検索）" />
                     {vias.map((v, i) => (
                       <div key={i} className="flex items-center gap-1.5">
                         <span className="shrink-0 text-slate-300">↳</span>
-                        <PlaceInput places={places} bias={bias} value={v} onChange={(p) => setVia(i, p)} placeholder={`経由空港 ${i + 1}`} />
+                        <PlaceInput places={places} bias={bias} tag="aeroway:aerodrome" value={v} onChange={(p) => setVia(i, p)} placeholder={`経由空港 ${i + 1}`} />
                         <button
                           type="button"
                           onClick={() => removeVia(i)}
@@ -376,7 +378,7 @@ export default function LegCreator({
                     >
                       <FaPlus className="text-[10px]" /> 経由空港を追加
                     </button>
-                    <PlaceInput places={places} bias={bias} value={to} onChange={setTo} placeholder="到着空港（地名で検索）" />
+                    <PlaceInput places={places} bias={bias} tag="aeroway:aerodrome" value={to} onChange={setTo} placeholder="到着空港（地名で検索）" />
                     <p className="text-[11px] leading-relaxed text-slate-400">
                       入力した空港を直線でつないで保存します（経路計算なし）。経由空港を追加すると、その空港を通る線になります。
                     </p>

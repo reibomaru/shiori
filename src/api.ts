@@ -78,10 +78,12 @@ export const api = {
   updateRoute: (id: number, patch: Record<string, unknown>) => http(`/api/route/${id}`, "PUT", patch),
 
   createLeg: (body: Record<string, unknown>) => http(`/api/legs`, "POST", body),
-  // 地名→座標（Photon）。lat/lon を渡すと近傍を優先。
-  geocode: (q: string, bias?: { lat: number; lng: number }) =>
+  // 地名→座標（Photon）。lat/lon を渡すと近傍を優先。tag で OSM 種別（例: 空港）に絞る。
+  geocode: (q: string, bias?: { lat: number; lng: number }, tag?: string) =>
     http<{ results: GeocodeResult[]; error?: string }>(
-      `/api/geocode?q=${encodeURIComponent(q)}${bias ? `&lat=${bias.lat}&lon=${bias.lng}` : ""}`,
+      `/api/geocode?q=${encodeURIComponent(q)}${bias ? `&lat=${bias.lat}&lon=${bias.lng}` : ""}${
+        tag ? `&tag=${encodeURIComponent(tag)}` : ""
+      }`,
       "GET"
     ),
   // OSRM の経路候補を取得（from/to は "lng,lat"）。

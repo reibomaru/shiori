@@ -255,12 +255,15 @@ app.get("/api/geocode", async (c) => {
   if (q.length < 2) return c.json({ results: [] });
   const lat = c.req.query("lat");
   const lon = c.req.query("lon");
+  // tag=aeroway:aerodrome のような OSM タグで種別を絞る（例: 空港検索）。カンマ区切り可。
+  const tags = (c.req.query("tag") || "").split(",").map((t) => t.trim()).filter(Boolean);
   const base = (process.env.PHOTON_URL || "https://photon.komoot.io").replace(/\/$/, "");
   const params = new URLSearchParams({ q, limit: "6", lang: process.env.PHOTON_LANG || "en" });
   if (lat && lon) {
     params.set("lat", lat);
     params.set("lon", lon);
   }
+  for (const t of tags) params.append("osm_tag", t);
   const res = await fetch(`${base}/api/?${params}`, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
   if (!res.ok) return c.json({ error: `geocode ${res.status}`, results: [] }, 502);
   const data = await res.json();

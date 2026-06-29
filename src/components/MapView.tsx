@@ -86,6 +86,7 @@ export default function MapView({
   rightInset = 0,
   onVisibleSpotsChange,
   showSpots = true,
+  itineraryLegOrder = [],
 }: {
   route: RoutePoint[];
   legs: LegFeature[];
@@ -97,6 +98,7 @@ export default function MapView({
   rightInset?: number; // 右オーバーレイ（工程パネル）の幅。中心をその分だけ可視領域へ寄せる
   onVisibleSpotsChange?: (ids: number[]) => void; // いま地図に見えているスポット id
   showSpots?: boolean; // 候補スポットのピン表示/非表示（パネルのチェックで切替）
+  itineraryLegOrder?: number[]; // 旅程に組み込まれた leg id を旅程順に並べた配列。指定時はこれだけを順番表示
 }) {
   const [base, setBase] = useState<BaseId>("osm");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -113,14 +115,23 @@ export default function MapView({
     .map((p, i) => ({ index: i, name: p.name, hub: !!p.hub, note: p.note, position: [p.lng as number, p.lat as number] as [number, number] }));
 
   const legByOrder = new Map(legs.map((f) => [f.properties.order_index, f]));
-  const detailed = legs.filter((f) => f.geometry && f.geometry.coordinates.length >= 2);
+  // 旅程に組み込まれた移動だけを旅程順に表示する（指定があれば）。
+  const legSeq = new Map(itineraryLegOrder.map((id, i) => [id, i] as const));
+  const itinActive = itineraryLegOrder.length > 0;
+  const inItin = (legId: number | undefined) => !itinActive || (legId != null && legSeq.has(legId));
+
+  const detailed = legs.filter(
+    (f) => f.geometry && f.geometry.coordinates.length >= 2 && inItin(f.properties.id)
+  );
   const detailedOrders = new Set(detailed.map((f) => f.properties.order_index));
   const detailedFC: FeatureCollection = { type: "FeatureCollection", features: detailed as unknown as Feature[] };
 
   const arcs = cities.slice(0, -1).map((c, i) => {
     if (detailedOrders.has(i)) return null;
+    const leg = legByOrder.get(i);
+    if (itinActive && !inItin(leg?.properties.id)) return null;
     const next = cities[i + 1];
-    const mode = legByOrder.get(i)?.properties.mode ?? route[i + 1]?.leg_type ?? "flight";
+    const mode = leg?.properties.mode ?? route[i + 1]?.leg_type ?? "flight";
     return { order: i, from: c.position, to: next.position, mode, fromName: c.name, toName: next.name };
   }).filter((x): x is NonNullable<typeof x> => x !== null);
 

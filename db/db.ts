@@ -27,6 +27,8 @@ function migrate(db: DatabaseSync): void {
   addColumnIfMissing(db, "spots", "icon", "TEXT");
   addColumnIfMissing(db, "spots", "instagram", "TEXT");
   addColumnIfMissing(db, "spots", "google_maps_url", "TEXT");
+  // 旅程の予定を移動区間（legs）に紐づける参照。
+  addColumnIfMissing(db, "items", "leg_id", "INTEGER REFERENCES legs(id) ON DELETE SET NULL");
   // 旧「行きたい度」は廃止（評価は Google マップのリンク先で確認する方針）。
   dropColumnIfExists(db, "spots", "want_level");
 }

@@ -40,18 +40,18 @@ export default function MoveProcess({
 }: {
   legs: LegFeature[];
   spots?: Spot[];
-  ratings?: Record<number, SpotRating | null>;
-  visibleSpotIds?: number[];
+  ratings?: Record<string, SpotRating | null>;
+  visibleSpotIds?: string[];
   showSpots?: boolean;
   onToggleShowSpots?: () => void;
-  detailSpotId?: number | null;
-  onOpenSpot?: (id: number) => void;
+  detailSpotId?: string | null;
+  onOpenSpot?: (id: string) => void;
   onCloseDetail?: () => void;
   reload?: () => void;
   selectedLeg?: number | null;
   onSelectLeg?: (order: number | null) => void;
   onClose?: () => void;
-  itineraryLegOrder?: number[]; // 旅程に組み込まれた leg id を旅程順に並べた配列
+  itineraryLegOrder?: string[]; // 旅程に組み込まれた leg id を旅程順に並べた配列
 }) {
   // 旅程に移動が組み込まれていれば、その記載順で表示（地図の番号と一致）。
   // 無ければ従来どおり order_index 順で全件表示。

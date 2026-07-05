@@ -1,11 +1,11 @@
 // 旅程ビルダーのローカルデータモデルと、API ペイロードへの変換ヘルパー。
-// Block は DB の items 行に 1:1 で対応する（id は items.id）。まだ保存前の楽観的ブロックは
-// 負の一時 id を持ち、POST 後に実 id へ差し替える。
+// Block は DB の items 行に 1:1 で対応する（id は items.id = UUID）。保存前の楽観的ブロックも
+// クライアントで UUID を採番し、その id をそのまま POST するため id の差し替えは発生しない。
 import type { Day, ItemType, LegFeature, Spot } from "../../types";
 
 /** タイムラインに並ぶ 1 ブロック（= items 1 行）。 */
 export interface Block {
-  id: number; // items.id（保存前は負の一時値）
+  id: string; // items.id（UUID。保存前もクライアント採番の確定 id）
   time: string;
   type: ItemType;
   title: string;
@@ -13,12 +13,12 @@ export interface Block {
   url: string | null;
   url_label: string | null;
   cost: number | null;
-  spot_id: number | null;
-  leg_id: number | null;
+  spot_id: string | null;
+  leg_id: string | null;
 }
 
 export interface BuilderDay {
-  id: number;
+  id: string;
   day_no: number;
   date: string | null;
   city: string | null;
@@ -46,9 +46,8 @@ export function legItemType(mode: string): ItemType {
   return "free"; // car / walk など
 }
 
-let tempSeq = 0;
-/** 保存前の楽観的ブロック用の一時 id（負値）。 */
-export const tempId = () => -++tempSeq;
+/** 楽観的ブロック用の id。UUID をクライアントで採番し、そのまま確定 id として使う。 */
+export const tempId = () => crypto.randomUUID();
 
 /** items 行 → Block。 */
 function blockFromItem(it: import("../../types").Item): Block {
@@ -127,9 +126,10 @@ export function newBlockManual(): Block {
   };
 }
 
-/** Block → items の POST/PUT 用ボディ。 */
-export function itemBody(block: Block, dayId: number, sortOrder: number) {
+/** Block → items の POST/PUT 用ボディ。id はクライアント採番の UUID をそのまま送る。 */
+export function itemBody(block: Block, dayId: string, sortOrder: number) {
   return {
+    id: block.id,
     day_id: dayId,
     sort_order: sortOrder,
     time: block.time || null,

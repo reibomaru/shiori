@@ -21,8 +21,8 @@ export interface TripMeta {
 }
 
 export interface Item {
-  id: number;
-  day_id: number;
+  id: string;
+  day_id: string;
   sort_order: number;
   time: string | null;
   type: ItemType;
@@ -31,12 +31,12 @@ export interface Item {
   url: string | null;
   url_label: string | null;
   cost: number | null;
-  spot_id: number | null;
-  leg_id: number | null;
+  spot_id: string | null;
+  leg_id: string | null;
 }
 
 export interface Day {
-  id: number;
+  id: string;
   day_no: number;
   date: string | null;
   city: string | null;
@@ -45,7 +45,7 @@ export interface Day {
 }
 
 export interface RoutePoint {
-  id: number;
+  id: string;
   order_index: number;
   name: string;
   lat: number | null;
@@ -59,7 +59,7 @@ export interface RoutePoint {
 export interface LegFeature {
   type: "Feature";
   properties: {
-    id: number;
+    id: string;
     order_index: number;
     from: string | null;
     to: string | null;
@@ -70,7 +70,7 @@ export interface LegFeature {
 }
 
 export interface BudgetItem {
-  id: number;
+  id: string;
   sort_order: number;
   category: string;
   per_person: number;
@@ -78,7 +78,7 @@ export interface BudgetItem {
 }
 
 export interface Spot {
-  id: number;
+  id: string;
   name: string;
   name_en: string | null;
   category: string | null;

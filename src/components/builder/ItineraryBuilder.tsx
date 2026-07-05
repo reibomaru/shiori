@@ -1,6 +1,6 @@
 // 旅程ビルダー。右ドックのパレットから DnD／クリックで部品（スポット候補・移動区間）を差し込み、
 // タイムライン上で並べ替え・日跨ぎ移動できる。各操作は items API に永続化する（楽観的更新）。
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -46,8 +46,8 @@ function fmtDate(d: string | null) {
   return `${dt.getMonth() + 1}/${dt.getDate()}（${WD[dt.getDay()]}）`;
 }
 
-const dayKey = (id: number) => `day:${id}`;
-const dayIdFromKey = (key: string) => Number(key.slice(4));
+const dayKey = (id: string) => `day:${id}`;
+const dayIdFromKey = (key: string) => key.slice(4);
 
 // ---- 1 日のカード（ドロップ先＋並べ替えコンテナ） --------------------------
 const dayField =
@@ -163,10 +163,10 @@ function DayColumn({
   onDayDelete,
 }: {
   day: BuilderDay;
-  onTimeChange: (uid: number, v: string) => void;
-  onTimeCommit: (uid: number, v: string) => void;
-  onSave: (uid: number, patch: BlockPatch) => void;
-  onRemove: (uid: number) => void;
+  onTimeChange: (uid: string, v: string) => void;
+  onTimeCommit: (uid: string, v: string) => void;
+  onSave: (uid: string, patch: BlockPatch) => void;
+  onRemove: (uid: string) => void;
   onAddManual: () => void;
   onDaySave: (patch: { date?: string | null; city?: string | null; title?: string | null }) => void;
   onDayDelete: () => void;
@@ -228,8 +228,13 @@ export default function ItineraryBuilder({
   const [days, setDays] = useState<BuilderDay[]>(() => seedDays(srcDays));
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [activeBlock, setActiveBlock] = useState<Block | null>(null);
-  const [pendingRemove, setPendingRemove] = useState<{ id: number; title: string } | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<{ id: string; title: string } | null>(null);
   const [pendingDeleteDay, setPendingDeleteDay] = useState<BuilderDay | null>(null);
+  // サーバに作成済みのブロック id（UUID）。POST 完了前の楽観的ブロックは含まれず、
+  // 未作成の行への PUT/DELETE を防ぐ（旧実装の「id の符号」判定の置き換え）。
+  const savedIds = useRef<Set<string>>(
+    new Set(srcDays.flatMap((d) => d.items.map((it) => it.id)))
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -238,8 +243,8 @@ export default function ItineraryBuilder({
 
   // 配置状況の索引（パレットのバッジ・フィルタ用）。
   const placed: PlacedIndex = useMemo(() => {
-    const sp = new Map<number, number[]>();
-    const lg = new Map<number, number[]>();
+    const sp = new Map<string, number[]>();
+    const lg = new Map<string, number[]>();
     for (const d of days)
       for (const b of d.blocks) {
         if (b.spot_id != null) sp.set(b.spot_id, [...(sp.get(b.spot_id) ?? []), d.day_no]);
@@ -250,41 +255,34 @@ export default function ItineraryBuilder({
 
   // ---- 永続化ヘルパー ------------------------------------------------------
   /** 指定の日の全ブロックの (day_id, sort_order) を index どおりに保存。 */
-  async function persistOrder(dayList: BuilderDay[], dayIds: number[]) {
+  async function persistOrder(dayList: BuilderDay[], dayIds: string[]) {
     const jobs: Promise<unknown>[] = [];
     for (const id of new Set(dayIds)) {
       const day = dayList.find((d) => d.id === id);
       if (!day) continue;
       day.blocks.forEach((b, i) => {
-        if (b.id > 0) jobs.push(api.updateItem(b.id, { day_id: id, sort_order: i }));
+        if (savedIds.current.has(b.id)) jobs.push(api.updateItem(b.id, { day_id: id, sort_order: i }));
       });
     }
     await Promise.all(jobs);
     await reload();
   }
 
-  /** 楽観的にブロックを差し込み、POST → 実 id へ差し替え → 並び順を保存。 */
-  async function addBlock(dayId: number, block: Block, index: number) {
+  /** 楽観的にブロックを差し込み、POST（id はクライアント採番の UUID）→ 並び順を保存。 */
+  async function addBlock(dayId: string, block: Block, index: number) {
     const inserted = days.map((d) =>
       d.id === dayId
         ? { ...d, blocks: spliceInsert(d.blocks, index, block) }
         : d
     );
     setDays(inserted);
-    const created = (await api.createItem(itemBody(block, dayId, index < 0 ? 999 : index))) as {
-      id: number;
-    };
-    const withId = inserted.map((d) =>
-      d.id === dayId
-        ? { ...d, blocks: d.blocks.map((b) => (b.id === block.id ? { ...b, id: created.id } : b)) }
-        : d
-    );
-    setDays(withId);
-    await persistOrder(withId, [dayId]);
+    await api.createItem(itemBody(block, dayId, index < 0 ? 999 : index));
+    savedIds.current.add(block.id);
+    await persistOrder(inserted, [dayId]);
   }
 
   /** 既存ブロックの移動・並べ替え。 */
-  async function moveBlock(activeId: number, targetDayId: number, overId: string) {
+  async function moveBlock(activeId: string, targetDayId: string, overId: string) {
     const fromDay = days.find((d) => d.blocks.some((b) => b.id === activeId));
     const moving = fromDay?.blocks.find((b) => b.id === activeId);
     if (!fromDay || !moving) return;
@@ -307,27 +305,30 @@ export default function ItineraryBuilder({
   }
 
   // ---- 個別操作 ------------------------------------------------------------
-  function setTimeLocal(id: number, v: string) {
+  function setTimeLocal(id: string, v: string) {
     setDays((prev) =>
       prev.map((d) => ({ ...d, blocks: d.blocks.map((b) => (b.id === id ? { ...b, time: v } : b)) }))
     );
   }
-  async function commitTime(id: number, v: string) {
-    if (id < 0) return;
+  async function commitTime(id: string, v: string) {
+    if (!savedIds.current.has(id)) return;
     await api.updateItem(id, { time: v || null });
     reload();
   }
-  async function saveBlock(id: number, patch: BlockPatch) {
+  async function saveBlock(id: string, patch: BlockPatch) {
     setDays((prev) =>
       prev.map((d) => ({ ...d, blocks: d.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) }))
     );
-    if (id < 0) return;
+    if (!savedIds.current.has(id)) return;
     await api.updateItem(id, patch as Record<string, unknown>);
     reload();
   }
-  async function removeBlock(id: number) {
+  async function removeBlock(id: string) {
     setDays((prev) => prev.map((d) => ({ ...d, blocks: d.blocks.filter((b) => b.id !== id) })));
-    if (id > 0) await api.deleteItem(id);
+    if (savedIds.current.has(id)) {
+      await api.deleteItem(id);
+      savedIds.current.delete(id);
+    }
     reload();
   }
 
@@ -337,7 +338,7 @@ export default function ItineraryBuilder({
     const dayNo = days.reduce((m, d) => Math.max(m, d.day_no), 0) + 1;
     const date = nextDate(last?.date ?? null);
     const created = (await api.createDay({ day_no: dayNo, date, city: null, title: null })) as {
-      id: number;
+      id: string;
       day_no: number;
       date: string | null;
       city: string | null;
@@ -347,14 +348,14 @@ export default function ItineraryBuilder({
     reload();
   }
   async function saveDay(
-    dayId: number,
+    dayId: string,
     patch: { date?: string | null; city?: string | null; title?: string | null }
   ) {
     setDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, ...patch } : d)));
     await api.updateDay(dayId, patch);
     reload();
   }
-  async function deleteDay(dayId: number) {
+  async function deleteDay(dayId: string) {
     setDays((prev) => prev.filter((d) => d.id !== dayId));
     await api.deleteDay(dayId);
     reload();
@@ -366,10 +367,10 @@ export default function ItineraryBuilder({
     if (id.startsWith("palette:")) {
       const [, kind, refId] = id.split(":");
       if (kind === "spot") {
-        const s = spots.find((x) => x.id === Number(refId));
+        const s = spots.find((x) => x.id === refId);
         if (s) setActiveBlock(newBlockFromSpot(s));
       } else {
-        const l = legs.find((x) => x.properties.id === Number(refId));
+        const l = legs.find((x) => x.properties.id === refId);
         if (l) setActiveBlock(newBlockFromLeg(l));
       }
       return;
@@ -396,10 +397,10 @@ export default function ItineraryBuilder({
       const [, kind, refId] = activeId.split(":");
       let block: Block | null = null;
       if (kind === "spot") {
-        const s = spots.find((x) => x.id === Number(refId));
+        const s = spots.find((x) => x.id === refId);
         if (s) block = newBlockFromSpot(s);
       } else {
-        const l = legs.find((x) => x.properties.id === Number(refId));
+        const l = legs.find((x) => x.properties.id === refId);
         if (l) block = newBlockFromLeg(l);
       }
       if (!block) return;
@@ -412,7 +413,7 @@ export default function ItineraryBuilder({
     }
 
     // 既存ブロックの並べ替え／日跨ぎ移動。
-    moveBlock(Number(activeId), targetDayId, overId);
+    moveBlock(activeId, targetDayId, overId);
   }
 
   const totalCost = days.reduce((s, d) => s + d.blocks.reduce((a, b) => a + (b.cost ?? 0), 0), 0);

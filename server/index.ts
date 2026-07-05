@@ -4,6 +4,7 @@
 // ============================================================
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import { randomUUID } from "node:crypto";
 import type { SQLInputValue } from "node:sqlite";
 import { openDb } from "../db/db.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
@@ -45,7 +46,19 @@ function updateRow(table: string, id: SQLInputValue, body: Record<string, unknow
 
 app.onError((err, c) => {
   console.error(err);
-  return c.json({ error: String(err.message || err) }, 500);
+  const msg = String(err.message || err);
+  // DB の制約違反はクライアント側の入力ミス（不正な予定）なので 400 で返す。
+  //   - items: 移動は leg_id、スポット(spot/meal/hotel)は spot_id が必須（free は例外）
+  //   - legs : geojson 必須
+  if (/constraint/i.test(msg)) {
+    const hint = /CHECK constraint/i.test(msg)
+      ? "予定は移動なら leg_id、スポット(spot/meal/hotel)なら spot_id のどちらか一方が必要です（free は例外）。"
+      : /NOT NULL constraint failed: legs\.geojson/i.test(msg)
+        ? "移動区間（leg）には geojson が必須です。"
+        : "データが制約に違反しています。";
+    return c.json({ error: hint, detail: msg }, 400);
+  }
+  return c.json({ error: msg }, 500);
 });
 
 // ---- 全データ取得（React の初期ロード） ---------------------
@@ -72,10 +85,10 @@ app.put("/api/trip", async (c) => {
 const DAY_FIELDS = ["day_no", "date", "city", "title"];
 app.post("/api/days", async (c) => {
   const b = await c.req.json();
-  const { lastInsertRowid } = db
-    .prepare("INSERT INTO days (day_no, date, city, title) VALUES (?, ?, ?, ?)")
-    .run(b.day_no ?? 0, b.date ?? null, b.city ?? null, b.title ?? null);
-  return c.json(db.prepare("SELECT * FROM days WHERE id = ?").get(lastInsertRowid));
+  const id = b.id ?? randomUUID();
+  db.prepare("INSERT INTO days (id, day_no, date, city, title) VALUES (?, ?, ?, ?, ?)")
+    .run(id, b.day_no ?? 0, b.date ?? null, b.city ?? null, b.title ?? null);
+  return c.json(db.prepare("SELECT * FROM days WHERE id = ?").get(id));
 });
 app.put("/api/days/:id", async (c) => {
   updateRow("days", c.req.param("id"), await c.req.json(), DAY_FIELDS);
@@ -91,12 +104,12 @@ const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "u
 app.post("/api/items", async (c) => {
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM items WHERE day_id = ?").get(b.day_id) as { m: number }).m;
-  const { lastInsertRowid } = db
-    .prepare(`INSERT INTO items (day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id, leg_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(b.day_id, b.sort_order ?? maxOrder + 1, b.time ?? null, b.type ?? "spot", b.title ?? "（無題）",
+  const id = b.id ?? randomUUID();
+  db.prepare(`INSERT INTO items (id, day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id, leg_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, b.day_id, b.sort_order ?? maxOrder + 1, b.time ?? null, b.type ?? "spot", b.title ?? "（無題）",
          b.note ?? null, b.url ?? null, b.url_label ?? null, b.cost ?? null, b.spot_id ?? null, b.leg_id ?? null);
-  return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(lastInsertRowid));
+  return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(id));
 });
 app.put("/api/items/:id", async (c) => {
   updateRow("items", c.req.param("id"), await c.req.json(), ITEM_FIELDS);
@@ -112,10 +125,10 @@ const BUDGET_FIELDS = ["sort_order", "category", "per_person", "note"];
 app.post("/api/budget", async (c) => {
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM budget").get() as { m: number }).m;
-  const { lastInsertRowid } = db
-    .prepare("INSERT INTO budget (sort_order, category, per_person, note) VALUES (?, ?, ?, ?)")
-    .run(b.sort_order ?? maxOrder + 1, b.category ?? "（費目）", b.per_person ?? 0, b.note ?? null);
-  return c.json(db.prepare("SELECT * FROM budget WHERE id = ?").get(lastInsertRowid));
+  const id = b.id ?? randomUUID();
+  db.prepare("INSERT INTO budget (id, sort_order, category, per_person, note) VALUES (?, ?, ?, ?, ?)")
+    .run(id, b.sort_order ?? maxOrder + 1, b.category ?? "（費目）", b.per_person ?? 0, b.note ?? null);
+  return c.json(db.prepare("SELECT * FROM budget WHERE id = ?").get(id));
 });
 app.put("/api/budget/:id", async (c) => {
   updateRow("budget", c.req.param("id"), await c.req.json(), BUDGET_FIELDS);
@@ -152,10 +165,10 @@ const ROUTE_FIELDS = ["order_index", "name", "lat", "lng", "hub", "leg_type", "n
 app.post("/api/route", async (c) => {
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) AS m FROM route").get() as { m: number }).m;
-  const { lastInsertRowid } = db
-    .prepare("INSERT INTO route (order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(b.order_index ?? maxOrder + 1, b.name ?? "（地点）", b.lat ?? null, b.lng ?? null, b.hub ?? 0, b.leg_type ?? null, b.note ?? null);
-  return c.json(db.prepare("SELECT * FROM route WHERE id = ?").get(lastInsertRowid));
+  const id = b.id ?? randomUUID();
+  db.prepare("INSERT INTO route (id, order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(id, b.order_index ?? maxOrder + 1, b.name ?? "（地点）", b.lat ?? null, b.lng ?? null, b.hub ?? 0, b.leg_type ?? null, b.note ?? null);
+  return c.json(db.prepare("SELECT * FROM route WHERE id = ?").get(id));
 });
 app.put("/api/route/:id", async (c) => {
   updateRow("route", c.req.param("id"), await c.req.json(), ROUTE_FIELDS);
@@ -171,10 +184,10 @@ const LEG_FIELDS = ["order_index", "from_name", "to_name", "mode", "geojson", "n
 app.post("/api/legs", async (c) => {
   const b = await c.req.json();
   const geojson = b.geojson == null ? null : typeof b.geojson === "string" ? b.geojson : JSON.stringify(b.geojson);
-  const { lastInsertRowid } = db
-    .prepare("INSERT INTO legs (order_index, from_name, to_name, mode, geojson, note) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(b.order_index ?? 0, b.from_name ?? null, b.to_name ?? null, b.mode ?? "train", geojson, b.note ?? null);
-  return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(lastInsertRowid) as LegRow));
+  const id = b.id ?? randomUUID();
+  db.prepare("INSERT INTO legs (id, order_index, from_name, to_name, mode, geojson, note) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(id, b.order_index ?? 0, b.from_name ?? null, b.to_name ?? null, b.mode ?? "train", geojson, b.note ?? null);
+  return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(id) as LegRow));
 });
 app.put("/api/legs/:id", async (c) => {
   const b = await c.req.json();

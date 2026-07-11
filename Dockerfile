@@ -25,11 +25,12 @@ RUN corepack enable
 
 # Litestream バイナリを導入（GCS レプリケーション用）。
 # TARGETARCH は buildkit が自動設定（amd64/arm64）。Cloud Run は amd64。
+# ca-certificates は必須: これが無いと litestream が GCS への TLS 検証に失敗して起動できない。
 ARG LITESTREAM_VERSION=v0.3.13
 ARG TARGETARCH
 ADD https://github.com/benbjohnson/litestream/releases/download/${LITESTREAM_VERSION}/litestream-${LITESTREAM_VERSION}-linux-${TARGETARCH}.deb /tmp/litestream.deb
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends /tmp/litestream.deb \
+  && apt-get install -y --no-install-recommends ca-certificates /tmp/litestream.deb \
   && rm -rf /var/lib/apt/lists/* /tmp/litestream.deb
 
 # 本番依存だけ入れてレイヤキャッシュを効かせる。

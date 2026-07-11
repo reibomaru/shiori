@@ -114,26 +114,66 @@ export default function MapView({
     .filter((p) => p.lat != null && p.lng != null)
     .map((p, i) => ({ index: i, name: p.name, hub: !!p.hub, note: p.note, position: [p.lng as number, p.lat as number] as [number, number] }));
 
-  const legByOrder = new Map(legs.map((f) => [f.properties.order_index, f]));
   // 旅程に組み込まれた移動だけを旅程順に表示する（指定があれば）。
   const legSeq = new Map(itineraryLegOrder.map((id, i) => [id, i] as const));
   const itinActive = itineraryLegOrder.length > 0;
   const inItin = (legId: number | undefined) => !itinActive || (legId != null && legSeq.has(legId));
 
+  // leg の端点（[lng,lat]）。geojson があれば両端、無ければ route の order_index 対応点。
+  const cityByIndex = new Map(cities.map((c) => [c.index, c]));
+  const legEndpoints = (f: LegFeature): [[number, number], [number, number]] | null => {
+    const cs = f.geometry?.coordinates as [number, number][] | undefined;
+    if (cs && cs.length >= 2) return [cs[0], cs[cs.length - 1]];
+    const oi = f.properties.order_index;
+    const a = cityByIndex.get(oi)?.position;
+    const b = cityByIndex.get(oi + 1)?.position;
+    return a && b ? [a, b] : null;
+  };
+
+  // 詳細ルート（GeoJSON 線・平面）として描くのは地上移動のみ。
+  // 空路（flight）は geojson の有無にかかわらず、必ず下の arcs で高度アークとして描く。
   const detailed = legs.filter(
-    (f) => f.geometry && f.geometry.coordinates.length >= 2 && inItin(f.properties.id)
+    (f) => f.properties.mode !== "flight" && f.geometry && f.geometry.coordinates.length >= 2 && inItin(f.properties.id)
   );
   const detailedOrders = new Set(detailed.map((f) => f.properties.order_index));
   const detailedFC: FeatureCollection = { type: "FeatureCollection", features: detailed as unknown as Feature[] };
 
-  const arcs = cities.slice(0, -1).map((c, i) => {
-    if (detailedOrders.has(i)) return null;
-    const leg = legByOrder.get(i);
-    if (itinActive && !inItin(leg?.properties.id)) return null;
-    const next = cities[i + 1];
-    const mode = leg?.properties.mode ?? route[i + 1]?.leg_type ?? "flight";
-    return { order: i, from: c.position, to: next.position, mode, fromName: c.name, toName: next.name };
-  }).filter((x): x is NonNullable<typeof x> => x !== null);
+  // アーク：空路（必ず高度付き）と、詳細線を持たない地上移動（高度0の直線）。
+  // 空路は geojson の経由地（成田→香港→…）も各区間を高度アークでつなぐ。
+  const arcs = legs
+    .filter((f) => inItin(f.properties.id) && !detailedOrders.has(f.properties.order_index))
+    .flatMap((f) => {
+      const order = f.properties.order_index;
+      const mode = f.properties.mode;
+      const fromName = f.properties.from;
+      const toName = f.properties.to;
+      const cs = f.geometry?.coordinates as [number, number][] | undefined;
+      if (mode === "flight" && cs && cs.length >= 2) {
+        // 経由地を含め、各区間を 1 本ずつアーク化（経由便を正しく表現）
+        return cs.slice(0, -1).map((p, i) => ({ order, from: p, to: cs[i + 1], mode, fromName, toName }));
+      }
+      const ep = legEndpoints(f);
+      if (!ep) return [];
+      return [{ order, from: ep[0], to: ep[1], mode, fromName, toName }];
+    });
+
+  // 地点マーカーは、旅程に残っている移動（leg）の端点になっているものだけ表示する。
+  // route 配列の添字 i は leg.order_index に対応（route[i]→route[i+1] が leg i）。
+  // 旅程から移動を削除すると、その端点が他の移動に使われていなければマーカーも消える。
+  // ※ route 行自体は消さない（添字と order_index の対応＝線の描画を壊さないため）。
+  const activeCityIndex = useMemo(() => {
+    if (!itinActive) return null; // 旅程フィルタ未使用時は従来どおり全地点を表示
+    const set = new Set<number>();
+    for (const f of legs) {
+      if (!inItin(f.properties.id)) continue;
+      const oi = f.properties.order_index;
+      set.add(oi); // 出発地 route[oi]
+      set.add(oi + 1); // 到着地 route[oi+1]
+    }
+    return set;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itinActive, legs, itineraryLegOrder.join(",")]);
+  const visibleCities = activeCityIndex ? cities.filter((c) => activeCityIndex.has(c.index)) : cities;
 
   const initialViewState = useMemo(() => {
     const euro = cities.filter((c) => c.position[1] > 40 && c.position[1] < 52 && c.position[0] > -6 && c.position[0] < 20);
@@ -292,8 +332,8 @@ export default function MapView({
       data: detailedFC,
       stroked: true, filled: false, pickable: true,
       getLineColor: (f: any) => lineColor(f.properties?.mode, f.properties?.order_index),
-      getLineWidth: (f: any) => (f.properties?.order_index === selectedLeg ? 6 : 3),
-      lineWidthUnits: "pixels", lineWidthMinPixels: 2,
+      getLineWidth: (f: any) => (f.properties?.order_index === selectedLeg ? 9 : 6),
+      lineWidthUnits: "pixels", lineWidthMinPixels: 4,
       lineJointRounded: true, lineCapRounded: true,
       updateTriggers: { getLineColor: selectedLeg, getLineWidth: selectedLeg },
     }),
@@ -316,7 +356,7 @@ export default function MapView({
     }),
     new ScatterplotLayer({
       id: "cities",
-      data: cities, pickable: true,
+      data: visibleCities, pickable: true,
       getPosition: (d: any) => d.position,
       getRadius: (d: any) => {
         const endpoint = hasSelection && (d.index === selectedLeg || d.index === selectedLeg + 1);
@@ -333,7 +373,7 @@ export default function MapView({
     }),
     new TextLayer({
       id: "labels",
-      data: cities,
+      data: visibleCities,
       getPosition: (d: any) => d.position,
       getText: (d: any) => `${d.index + 1}. ${d.name}`,
       getSize: 12, getColor: [30, 41, 59], getPixelOffset: [0, -16],

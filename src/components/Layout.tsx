@@ -5,6 +5,7 @@ import {
   FaRegCalendarDays,
   FaWallet,
   FaCompass,
+  FaRegNoteSticky,
   FaPrint,
   FaRegCalendar,
   FaUserGroup,
@@ -29,6 +30,7 @@ const NAV = [
   { to: "/itinerary", label: "旅程", Icon: FaRegCalendarDays },
   { to: "/budget", label: "予算", Icon: FaWallet },
   { to: "/spots", label: "スポット", Icon: FaCompass },
+  { to: "/memo", label: "メモ", Icon: FaRegNoteSticky },
 ];
 
 export default function Layout() {

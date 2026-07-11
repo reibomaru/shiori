@@ -1,0 +1,5 @@
+# このファイルを terraform.tfvars にコピーして値を設定する。
+project_id        = "your-gcp-project-id"
+region            = "asia-northeast1"
+service_name      = "shiori"
+github_repository = "reibomaru/travel-plans"

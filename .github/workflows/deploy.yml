@@ -1,0 +1,73 @@
+# しおりアプリの本番デプロイ（イメージのビルド → push → Cloud Run 更新）。
+#
+# スキーマ変更を含むリリースでは、先に「migrate」ワークフローを実行してから
+# このデプロイを行う（詳細は docs/gcp-deployment-design.md §10）。
+#
+# 事前に設定する GitHub Variables（Settings → Secrets and variables → Actions → Variables）:
+#   GCP_PROJECT_ID                … GCP プロジェクト ID
+#   GCP_REGION                    … asia-northeast1
+#   GCP_WORKLOAD_IDENTITY_PROVIDER… terraform output workload_identity_provider
+#   GCP_DEPLOY_SA                 … terraform output deployer_service_account
+#   SERVICE_NAME                  … shiori
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "infra/**"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.SERVICE_NAME }}/app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Workload Identity 連携に必須
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push image
+        run: |
+          set -euo pipefail
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy Cloud Run service
+        run: |
+          set -euo pipefail
+          # 設定は Terraform 管理のため、ここではイメージのみ差し替える。
+          gcloud run deploy "${{ vars.SERVICE_NAME }}" \
+            --image "$IMAGE:${{ github.sha }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --quiet
+
+      - name: Sync migrate job image
+        run: |
+          set -euo pipefail
+          # マイグレーション Job も同じイメージに追従させておく。
+          gcloud run jobs update "${{ vars.SERVICE_NAME }}-migrate" \
+            --image "$IMAGE:${{ github.sha }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --quiet

@@ -33,6 +33,19 @@ body {
   --button-stroke: #fff;
 }
 
+/* iOS Safari はフォントサイズ 16px 未満の入力欄にフォーカスすると自動でズームイン
+   し、ページ全体が拡大＋横パンして左右が見切れて崩れる。モバイル幅では入力系の
+   フォントを 16px 以上にしてズームを抑止する（見た目は Tailwind の text-sm 等の
+   まま、フォントサイズだけ最低 16px を保証）。 */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    /* Tailwind の text-sm 等（クラス指定）より詳細度が低いため !important で確実に上書き */
+    font-size: 16px !important;
+  }
+}
+
 /* ============ 印刷（PDF出力）用 ============ */
 @media print {
   @page {

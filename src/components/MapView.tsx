@@ -177,7 +177,7 @@ export default function MapView({
 
   const initialViewState = useMemo(() => {
     const euro = cities.filter((c) => c.position[1] > 40 && c.position[1] < 52 && c.position[0] > -6 && c.position[0] < 20);
-    const base = { longitude: 7, latitude: 46.4, zoom: 6.4, pitch: 45, bearing: 0 };
+    const base = { longitude: 7, latitude: 46.4, zoom: 6.4, pitch: 0, bearing: 0 };
     if (euro.length < 2) return base;
     const lons = euro.map((c) => c.position[0]); const lats = euro.map((c) => c.position[1]);
     try {
@@ -186,7 +186,7 @@ export default function MapView({
         [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
         { padding: 90 }
       );
-      return { longitude, latitude, zoom: Math.min(zoom, 9), pitch: 45, bearing: 0 };
+      return { longitude, latitude, zoom: Math.min(zoom, 9), pitch: 0, bearing: 0 };
     } catch {
       return base;
     }
@@ -388,9 +388,11 @@ export default function MapView({
         data: spotPoints, pickable: true,
         getPosition: (d: any) => d.position,
         getIcon: (d: any) => spotPinIcon(resolveSpotIcon(d)),
-        getSize: 46,
+        getSize: 34,
         sizeUnits: "pixels",
         billboard: true,
+        // 3D（pitch）時に billboard アイコンが地面の深度にめり込んで半分クリップされるのを防ぐ
+        parameters: { depthTest: false },
         updateTriggers: { getIcon: spotPoints.map((s) => s.icon ?? s.category).join(",") },
       }),
     showSpots &&
@@ -399,8 +401,8 @@ export default function MapView({
         data: spotPoints,
         getPosition: (d: any) => d.position,
         getText: (d: any) => d.name,
-        // 都市ラベルは上方向(-16)。候補ラベルはピンの下に出して干渉を避ける
-        getSize: 11, getColor: SPOT_RGB, getPixelOffset: [0, 6],
+        // 都市ラベルは上方向(-16)。候補ラベルは丸マーカー（中心アンカー）の下に出して干渉を避ける
+        getSize: 11, getColor: SPOT_RGB, getPixelOffset: [0, 14],
         getTextAnchor: "middle", getAlignmentBaseline: "top",
         fontFamily: '"Hiragino Sans", system-ui, sans-serif',
         outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },

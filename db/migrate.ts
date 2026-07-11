@@ -34,6 +34,10 @@ function main(): void {
   }
 
   const n = applyPending(db);
+  // WAL を main db へ畳み込んでおく。マイグレーション Job では直後に Litestream が
+  // フルスナップショットを取るため、変更が WAL 側に残らず確実に取り込まれるようにする。
+  // （他コネクション無しの単一ライタ窓で実行される前提。dev/CLI でも無害。）
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE);");
   console.log(
     n > 0
       ? `完了: ${n} 件のマイグレーションを適用しました（現在 v${currentVersion(db)}）。`

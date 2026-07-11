@@ -28,6 +28,8 @@ import {
   listSessions,
   getSession,
   deleteSession,
+  recordResolution,
+  getResolutions,
 } from "./sessions.ts";
 import { readSessionMessages } from "./history.ts";
 
@@ -40,8 +42,20 @@ export function registerSpotChatRoute(app: Hono, db: DatabaseSync): void {
 
   // ---- 履歴（resume 時に表示する会話を JSONL から復元）------
   app.get("/api/spots/chat/sessions/:id/messages", (c) => {
-    const file = getSessionFile(db, c.req.param("id"));
-    return c.json(readSessionMessages(file));
+    const id = c.req.param("id");
+    const file = getSessionFile(db, id);
+    return c.json(readSessionMessages(db, file, getResolutions(db, id)));
+  });
+
+  // ---- 提案カードの解決状態（保存/破棄）を永続化 -----------
+  // 一度保存・破棄したカードはリロード後も同じ状態で復元され、再保存できない。
+  app.post("/api/spots/chat/sessions/:id/resolutions", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { proposalId?: unknown; status?: unknown };
+    const proposalId = typeof body.proposalId === "string" ? body.proposalId : "";
+    const status = body.status === "saved" || body.status === "dismissed" ? body.status : null;
+    if (!proposalId || !status) return c.json({ error: "proposalId と status（saved/dismissed）が必要です。" }, 400);
+    recordResolution(db, c.req.param("id"), proposalId, status);
+    return c.json({ ok: true });
   });
 
   // ---- セッション削除（行 + JSONL ファイル）----------------

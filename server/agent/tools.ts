@@ -23,11 +23,12 @@ export interface SpotToolsOptions {
   webSearchApiKey: string;
 }
 
-/** 提案ごとに振る一時 ID（フロントの承認ボタンと突き合わせる用）。 */
-let proposalSeq = 0;
-function nextTempId(): string {
-  proposalSeq += 1;
-  return `prop-${Date.now()}-${proposalSeq}`;
+/**
+ * 提案カードの ID。toolCall id 由来にすることで、SSE 直後だけでなく
+ * 履歴復元（JSONL の toolCall id）でも同じ ID になり、保存/破棄の状態を保てる。
+ */
+function proposalIdFor(toolCallId: string): string {
+  return `prop-${toolCallId}`;
 }
 
 const text = (s: string): AgentToolResult<unknown> =>
@@ -106,14 +107,14 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
       id: Type.Optional(Type.Number({ description: "更新対象の既存スポット id。新規追加なら省略" })),
       ...proposalFields,
     }),
-    async execute(_id, p) {
+    async execute(toolCallId, p) {
       const op = p.id != null ? "update" : "create";
       let current = null;
       if (p.id != null) {
         current = spotsRepo.getSpot(db, p.id);
         if (!current) return text(`id=${p.id} の候補が見つかりません。list_spots で id を確認してください。`);
       }
-      const tempId = nextTempId();
+      const tempId = proposalIdFor(toolCallId);
       const spot = pickDraft(p as Record<string, unknown>);
       await emit("proposal", { tempId, op, id: p.id ?? null, spot, current });
       return text(
@@ -132,10 +133,10 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
     parameters: Type.Object({
       id: Type.Number({ description: "削除対象の既存スポット id" }),
     }),
-    async execute(_id, p) {
+    async execute(toolCallId, p) {
       const current = spotsRepo.getSpot(db, p.id);
       if (!current) return text(`id=${p.id} の候補が見つかりません。list_spots で id を確認してください。`);
-      const tempId = nextTempId();
+      const tempId = proposalIdFor(toolCallId);
       await emit("proposal", { tempId, op: "delete", id: p.id, spot: null, current });
       return text(`「${current.name}」の削除を提案しました。ユーザーが「削除」を押すと確定します。`);
     },

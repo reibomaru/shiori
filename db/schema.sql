@@ -120,6 +120,16 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
   updated_at    TEXT DEFAULT (datetime('now'))
 );
 
+-- 提案カード（propose_* ツール由来）の解決状態。リロード後も「保存済み/破棄済み」を保つ。
+-- proposal_id は toolCall id 由来（"prop-<toolCallId>"）で、live・履歴復元の双方で一致する。
+CREATE TABLE IF NOT EXISTS proposal_resolutions (
+  session_id   TEXT NOT NULL,
+  proposal_id  TEXT NOT NULL,
+  status       TEXT NOT NULL,                    -- 'saved' | 'dismissed'
+  resolved_at  TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (session_id, proposal_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_items_day ON items(day_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_route_order ON route(order_index);
 CREATE INDEX IF NOT EXISTS idx_legs_order ON legs(order_index);

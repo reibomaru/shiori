@@ -26,6 +26,9 @@ export function openDb() {
   mkdirSync(dirname(DB_PATH), { recursive: true });
   const db = new DatabaseSync(DB_PATH);
   db.exec("PRAGMA foreign_keys = ON;");
+  // Litestream は WAL モードの DB を要求する（本番のレプリケーション前提）。
+  // WAL 設定は DB ファイルに永続化され、dev/CLI でも無害。
+  db.exec("PRAGMA journal_mode = WAL;");
   db.exec(readFileSync(SCHEMA_PATH, "utf8"));
   ensureMigrationsTable(db);
   recordBaseline(db); // <=3 を「適用済み」として記録（非破壊・冪等）

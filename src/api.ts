@@ -22,7 +22,7 @@ export interface SpotRating {
 }
 export interface SpotRatingsResponse {
   configured: boolean; // GOOGLE_MAPS_API_KEY が設定されているか（未設定でもキャッシュは返る）
-  ratings: Record<number, SpotRating | null>;
+  ratings: Record<string, SpotRating | null>;
 }
 
 /** ジオコーディング結果（地名→座標）。 */
@@ -59,16 +59,16 @@ export const api = {
   updateTrip: (patch: Record<string, unknown>) => http("/api/trip", "PUT", patch),
 
   createDay: (body: Record<string, unknown>) => http(`/api/days`, "POST", body),
-  updateDay: (id: number, patch: Record<string, unknown>) => http(`/api/days/${id}`, "PUT", patch),
-  deleteDay: (id: number) => http(`/api/days/${id}`, "DELETE"),
+  updateDay: (id: string, patch: Record<string, unknown>) => http(`/api/days/${id}`, "PUT", patch),
+  deleteDay: (id: string) => http(`/api/days/${id}`, "DELETE"),
 
-  updateItem: (id: number, patch: Record<string, unknown>) => http(`/api/items/${id}`, "PUT", patch),
+  updateItem: (id: string, patch: Record<string, unknown>) => http(`/api/items/${id}`, "PUT", patch),
   createItem: (body: Record<string, unknown>) => http(`/api/items`, "POST", body),
-  deleteItem: (id: number) => http(`/api/items/${id}`, "DELETE"),
+  deleteItem: (id: string) => http(`/api/items/${id}`, "DELETE"),
 
-  updateBudget: (id: number, patch: Record<string, unknown>) => http(`/api/budget/${id}`, "PUT", patch),
+  updateBudget: (id: string, patch: Record<string, unknown>) => http(`/api/budget/${id}`, "PUT", patch),
   createBudget: (body: Record<string, unknown>) => http(`/api/budget`, "POST", body),
-  deleteBudget: (id: number) => http(`/api/budget/${id}`, "DELETE"),
+  deleteBudget: (id: string) => http(`/api/budget/${id}`, "DELETE"),
 
   getSpotRatings: () => http<SpotRatingsResponse>(`/api/spots/ratings`, "GET"),
   // 提案プレビュー用: 保存前スポットの評価・写真を名称等のクエリで取得。
@@ -78,10 +78,10 @@ export const api = {
       "GET"
     ),
   createSpot: (body: Record<string, unknown>) => http(`/api/spots`, "POST", body),
-  updateSpot: (id: number, patch: Record<string, unknown>) => http(`/api/spots/${id}`, "PUT", patch),
-  deleteSpot: (id: number) => http(`/api/spots/${id}`, "DELETE"),
+  updateSpot: (id: string, patch: Record<string, unknown>) => http(`/api/spots/${id}`, "PUT", patch),
+  deleteSpot: (id: string) => http(`/api/spots/${id}`, "DELETE"),
 
-  updateRoute: (id: number, patch: Record<string, unknown>) => http(`/api/route/${id}`, "PUT", patch),
+  updateRoute: (id: string, patch: Record<string, unknown>) => http(`/api/route/${id}`, "PUT", patch),
 
   createLeg: (body: Record<string, unknown>) => http(`/api/legs`, "POST", body),
   // 地名→座標（Photon）。lat/lon を渡すと近傍を優先。tag で OSM 種別（例: 空港）に絞る。

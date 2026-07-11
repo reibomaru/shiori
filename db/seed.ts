@@ -3,6 +3,7 @@
 //   node db/seed.ts          … 空のときだけ投入（既存データは保持）
 //   node db/seed.ts --reset  … 全削除してから投入し直す
 // ============================================================
+import { randomUUID } from "node:crypto";
 import { openDb } from "./db.ts";
 import { toLineString } from "./geo.ts";
 import type { LatLng } from "./geo.ts";
@@ -23,7 +24,6 @@ interface SeedItem {
   url?: string;
   url_label?: string;
   cost?: number;
-  leg_index?: number; // 対応する移動区間（legs.order_index）。地図の移動ルートと連動させる予定に付ける。
 }
 interface SeedDay {
   day_no: number;
@@ -93,14 +93,14 @@ db.prepare(
   "為替の目安：1 CHF ≒ 190円 / 1 EUR ≒ 165円（2026年想定・要確認）"
 );
 
-// ---- days & items（データ定義）-----------------------------
+// ---- days & items -----------------------------------------
 const days: SeedDay[] = [
   {
     day_no: 1, date: "2026-09-12", city: "ルツェルン",
     title: "日本 → チューリッヒ → ルツェルンへ",
     items: [
-      { time: "10:30", type: "flight", title: "羽田/成田 発 → チューリッヒ行き（直行 約14h）", note: "機内で時差調整。チューリッヒ着は同日夕方。", url: "https://www.zurich-airport.com/", url_label: "チューリッヒ空港", leg_index: 0 },
-      { time: "17:00", type: "train", title: "チューリッヒ空港駅 → ルツェルン（約1時間）", note: "空港直結の駅から直通列車。Swiss Travel Pass の利用開始日。", url: "https://www.sbb.ch/en", url_label: "SBB（スイス鉄道）", leg_index: 1 },
+      { time: "10:30", type: "flight", title: "羽田/成田 発 → チューリッヒ行き（直行 約14h）", note: "機内で時差調整。チューリッヒ着は同日夕方。", url: "https://www.zurich-airport.com/", url_label: "チューリッヒ空港" },
+      { time: "17:00", type: "train", title: "チューリッヒ空港駅 → ルツェルン（約1時間）", note: "空港直結の駅から直通列車。Swiss Travel Pass の利用開始日。", url: "https://www.sbb.ch/en", url_label: "SBB（スイス鉄道）" },
       { time: "19:00", type: "hotel", title: "ルツェルン泊（旧市街 or 湖畔のホテル）", note: "到着日は無理せず、湖畔を散歩して早めに休む。" },
       { time: "20:00", type: "meal", title: "夕食：チーズフォンデュで乾杯", note: "スイス初日の定番。旧市街のレストランで。" },
     ],
@@ -119,8 +119,8 @@ const days: SeedDay[] = [
     day_no: 3, date: "2026-09-14", city: "ツェルマット",
     title: "氷河特急でツェルマットへ",
     items: [
-      { time: "08:00", type: "train", title: "ルツェルン → アンデルマット（乗継）", note: "氷河特急の乗車駅アンデルマットへ。荷物は身軽に。", leg_index: 2 },
-      { time: "10:00", type: "train", title: "★氷河特急（Glacier Express）に乗車", note: "「世界一遅い特急」。パノラマ車窓でオーバーアルプ峠の絶景。座席指定は必須（要事前予約）。", url: "https://www.glacierexpress.ch/en/", url_label: "氷河特急 公式", cost: 9000, leg_index: 3 },
+      { time: "08:00", type: "train", title: "ルツェルン → アンデルマット（乗継）", note: "氷河特急の乗車駅アンデルマットへ。荷物は身軽に。" },
+      { time: "10:00", type: "train", title: "★氷河特急（Glacier Express）に乗車", note: "「世界一遅い特急」。パノラマ車窓でオーバーアルプ峠の絶景。座席指定は必須（要事前予約）。", url: "https://www.glacierexpress.ch/en/", url_label: "氷河特急 公式", cost: 9000 },
       { time: "14:30", type: "spot", title: "ツェルマット着｜ガス車の街を散策", note: "ガソリン車が入れない静かな山岳リゾート。村のどこからでもマッターホルンが見える。", url: "https://www.zermatt.ch/en", url_label: "Zermatt 観光" },
       { time: "18:00", type: "hotel", title: "ツェルマット泊（マッターホルンビューの宿）", note: "ハネムーンの奮発ポイント。山が見える部屋を予約したい。" },
     ],
@@ -139,7 +139,7 @@ const days: SeedDay[] = [
     day_no: 5, date: "2026-09-16", city: "グリンデルワルト",
     title: "ツェルマット → ユングフラウ地方へ",
     items: [
-      { time: "09:30", type: "train", title: "ツェルマット → フィスプ → グリンデルワルト（約3.5h）", note: "車窓を楽しみながらベルナーオーバーラント地方へ移動。", url: "https://www.sbb.ch/en", url_label: "SBB 経路検索", leg_index: 4 },
+      { time: "09:30", type: "train", title: "ツェルマット → フィスプ → グリンデルワルト（約3.5h）", note: "車窓を楽しみながらベルナーオーバーラント地方へ移動。", url: "https://www.sbb.ch/en", url_label: "SBB 経路検索" },
       { time: "14:00", type: "spot", title: "グリンデルワルト着｜村と氷河の谷", note: "アイガー北壁の足元の村。チェックイン後、ファースト（First）で空中散歩も。", url: "https://www.grindelwald.swiss/en/", url_label: "Grindelwald 観光" },
       { time: "18:00", type: "hotel", title: "グリンデルワルト泊", note: "アイガーが見える宿だと最高。" },
     ],
@@ -158,7 +158,7 @@ const days: SeedDay[] = [
     day_no: 7, date: "2026-09-18", city: "ジュネーブ",
     title: "グリンデルワルト → ジュネーブ（レマン湖）",
     items: [
-      { time: "09:00", type: "train", title: "グリンデルワルト → ベルン → ジュネーブ（約3.5h）", note: "首都ベルンで途中下車も可。世界遺産の旧市街は寄り道の価値あり。", url: "https://www.sbb.ch/en", url_label: "SBB 経路検索", leg_index: 5 },
+      { time: "09:00", type: "train", title: "グリンデルワルト → ベルン → ジュネーブ（約3.5h）", note: "首都ベルンで途中下車も可。世界遺産の旧市街は寄り道の価値あり。", url: "https://www.sbb.ch/en", url_label: "SBB 経路検索" },
       { time: "14:00", type: "spot", title: "レマン湖 & ジェドー（大噴水）", note: "高さ140mの大噴水はジュネーブの象徴。湖畔のプロムナードを散歩。", url: "https://www.geneve.com/en/", url_label: "Geneva 観光" },
       { time: "16:00", type: "spot", title: "旧市街 & サンピエール大聖堂", note: "石畳の旧市街、花時計、時計店めぐり。", url: "https://maps.google.com/?q=St-Pierre+Cathedral+Geneva", url_label: "Google マップ" },
       { time: "19:00", type: "hotel", title: "ジュネーブ泊" },
@@ -168,7 +168,7 @@ const days: SeedDay[] = [
     day_no: 8, date: "2026-09-19", city: "ニース",
     title: "ジュネーブ → 南仏ニースへ（国境越え）",
     items: [
-      { time: "10:00", type: "flight", title: "ジュネーブ → ニース（直行フライト 約1h）", note: "TGV経由（マルセイユ乗継）でも行けるが、フライトが速い。スイスからフランスへ。", url: "https://www.nice.aeroport.fr/en", url_label: "ニース・コートダジュール空港", cost: 25000, leg_index: 6 },
+      { time: "10:00", type: "flight", title: "ジュネーブ → ニース（直行フライト 約1h）", note: "TGV経由（マルセイユ乗継）でも行けるが、フライトが速い。スイスからフランスへ。", url: "https://www.nice.aeroport.fr/en", url_label: "ニース・コートダジュール空港", cost: 25000 },
       { time: "13:00", type: "spot", title: "プロムナード・デ・ザングレ & 旧市街", note: "紺碧海岸の散歩道と、コクトーが愛した旧市街。サレヤ広場のマルシェも。", url: "https://www.explorenicecotedazur.com/en/", url_label: "Nice 観光" },
       { time: "16:00", type: "spot", title: "シャガール美術館 / 城跡公園からの眺め（任意）", note: "丘の上の城跡公園からニースの赤い屋根と海を一望。" },
       { time: "19:00", type: "hotel", title: "ニース泊" },
@@ -188,7 +188,7 @@ const days: SeedDay[] = [
     day_no: 10, date: "2026-09-21", city: "マルセイユ",
     title: "ニース → マルセイユ（帰路の拠点）",
     items: [
-      { time: "09:30", type: "train", title: "ニース → マルセイユ（TGV 約2.5h）", note: "地中海沿いを走る快適なTGV。", url: "https://www.sncf-connect.com/en-en/", url_label: "SNCF（フランス鉄道）", cost: 8000, leg_index: 7 },
+      { time: "09:30", type: "train", title: "ニース → マルセイユ（TGV 約2.5h）", note: "地中海沿いを走る快適なTGV。", url: "https://www.sncf-connect.com/en-en/", url_label: "SNCF（フランス鉄道）", cost: 8000 },
       { time: "13:00", type: "spot", title: "ノートルダム・ド・ラ・ギャルド寺院", note: "丘の上からマルセイユの街と港を見守る教会。市街と海の大パノラマ。", url: "https://www.notredamedelagarde.fr/", url_label: "公式サイト" },
       { time: "15:00", type: "spot", title: "旧港（ヴュー・ポール）& パニエ地区", note: "活気ある港、ブイヤベース、坂道の路地。旅の締めくくりの散策。", url: "https://www.marseille-tourisme.com/en/", url_label: "Marseille 観光" },
       { time: "19:00", type: "hotel", title: "マルセイユ泊（空港アクセス重視）" },
@@ -204,14 +204,37 @@ const days: SeedDay[] = [
   },
 ];
 
+// items は seed しない。
+// item は spot / leg のどちらかに必ず紐づく制約（DB の CHECK）があり、
+// 旅程は UI（ItineraryBuilder：スポット候補・移動区間からブロックを追加）や
+// travel-plan skill 経由で組む前提。days の枠だけ用意する。
+// （下の d.items は「想定プラン」のメモとして残してあるが投入はしない）
+const insDay = db.prepare(`INSERT INTO days (id, day_no, date, city, title) VALUES (?, ?, ?, ?, ?)`);
+for (const d of days) {
+  insDay.run(randomUUID(), d.day_no, d.date, d.city, d.title);
+}
+
+// ---- route -------------------------------------------------
+const route: SeedRoute[] = [
+  { name: "成田／羽田", lat: 35.5494, lng: 139.7798, hub: 0, leg_type: "flight", note: null },
+  { name: "チューリッヒ空港", lat: 47.4647, lng: 8.5492, hub: 0, leg_type: "flight", note: null },
+  { name: "ルツェルン", lat: 47.0502, lng: 8.3093, hub: 1, leg_type: "train", note: "Day 1–2｜カペル橋・リギ山" },
+  { name: "アンデルマット", lat: 46.6359, lng: 8.594, hub: 0, leg_type: "train", note: "氷河特急 乗車" },
+  { name: "ツェルマット", lat: 46.0207, lng: 7.7491, hub: 1, leg_type: "train", note: "Day 3–4｜マッターホルン" },
+  { name: "グリンデルワルト", lat: 46.6242, lng: 8.0414, hub: 1, leg_type: "train", note: "Day 5–6｜ユングフラウヨッホ" },
+  { name: "ジュネーブ", lat: 46.2044, lng: 6.1432, hub: 1, leg_type: "train", note: "Day 7｜レマン湖" },
+  { name: "ニース", lat: 43.7102, lng: 7.262, hub: 1, leg_type: "flight", note: "Day 8–9｜エズ・モナコ" },
+  { name: "マルセイユ", lat: 43.2965, lng: 5.3698, hub: 1, leg_type: "train", note: "Day 10｜帰路の拠点" },
+];
+const insRoute = db.prepare(`INSERT INTO route (id, order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+route.forEach((r, i) => insRoute.run(randomUUID(), i, r.name, r.lat, r.lng, r.hub, r.leg_type, r.note));
+
 // ---- legs（都市間移動の詳細ルート）------------------------------
 // order_index は route の (i)→(i+1) 区間に対応。
 // 鉄道区間は経路の通過地点を GPX 化して保存（実際の GPX に差し替え可能）。
-// 空路は gpx を持たず、地図では破線でフォールバック表示。
-// items（旅程の移動予定）より先に投入し、order_index → legs.id を控えておく。
-// これで items.leg_id に紐付けられ、旅程の移動と地図の移動ルートが連動する。
+// legs.geojson は NOT NULL のため、空路も端点を結ぶ直線 LineString を必ず持たせる。
 const legs: SeedLeg[] = [
-  { order_index: 0, from_name: "成田／羽田", to_name: "チューリッヒ", mode: "flight", coords: null, note: "国際線（直行 約14h）" },
+  { order_index: 0, from_name: "成田／羽田", to_name: "チューリッヒ", mode: "flight", coords: [[35.5494, 139.7798], [47.4647, 8.5492]], note: "国際線（直行 約14h）" },
   {
     order_index: 1, from_name: "チューリッヒ", to_name: "ルツェルン", mode: "train", note: "SBB 直通 約1h",
     coords: [[47.4647, 8.5492], [47.1724, 8.5174], [47.0502, 8.3093]],
@@ -232,49 +255,17 @@ const legs: SeedLeg[] = [
     order_index: 5, from_name: "グリンデルワルト", to_name: "ジュネーブ", mode: "train", note: "ベルン〜ローザンヌ経由",
     coords: [[46.6242, 8.0414], [46.6863, 7.8632], [46.948, 7.4474], [46.8022, 7.151], [46.5197, 6.6323], [46.2044, 6.1432]],
   },
-  { order_index: 6, from_name: "ジュネーブ", to_name: "ニース", mode: "flight", coords: null, note: "直行フライト 約1h" },
+  { order_index: 6, from_name: "ジュネーブ", to_name: "ニース", mode: "flight", coords: [[46.2044, 6.1432], [43.7102, 7.262]], note: "直行フライト 約1h" },
   {
     order_index: 7, from_name: "ニース", to_name: "マルセイユ", mode: "train", note: "TGV（コートダジュール〜トゥーロン）",
     coords: [[43.7102, 7.262], [43.5528, 7.0174], [43.4247, 6.7685], [43.1242, 5.928], [43.2965, 5.3698]],
   },
 ];
-const insLeg = db.prepare(`INSERT INTO legs (order_index, from_name, to_name, mode, geojson, note) VALUES (?, ?, ?, ?, ?, ?)`);
-const legIdByOrder = new Map<number, number>();
+const insLeg = db.prepare(`INSERT INTO legs (id, order_index, from_name, to_name, mode, geojson, note) VALUES (?, ?, ?, ?, ?, ?, ?)`);
 legs.forEach((l) => {
   const geojson = l.coords ? JSON.stringify(toLineString(l.coords)) : null;
-  const { lastInsertRowid } = insLeg.run(l.order_index, l.from_name, l.to_name, l.mode, geojson, l.note);
-  legIdByOrder.set(l.order_index, Number(lastInsertRowid));
+  insLeg.run(randomUUID(), l.order_index, l.from_name, l.to_name, l.mode, geojson, l.note);
 });
-
-// ---- days & items -----------------------------------------
-// 移動の予定（leg_index 付き）は対応する legs.id を leg_id に入れて紐付ける。
-const insDay = db.prepare(`INSERT INTO days (day_no, date, city, title) VALUES (?, ?, ?, ?)`);
-const insItem = db.prepare(
-  `INSERT INTO items (day_id, sort_order, time, type, title, note, url, url_label, cost, leg_id)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-);
-for (const d of days) {
-  const { lastInsertRowid: dayId } = insDay.run(d.day_no, d.date, d.city, d.title);
-  d.items.forEach((it, i) => {
-    const legId = it.leg_index != null ? legIdByOrder.get(it.leg_index) ?? null : null;
-    insItem.run(dayId, i, it.time ?? null, it.type, it.title, it.note ?? null, it.url ?? null, it.url_label ?? null, it.cost ?? null, legId);
-  });
-}
-
-// ---- route -------------------------------------------------
-const route: SeedRoute[] = [
-  { name: "成田／羽田", lat: 35.5494, lng: 139.7798, hub: 0, leg_type: "flight", note: null },
-  { name: "チューリッヒ空港", lat: 47.4647, lng: 8.5492, hub: 0, leg_type: "flight", note: null },
-  { name: "ルツェルン", lat: 47.0502, lng: 8.3093, hub: 1, leg_type: "train", note: "Day 1–2｜カペル橋・リギ山" },
-  { name: "アンデルマット", lat: 46.6359, lng: 8.594, hub: 0, leg_type: "train", note: "氷河特急 乗車" },
-  { name: "ツェルマット", lat: 46.0207, lng: 7.7491, hub: 1, leg_type: "train", note: "Day 3–4｜マッターホルン" },
-  { name: "グリンデルワルト", lat: 46.6242, lng: 8.0414, hub: 1, leg_type: "train", note: "Day 5–6｜ユングフラウヨッホ" },
-  { name: "ジュネーブ", lat: 46.2044, lng: 6.1432, hub: 1, leg_type: "train", note: "Day 7｜レマン湖" },
-  { name: "ニース", lat: 43.7102, lng: 7.262, hub: 1, leg_type: "flight", note: "Day 8–9｜エズ・モナコ" },
-  { name: "マルセイユ", lat: 43.2965, lng: 5.3698, hub: 1, leg_type: "train", note: "Day 10｜帰路の拠点" },
-];
-const insRoute = db.prepare(`INSERT INTO route (order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?)`);
-route.forEach((r, i) => insRoute.run(i, r.name, r.lat, r.lng, r.hub, r.leg_type, r.note));
 
 // ---- budget ------------------------------------------------
 const budget: SeedBudget[] = [
@@ -287,16 +278,16 @@ const budget: SeedBudget[] = [
   { category: "海外旅行保険", per_person: 10000, note: "ハネムーンは手厚めがおすすめ。" },
   { category: "お土産・予備費", per_person: 40000, note: "為替変動・チップ・雑費のバッファ。" },
 ];
-const insBudget = db.prepare(`INSERT INTO budget (sort_order, category, per_person, note) VALUES (?, ?, ?, ?)`);
-budget.forEach((b, i) => insBudget.run(i, b.category, b.per_person, b.note));
+const insBudget = db.prepare(`INSERT INTO budget (id, sort_order, category, per_person, note) VALUES (?, ?, ?, ?, ?)`);
+budget.forEach((b, i) => insBudget.run(randomUUID(), i, b.category, b.per_person, b.note));
 
 // ---- spots（行きたいスポット候補のサンプル）-----------------
 const spots: SeedSpot[] = [
   { name: "シヨン城", name_en: "Château de Chillon", category: "観光", city: "モントルー", country: "スイス", lat: 46.4143, lng: 6.9276, url: "https://www.chillon.ch/en/", google_maps_url: "https://maps.app.goo.gl/8YbY2Yq3Z4w5xK6n7", note: "レマン湖畔の水城。ジュネーブから足を延ばせる候補。", source: "サンプル" },
   { name: "グラン・カニオン・デュ・ヴェルドン", name_en: "Gorges du Verdon", category: "自然", city: "プロヴァンス", country: "フランス", lat: 43.7494, lng: 6.3389, url: "https://www.verdontourisme.com/en/", google_maps_url: "https://maps.app.goo.gl/1Aa2Bb3Cc4Dd5Ee6", note: "ヨーロッパのグランドキャニオン。マルセイユ前の候補。", source: "サンプル" },
 ];
-const insSpot = db.prepare(`INSERT INTO spots (name, name_en, category, city, country, lat, lng, url, google_maps_url, note, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-spots.forEach((s) => insSpot.run(s.name, s.name_en, s.category, s.city, s.country, s.lat, s.lng, s.url, s.google_maps_url, s.note, s.source));
+const insSpot = db.prepare(`INSERT INTO spots (id, name, name_en, category, city, country, lat, lng, url, google_maps_url, note, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+spots.forEach((s) => insSpot.run(randomUUID(), s.name, s.name_en, s.category, s.city, s.country, s.lat, s.lng, s.url, s.google_maps_url, s.note, s.source));
 
 console.log(`投入完了: trip=1, days=${count("days")}, items=${count("items")}, route=${count("route")}, legs=${count("legs")}, budget=${count("budget")}, spots=${count("spots")}`);
 db.close();

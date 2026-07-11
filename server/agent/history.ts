@@ -36,7 +36,7 @@ interface ChatTool {
 interface Proposal {
   tempId: string;
   op: "create" | "update" | "delete";
-  id: number | null;
+  id: string | null;
   spot: Record<string, unknown> | null;
   current: Spot | null;
   /** 保存/破棄の解決状態（永続化済みのもの）。未解決なら省略。 */
@@ -104,11 +104,11 @@ function extractProposals(
     const tempId = `prop-${b.id ?? ""}`;
     const status = resolutions[tempId];
     if (b.name === "propose_upsert_spot") {
-      const id = typeof args.id === "number" ? args.id : null;
+      const id = typeof args.id === "string" ? args.id : null;
       const current = id != null ? spotsRepo.getSpot(db, id) : null;
       out.push({ tempId, op: id != null ? "update" : "create", id, spot: pickDraft(args), current, status });
     } else if (b.name === "propose_delete_spot") {
-      const id = typeof args.id === "number" ? args.id : null;
+      const id = typeof args.id === "string" ? args.id : null;
       if (id == null) continue;
       out.push({ tempId, op: "delete", id, spot: null, current: spotsRepo.getSpot(db, id), status });
     }

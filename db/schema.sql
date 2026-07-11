@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS trip (
 -- 行きたいスポットのライブラリ（地球の歩き方などから登録していく場所）
 -- まだ旅程に組み込んでいない「候補」もここに貯める。
 CREATE TABLE IF NOT EXISTS spots (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  id          TEXT PRIMARY KEY NOT NULL,      -- UUID（アプリ側で crypto.randomUUID() を採番）
   name        TEXT NOT NULL,
   name_en     TEXT,
   category    TEXT,                  -- 観光/食事/自然/美術館 など
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS spots (
 -- 写真の実体は保存せず、表示用 URL（lh3.googleusercontent.com）だけを持つ。
 -- これは純粋なキャッシュなので、消えても再取得できる（spots を消すと CASCADE で消える）。
 CREATE TABLE IF NOT EXISTS spot_place_cache (
-  spot_id      INTEGER PRIMARY KEY REFERENCES spots(id) ON DELETE CASCADE,
+  spot_id      TEXT PRIMARY KEY NOT NULL REFERENCES spots(id) ON DELETE CASCADE,
   place_id     TEXT,                 -- Google の place_id（無期限保存可・リフレッシュは Place Details で安く）
   rating       REAL,                 -- 評価（★）
   rating_count INTEGER,              -- 評価件数
@@ -51,32 +51,41 @@ CREATE TABLE IF NOT EXISTS spot_place_cache (
 
 -- 1日の枠
 CREATE TABLE IF NOT EXISTS days (
-  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  id      TEXT PRIMARY KEY NOT NULL,          -- UUID
   day_no  INTEGER NOT NULL,
   date    TEXT,
   city    TEXT,
   title   TEXT
 );
 
--- 旅程の個々の予定（時系列）。spot_id でライブラリのスポットと紐付け可能。
+-- 旅程の個々の予定（時系列）。
+-- item の詳細情報は spot（スポット）か leg（移動区間）のどちらか一方に必ず紐づく。
+-- これにより「地図に出せない無効な予定」を DB レベルで弾く（Skill/API の直接 INSERT でも保証）。
 CREATE TABLE IF NOT EXISTS items (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  day_id      INTEGER NOT NULL REFERENCES days(id) ON DELETE CASCADE,
+  id          TEXT PRIMARY KEY NOT NULL,      -- UUID
+  day_id      TEXT NOT NULL REFERENCES days(id) ON DELETE CASCADE,
   sort_order  INTEGER NOT NULL DEFAULT 0,
   time        TEXT,
-  type        TEXT NOT NULL DEFAULT 'spot',  -- flight/train/bus/spot/meal/hotel/free
+  type        TEXT NOT NULL DEFAULT 'spot',  -- 移動: flight/train/bus/car/walk ／ スポット: spot/meal/hotel ／ 例外: free
   title       TEXT NOT NULL,
   note        TEXT,
   url         TEXT,
   url_label   TEXT,
   cost        INTEGER,                        -- 1人あたり概算（円）
-  spot_id     INTEGER REFERENCES spots(id) ON DELETE SET NULL,
-  leg_id      INTEGER REFERENCES legs(id)  ON DELETE SET NULL   -- 移動区間（legs）由来の予定の紐づけ
+  -- 親（spot / leg）が消えると item は詳細を失い無効になるため CASCADE で削除する。
+  spot_id     TEXT REFERENCES spots(id) ON DELETE CASCADE,
+  leg_id      TEXT REFERENCES legs(id)  ON DELETE CASCADE,   -- 移動区間（legs）由来の予定の紐づけ
+  -- 移動 → leg_id 必須 / スポット → spot_id 必須 / free（自由時間・機内泊）→ どちらも不要（例外）
+  CHECK (
+       type = 'free'
+    OR (type IN ('flight','train','bus','car','walk') AND leg_id  IS NOT NULL AND spot_id IS NULL)
+    OR (type IN ('spot','meal','hotel')               AND spot_id IS NOT NULL AND leg_id  IS NULL)
+  )
 );
 
 -- 地図に描くルート（順番に線で結ぶ主要地点）
 CREATE TABLE IF NOT EXISTS route (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  id           TEXT PRIMARY KEY NOT NULL,     -- UUID
   order_index  INTEGER NOT NULL,
   name         TEXT NOT NULL,
   lat          REAL,
@@ -88,7 +97,7 @@ CREATE TABLE IF NOT EXISTS route (
 
 -- 予算（1人あたり概算）
 CREATE TABLE IF NOT EXISTS budget (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  id          TEXT PRIMARY KEY NOT NULL,      -- UUID
   sort_order  INTEGER NOT NULL DEFAULT 0,
   category    TEXT NOT NULL,
   per_person  INTEGER NOT NULL DEFAULT 0,
@@ -98,12 +107,12 @@ CREATE TABLE IF NOT EXISTS budget (
 -- 都市間の移動区間。鉄道などは GPX で詳細ルートを保持する。
 -- order_index は route の (i)→(i+1) 区間に対応。
 CREATE TABLE IF NOT EXISTS legs (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  id           TEXT PRIMARY KEY NOT NULL,     -- UUID
   order_index  INTEGER NOT NULL,
   from_name    TEXT,
   to_name      TEXT,
   mode         TEXT NOT NULL DEFAULT 'train',  -- train/flight/bus/car/walk
-  geojson      TEXT,                            -- GeoJSON LineString geometry（[lng,lat]）。詳細ルート。
+  geojson      TEXT NOT NULL,                   -- GeoJSON LineString geometry（[lng,lat]）。地図表示必須（空路は直線でも可）。
   note         TEXT
 );
 
@@ -111,23 +120,13 @@ CREATE TABLE IF NOT EXISTS legs (
 -- 会話本体は pi-coding-agent の JSONL（session_file）に永続化し、
 -- ここには一覧・resume 用のメタ情報だけを持つ。
 CREATE TABLE IF NOT EXISTS chat_sessions (
-  id            TEXT PRIMARY KEY,                 -- クライアント生成 UUID
+  id            TEXT PRIMARY KEY NOT NULL,                 -- クライアント生成 UUID
   session_file  TEXT,                             -- pi の JSONL セッションファイルの絶対パス
   title         TEXT,                             -- 一覧表示用（最初のユーザー発言から生成）
   message_count INTEGER NOT NULL DEFAULT 0,       -- ユーザー発言の回数
   cost_usd      REAL NOT NULL DEFAULT 0,          -- 累計コスト（USD）
   created_at    TEXT DEFAULT (datetime('now')),
   updated_at    TEXT DEFAULT (datetime('now'))
-);
-
--- 提案カード（propose_* ツール由来）の解決状態。リロード後も「保存済み/破棄済み」を保つ。
--- proposal_id は toolCall id 由来（"prop-<toolCallId>"）で、live・履歴復元の双方で一致する。
-CREATE TABLE IF NOT EXISTS proposal_resolutions (
-  session_id   TEXT NOT NULL,
-  proposal_id  TEXT NOT NULL,
-  status       TEXT NOT NULL,                    -- 'saved' | 'dismissed'
-  resolved_at  TEXT DEFAULT (datetime('now')),
-  PRIMARY KEY (session_id, proposal_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_items_day ON items(day_id, sort_order);

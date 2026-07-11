@@ -20,8 +20,8 @@ type Tab = "spots" | "legs";
 
 /** どの日に何回配置されているかの索引。 */
 export interface PlacedIndex {
-  spots: Map<number, number[]>; // spotId -> day_no[]
-  legs: Map<number, number[]>; // legId -> day_no[]
+  spots: Map<string, number[]>; // spotId -> day_no[]
+  legs: Map<string, number[]>; // legId -> day_no[]
 }
 
 function PlacedBadge({ dayNos }: { dayNos: number[] }) {
@@ -34,7 +34,7 @@ function PlacedBadge({ dayNos }: { dayNos: number[] }) {
 }
 
 /** 「＋ この日に追加」用の自前ドロップダウン（<select> は使わない）。 */
-function AddToDayMenu({ days, onPick }: { days: BuilderDay[]; onPick: (dayId: number) => void }) {
+function AddToDayMenu({ days, onPick }: { days: BuilderDay[]; onPick: (dayId: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -91,7 +91,7 @@ function PaletteCard({
   subtitle: string;
   dayNos: number[];
   days: BuilderDay[];
-  onAdd: (dayId: number) => void;
+  onAdd: (dayId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: dragId });
   const placed = dayNos.length > 0;
@@ -143,8 +143,8 @@ export default function Palette({
   route: RoutePoint[];
   days: BuilderDay[];
   placed: PlacedIndex;
-  onAddSpot: (spot: Spot, dayId: number) => void;
-  onAddLeg: (leg: LegFeature, dayId: number) => void;
+  onAddSpot: (spot: Spot, dayId: string) => void;
+  onAddLeg: (leg: LegFeature, dayId: string) => void;
   onLegCreated: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("spots");

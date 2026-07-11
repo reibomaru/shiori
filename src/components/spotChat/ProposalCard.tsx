@@ -149,7 +149,7 @@ export default function ProposalCard({
         <span className={`flex items-center gap-1.5 text-xs font-bold ${meta.color}`}>
           <meta.Icon className="text-xs" /> {meta.label}
           {proposal.op !== "create" && proposal.current && (
-            <span className="font-normal text-slate-500">（#{proposal.id} {proposal.current.name}）</span>
+            <span className="font-normal text-slate-500">（{proposal.current.name}）</span>
           )}
         </span>
         <div className="flex items-center gap-2">

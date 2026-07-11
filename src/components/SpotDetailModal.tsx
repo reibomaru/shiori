@@ -19,8 +19,8 @@ export default function SpotDetailModal({
   area,
 }: {
   spots: Spot[];
-  openId: number | null;
-  ratings: Record<number, SpotRating | null>;
+  openId: string | null;
+  ratings: Record<string, SpotRating | null>;
   reload: () => void;
   onClose: () => void;
   area?: { left: number; width: number } | null;

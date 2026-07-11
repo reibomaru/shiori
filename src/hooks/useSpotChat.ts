@@ -11,7 +11,7 @@ export type ProposalOp = "create" | "update" | "delete";
 export interface Proposal {
   tempId: string;
   op: ProposalOp;
-  id: number | null;
+  id: string | null;
   /** create/update の下書き（許可フィールドのみ）。delete では null。 */
   spot: Partial<Spot> | null;
   /** update/delete 時の既存の値。create では null。 */

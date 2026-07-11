@@ -107,13 +107,13 @@ function IconPicker({ spot, reload }: { spot: Spot; reload: () => void }) {
 }
 
 export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => void }) {
-  const [openId, setOpenId] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Spot | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   // Google マップの評価（★）。Places API でライブ取得し DB には保存しない。
   // キー未設定・取得失敗時は ★ を出さないだけ（地図やリンクはそのまま）。
-  const [ratings, setRatings] = useState<Record<number, SpotRating | null>>({});
+  const [ratings, setRatings] = useState<Record<string, SpotRating | null>>({});
   const idsKey = spots.map((s) => s.id).join(",");
   useEffect(() => {
     if (spots.length === 0) return;

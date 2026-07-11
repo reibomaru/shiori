@@ -4,6 +4,7 @@
 //  （server/agent/tools.ts）の両方から呼び出して、同じ正規化・
 //  バリデーションを共有する。
 // ============================================================
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import type { Spot } from "../shared/types.ts";
 import type { SpotRow } from "./types.ts";
@@ -56,17 +57,17 @@ export function getSpot(db: DatabaseSync, id: SQLInputValue): Spot | null {
 }
 
 /** 新規登録して、作成後の行を返す。 */
-export function createSpot(db: DatabaseSync, body: SpotBody): Spot | null {
+export function createSpot(db: DatabaseSync, body: SpotBody & { id?: string }): Spot | null {
   const b = normalizeSpotBody({ ...body });
-  const { lastInsertRowid } = db
-    .prepare(`INSERT INTO spots (name, name_en, category, city, country, lat, lng, url, google_maps_url, note, source, icon, instagram)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  const id = body.id ?? randomUUID();
+  db.prepare(`INSERT INTO spots (id, name, name_en, category, city, country, lat, lng, url, google_maps_url, note, source, icon, instagram)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(
-      b.name ?? "（無題）", b.name_en ?? null, b.category ?? null, b.city ?? null, b.country ?? null,
+      id, b.name ?? "（無題）", b.name_en ?? null, b.category ?? null, b.city ?? null, b.country ?? null,
       b.lat ?? null, b.lng ?? null, b.url ?? null, b.google_maps_url ?? null, b.note ?? null, b.source ?? null,
       b.icon ?? null, b.instagram ?? null,
     );
-  return getSpot(db, lastInsertRowid);
+  return getSpot(db, id);
 }
 
 /** 部分更新して更新後の行を返す（許可カラムのみ反映）。 */

@@ -83,13 +83,20 @@ export default function SpotsPage() {
         </div>
       )}
 
-      {/* 右: チャット（会話履歴はヘッダーのセレクトボックスで選択）。モバイルは全画面オーバーレイ。 */}
+      {/* 右: チャット（会話履歴はヘッダーのセレクトボックスで選択）。モバイルは全画面オーバーレイ。
+          外側は画面全体を白で覆って背後の一覧が覗かないようにし、
+          中身（チャット）だけをキーボードで縮む可視領域に収める。 */}
       {chatOpen && (
         <div
-          className={isMobile ? "fixed inset-x-0 z-[560] bg-white" : "shrink-0"}
-          style={isMobile ? { top: vp.offsetTop, height: vp.height } : { width: chatWidth }}
+          className={isMobile ? "fixed inset-0 z-[560] bg-white" : "shrink-0"}
+          style={isMobile ? undefined : { width: chatWidth }}
         >
-          <SpotChat chat={chat} reload={reload} onClose={() => setChatOpen(false)} />
+          <div
+            className={isMobile ? "absolute inset-x-0 overflow-hidden" : "h-full"}
+            style={isMobile ? { top: vp.offsetTop, height: vp.height } : undefined}
+          >
+            <SpotChat chat={chat} reload={reload} onClose={() => setChatOpen(false)} />
+          </div>
         </div>
       )}
 

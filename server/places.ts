@@ -125,19 +125,9 @@ async function placeToValue(p: PlaceApiResult | undefined, signal?: AbortSignal)
 const PLACE_FIELDS_DETAILS = "id,displayName,rating,userRatingCount,googleMapsUri,photos";
 const PLACE_FIELDS_SEARCH = "places.id,places.displayName,places.rating,places.userRatingCount,places.googleMapsUri,places.photos";
 
-/** place_id 既知なら Place Details（安い）、無ければ Text Search で取得。 */
-async function fetchPlace(spot: Spot, knownPlaceId: string | null | undefined, signal?: AbortSignal): Promise<FetchedPlace | null> {
+/** Text Search（名称等のクエリ）で 1 件取得。失敗時 null。 */
+async function searchPlaceByQuery(query: string, signal?: AbortSignal): Promise<FetchedPlace | null> {
   try {
-    if (knownPlaceId) {
-      const res = await fetch(`https://places.googleapis.com/v1/places/${knownPlaceId}`, {
-        headers: { "X-Goog-Api-Key": apiKey(), "X-Goog-FieldMask": PLACE_FIELDS_DETAILS },
-        signal: signal ?? undefined,
-      });
-      if (res.ok) return await placeToValue((await res.json()) as PlaceApiResult, signal);
-      // place_id が無効化された等は Text Search にフォールバック
-    }
-    const query = queryFor(spot);
-    if (!query) return null;
     const res = await fetch(SEARCH_ENDPOINT, {
       method: "POST",
       headers: {
@@ -158,6 +148,25 @@ async function fetchPlace(spot: Spot, knownPlaceId: string | null | undefined, s
     console.error("[places] fetch error:", err instanceof Error ? err.message : err);
     return null;
   }
+}
+
+/** place_id 既知なら Place Details（安い）、無ければ Text Search で取得。 */
+async function fetchPlace(spot: Spot, knownPlaceId: string | null | undefined, signal?: AbortSignal): Promise<FetchedPlace | null> {
+  try {
+    if (knownPlaceId) {
+      const res = await fetch(`https://places.googleapis.com/v1/places/${knownPlaceId}`, {
+        headers: { "X-Goog-Api-Key": apiKey(), "X-Goog-FieldMask": PLACE_FIELDS_DETAILS },
+        signal: signal ?? undefined,
+      });
+      if (res.ok) return await placeToValue((await res.json()) as PlaceApiResult, signal);
+      // place_id が無効化された等は Text Search にフォールバック
+    }
+  } catch (err) {
+    console.error("[places] fetch error:", err instanceof Error ? err.message : err);
+  }
+  const query = queryFor(spot);
+  if (!query) return null;
+  return await searchPlaceByQuery(query, signal);
 }
 
 /** 複数スポットの評価＋写真の取得結果。 */
@@ -186,4 +195,30 @@ export async function getSpotRatings(db: DatabaseSync, spots: Spot[], signal?: A
     }),
   );
   return { configured: hasKey, ratings: Object.fromEntries(entries) };
+}
+
+// ---- 提案プレビュー（保存前のスポット）----------------------
+// まだ保存されていない提案カードの写真・評価を、名称等のクエリでライブ取得する。
+// spot_id が無いので DB には保存せず、同一クエリの再取得をメモリ上で短時間だけ抑制する。
+const previewCache = new Map<string, { at: number; value: SpotRatingValue | null }>();
+const PREVIEW_TTL_MS = 30 * 60 * 1000; // 30分
+
+export interface PlacePreviewResult {
+  configured: boolean;
+  rating: SpotRatingValue | null;
+}
+
+export async function previewPlace(query: string, signal?: AbortSignal): Promise<PlacePreviewResult> {
+  const hasKey = !!apiKey();
+  const q = query.trim();
+  if (!q) return { configured: hasKey, rating: null };
+  const cached = previewCache.get(q);
+  if (cached && Date.now() - cached.at < PREVIEW_TTL_MS) return { configured: hasKey, rating: cached.value };
+  if (!hasKey) return { configured: false, rating: null };
+  const fetched = await searchPlaceByQuery(q, signal);
+  const value: SpotRatingValue | null = fetched
+    ? { rating: fetched.rating, userRatingCount: fetched.ratingCount, googleMapsUri: fetched.mapsUri, photoUrls: fetched.photoUrls }
+    : null;
+  previewCache.set(q, { at: Date.now(), value });
+  return { configured: hasKey, rating: value };
 }

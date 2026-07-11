@@ -2,6 +2,7 @@
 // Block は DB の items 行に 1:1 で対応する（id は items.id = UUID）。保存前の楽観的ブロックも
 // クライアントで UUID を採番し、その id をそのまま POST するため id の差し替えは発生しない。
 import type { Day, ItemType, LegFeature, Spot } from "../../types";
+import { uuid } from "../../uuid";
 
 /** タイムラインに並ぶ 1 ブロック（= items 1 行）。 */
 export interface Block {
@@ -47,7 +48,7 @@ export function legItemType(mode: string): ItemType {
 }
 
 /** 楽観的ブロック用の id。UUID をクライアントで採番し、そのまま確定 id として使う。 */
-export const tempId = () => crypto.randomUUID();
+export const tempId = () => uuid();
 
 /** items 行 → Block。 */
 function blockFromItem(it: import("../../types").Item): Block {

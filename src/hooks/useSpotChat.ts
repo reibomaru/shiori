@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { Spot } from "../types";
 import { api, type ChatSessionSummary } from "../api";
+import { uuid } from "../uuid";
 
 export type ProposalOp = "create" | "update" | "delete";
 
@@ -97,7 +98,7 @@ export function useSpotChat() {
   // アクティブな会話は URL クエリ（?chat=<sessionId>）で保持し、リロードや共有で復元できるようにする。
   const [searchParams, setSearchParams] = useSearchParams();
   const restoreId = useRef(searchParams.get("chat")).current; // 初回マウント時の ?chat=（復元対象）
-  const [activeId, setActiveId] = useState<string>(() => restoreId || crypto.randomUUID());
+  const [activeId, setActiveId] = useState<string>(() => restoreId || uuid());
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   // send 内で参照する最新の sessionId（state のクロージャ陳腐化を避ける）。
@@ -236,7 +237,7 @@ export function useSpotChat() {
   /** 新しい会話を始める（未保存の表示をクリアし、新しい sessionId を採番）。 */
   const newSession = useCallback(() => {
     abortRef.current?.abort();
-    const id = crypto.randomUUID();
+    const id = uuid();
     sessionIdRef.current = id;
     setActiveId(id);
     setMessages([]);

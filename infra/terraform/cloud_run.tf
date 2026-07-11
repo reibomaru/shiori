@@ -9,10 +9,11 @@
 locals {
   # Service / Job で共通のアプリ環境変数（シークレット以外）。
   common_env = {
-    TRAVEL_DB         = "${local.data_mount_path}/travel.db"
-    NODE_ENV          = "production"
-    LITESTREAM_BUCKET = google_storage_bucket.state.name
-    LITESTREAM_PATH   = local.litestream_prefix
+    TRAVEL_DB          = "${local.data_mount_path}/travel.db"
+    AGENT_SESSIONS_DIR = "${local.data_mount_path}/${local.sessions_subdir}"
+    NODE_ENV           = "production"
+    LITESTREAM_BUCKET  = google_storage_bucket.state.name
+    LITESTREAM_PATH    = local.litestream_prefix
   }
 }
 

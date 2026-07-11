@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { ensureMigrationsTable, recordBaseline } from "./migrate-runner.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -12,37 +13,21 @@ const ROOT = join(__dirname, "..");
 export const DB_PATH = process.env.TRAVEL_DB || join(ROOT, "data", "travel.db");
 const SCHEMA_PATH = join(__dirname, "schema.sql");
 
-/** DB を開く（無ければ作成）。スキーマも適用済みにして返す。 */
+/**
+ * DB を開く（無ければ作成）。schema.sql（最終形）を適用し、
+ * マイグレーション管理テーブルと baseline(<=3) を記録して返す。
+ *
+ * スキーマ変更の反映（version > baseline）は起動時には行わない。
+ * サーバーは起動時に版を検証し、本番で未適用があればフェイルファストする
+ * （適用は db/migrate.ts / マイグレーション Job で行う）。
+ */
 export function openDb() {
-  mkdirSync(join(ROOT, "data"), { recursive: true });
+  // TRAVEL_DB が絶対パス（例: /data/travel.db）でも動くよう親ディレクトリを作る。
+  mkdirSync(dirname(DB_PATH), { recursive: true });
   const db = new DatabaseSync(DB_PATH);
   db.exec("PRAGMA foreign_keys = ON;");
   db.exec(readFileSync(SCHEMA_PATH, "utf8"));
-  migrate(db);
+  ensureMigrationsTable(db);
+  recordBaseline(db); // <=3 を「適用済み」として記録（非破壊・冪等）
   return db;
-}
-
-/** 既存 DB 向けの軽量マイグレーション（CREATE TABLE IF NOT EXISTS は列追加しないため）。 */
-function migrate(db: DatabaseSync): void {
-  addColumnIfMissing(db, "spots", "icon", "TEXT");
-  addColumnIfMissing(db, "spots", "instagram", "TEXT");
-  addColumnIfMissing(db, "spots", "google_maps_url", "TEXT");
-  // 旅程の予定を移動区間（legs）に紐づける参照。schema.sql が leg_id 付きで作るため通常は no-op。
-  addColumnIfMissing(db, "items", "leg_id", "TEXT REFERENCES legs(id) ON DELETE CASCADE");
-  // 旧「行きたい度」は廃止（評価は Google マップのリンク先で確認する方針）。
-  dropColumnIfExists(db, "spots", "want_level");
-}
-
-function addColumnIfMissing(db: DatabaseSync, table: string, column: string, type: string): void {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-  if (!cols.some((c) => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-  }
-}
-
-function dropColumnIfExists(db: DatabaseSync, table: string, column: string): void {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-  if (cols.some((c) => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
-  }
 }

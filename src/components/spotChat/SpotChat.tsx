@@ -72,12 +72,19 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
       else if (p.op === "update" && p.id != null) await api.updateSpot(p.id, body);
       else if (p.op === "delete" && p.id != null) await api.deleteSpot(p.id);
       setProposalStatus(p.tempId, "saved");
+      // リロード後も再保存させないようサーバへ解決状態を永続化（失敗は致命的でない）。
+      void api.resolveProposal(activeId, p.tempId, "saved").catch(() => {});
       reload();
     } catch (e) {
       setSaveError(`保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSavingId(null);
     }
+  }
+
+  function dismissProposal(p: Proposal) {
+    setProposalStatus(p.tempId, "dismissed");
+    void api.resolveProposal(activeId, p.tempId, "dismissed").catch(() => {});
   }
 
   function submit(text: string) {
@@ -211,10 +218,10 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
                     <ProposalCard
                       key={p.tempId}
                       proposal={p}
-                      status={statuses[p.tempId] ?? "pending"}
+                      status={statuses[p.tempId] ?? p.status ?? "pending"}
                       busy={savingId === p.tempId}
                       onSave={(body) => saveProposal(p, body)}
-                      onDismiss={() => setProposalStatus(p.tempId, "dismissed")}
+                      onDismiss={() => dismissProposal(p)}
                     />
                   ))}
                 </div>

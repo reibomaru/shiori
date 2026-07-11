@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaCompass, FaLink, FaInstagram } from "react-icons/fa6";
+import { FaCompass } from "react-icons/fa6";
 import type { Spot } from "../types";
 import { api, type SpotRating } from "../api";
 import { SPOT_ICONS, resolveSpotIcon } from "../spotIcons";
 import ConfirmDialog from "./ConfirmDialog";
 import SpotDetailModal from "./SpotDetailModal";
-import { RatingBadge, GoogleMapsLink } from "./SpotDetailContent";
+import SpotCard from "./SpotCard";
 
 /**
  * スポットのアイコンを選ぶボタン＋ドロップダウン。
@@ -190,65 +190,24 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
         </p>
       ) : (
         <ul className="flex flex-wrap gap-3">
-          {spots.map((s) => {
-            const igCount = s.instagram?.length ?? 0;
-            return (
-              <li
-                key={s.id}
-                onClick={() => setOpenId(s.id)}
-                className="flex min-w-0 basis-[calc(50%-0.375rem)] max-w-md cursor-pointer flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-colors hover:border-cyan-300 hover:bg-slate-50"
-              >
-                {/* Google マップの写真の 1 枚目をカバーに（DB に30日キャッシュ）。 */}
-                {ratings[s.id]?.photoUrls?.[0] && (
-                  <img
-                    src={ratings[s.id]!.photoUrls[0]}
-                    alt={s.name}
-                    loading="lazy"
-                    onError={(e) => (e.currentTarget.style.display = "none")}
-                    className="aspect-video w-full object-cover"
-                  />
-                )}
-                <div className="flex items-start gap-2 p-3">
+          {spots.map((s) => (
+            <li
+              key={s.id}
+              onClick={() => setOpenId(s.id)}
+              className="flex min-w-0 basis-[calc(50%-0.375rem)] max-w-md cursor-pointer flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-colors hover:border-cyan-300 hover:bg-slate-50"
+            >
+              <SpotCard
+                spot={s}
+                coverUrl={ratings[s.id]?.photoUrls?.[0]}
+                rating={ratings[s.id]}
+                iconSlot={
                   <div onClick={(e) => e.stopPropagation()}>
                     <IconPicker spot={s} reload={reload} />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-slate-800">
-                      {s.name}
-                      {s.name_en && <span className="ml-1 text-xs font-normal text-slate-400">{s.name_en}</span>}
-                    </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
-                      {s.country && <span>{s.country}</span>}
-                      {s.city && <span>· {s.city}</span>}
-                      {s.category && <span className="rounded bg-slate-100 px-1.5 py-0.5">{s.category}</span>}
-                      {ratings[s.id] && (
-                        <RatingBadge rating={ratings[s.id]!.rating} count={ratings[s.id]!.userRatingCount} />
-                      )}
-                    </div>
-                    {s.note && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{s.note}</p>}
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs">
-                      {s.google_maps_url && (
-                        <GoogleMapsLink url={s.google_maps_url} onClick={(e) => e.stopPropagation()} />
-                      )}
-                      {s.url && (
-                        <a
-                          href={s.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 font-medium text-cyan-700 hover:underline"
-                        >
-                          <FaLink className="text-[10px]" /> リンク
-                        </a>
-                      )}
-                      {igCount > 0 && (
-                        <span className="inline-flex items-center gap-1 font-medium text-pink-500">
-                          <FaInstagram /> {igCount}
-                        </span>
-                      )}
-                      <span className="ml-auto text-cyan-700">詳細 ›</span>
-                    </div>
-                  </div>
+                }
+                onLinkClick={(e) => e.stopPropagation()}
+                footerTrailing={<span className="ml-auto text-cyan-700">詳細 ›</span>}
+                trailing={
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -258,10 +217,10 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
                   >
                     削除
                   </button>
-                </div>
-              </li>
-            );
-          })}
+                }
+              />
+            </li>
+          ))}
         </ul>
       )}
 

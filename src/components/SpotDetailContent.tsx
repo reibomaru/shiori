@@ -44,14 +44,24 @@ export function GoogleMapsLink({ url, onClick }: { url: string; onClick?: (e: Re
  * Google マップの写真カルーセル。縦が切れないよう object-contain で全体を表示し、
  * 横に余白が出てもよい（背景でレターボックス）。矢印・ドット・カウンターで切替。
  */
-function PhotoCarousel({ urls, alt }: { urls: string[]; alt: string }) {
+export function PhotoCarousel({
+  urls,
+  alt,
+  heightClass = "h-64",
+  rounded = true,
+}: {
+  urls: string[];
+  alt: string;
+  heightClass?: string;
+  rounded?: boolean;
+}) {
   const [idx, setIdx] = useState(0);
   if (urls.length === 0) return null;
   const n = urls.length;
   const go = (d: number) => setIdx((i) => (i + d + n) % n);
   return (
-    <div className="relative select-none overflow-hidden rounded-lg bg-slate-100">
-      <img src={urls[idx]} alt={`${alt} の写真 ${idx + 1}`} className="mx-auto h-64 w-full object-contain" />
+    <div className={`relative select-none overflow-hidden bg-slate-100 ${rounded ? "rounded-lg" : ""}`}>
+      <img src={urls[idx]} alt={`${alt} の写真 ${idx + 1}`} className={`mx-auto ${heightClass} w-full object-contain`} />
       {n > 1 && (
         <>
           <button

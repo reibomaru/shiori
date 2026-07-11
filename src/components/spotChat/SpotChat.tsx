@@ -241,23 +241,6 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
 
       {/* 入力（メッセージ欄と地続きに見せるため区切り線は置かない） */}
       <div className="p-3">
-        {/* 添付画像のプレビュー */}
-        {attached.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-2">
-            {attached.map((im, i) => (
-              <div key={i} className="relative">
-                <img src={im.dataUrl} alt="" className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200" />
-                <button
-                  onClick={() => setAttached((a) => a.filter((_, j) => j !== i))}
-                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-[10px] text-white hover:bg-slate-900"
-                  title="削除"
-                >
-                  <FaXmark />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
         <input
           ref={fileRef}
           type="file"
@@ -269,15 +252,25 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
             e.target.value = "";
           }}
         />
-        <div className="flex items-end gap-2">
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={streaming || attached.length >= MAX_IMAGES}
-            title="画像を添付"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 disabled:opacity-40"
-          >
-            <FaImage />
-          </button>
+        {/* 一体型の入力カード：テキストと操作ボタンを 1 つの角丸にまとめる */}
+        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors focus-within:border-cyan-400">
+          {/* 添付画像のプレビュー */}
+          {attached.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {attached.map((im, i) => (
+                <div key={i} className="relative">
+                  <img src={im.dataUrl} alt="" className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200" />
+                  <button
+                    onClick={() => setAttached((a) => a.filter((_, j) => j !== i))}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-[10px] text-white hover:bg-slate-900"
+                    title="削除"
+                  >
+                    <FaXmark />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -297,29 +290,40 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
               }
             }}
             rows={1}
-            placeholder="例: グリンデルワルトの展望スポットを追加して"
-            className="max-h-32 min-h-[40px] flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            placeholder="メッセージを入力…"
+            className="max-h-32 min-h-[24px] w-full resize-none border-0 bg-transparent p-0 text-sm leading-6 placeholder:text-slate-400 focus:outline-none focus:ring-0"
           />
-          {streaming ? (
+          {/* 操作ボタン：カード内下段（左＝添付 / 右＝送信・中断） */}
+          <div className="mt-2 flex items-center gap-1">
             <button
-              onClick={stop}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-600 hover:bg-slate-300"
-              title="中断"
+              onClick={() => fileRef.current?.click()}
+              disabled={streaming || attached.length >= MAX_IMAGES}
+              title="画像を添付"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
             >
-              <FaStop />
+              <FaImage />
             </button>
-          ) : (
-            <button
-              onClick={() => submit(input)}
-              disabled={!input.trim() && attached.length === 0}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-700 text-white transition-colors hover:bg-cyan-600 disabled:opacity-40"
-              title="送信"
-            >
-              <FaPaperPlane />
-            </button>
-          )}
+            {streaming ? (
+              <button
+                onClick={stop}
+                className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300"
+                title="中断"
+              >
+                <FaStop />
+              </button>
+            ) : (
+              <button
+                onClick={() => submit(input)}
+                disabled={!input.trim() && attached.length === 0}
+                className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-700 text-white transition-colors hover:bg-cyan-600 disabled:opacity-40"
+                title="送信"
+              >
+                <FaPaperPlane />
+              </button>
+            )}
+          </div>
         </div>
-        <p className="mt-1 px-1 text-[10px] text-slate-400">Enter で送信 / Shift+Enter で改行</p>
+        <p className="mt-1.5 px-1 text-[10px] text-slate-400">Enter で送信 / Shift+Enter で改行</p>
       </div>
     </div>
   );

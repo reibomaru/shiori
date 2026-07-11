@@ -3,6 +3,7 @@
 //   node db/seed.ts          … 空のときだけ投入（既存データは保持）
 //   node db/seed.ts --reset  … 全削除してから投入し直す
 // ============================================================
+import { randomUUID } from "node:crypto";
 import { openDb } from "./db.ts";
 import { toLineString } from "./geo.ts";
 import type { LatLng } from "./geo.ts";
@@ -203,16 +204,14 @@ const days: SeedDay[] = [
   },
 ];
 
-const insDay = db.prepare(`INSERT INTO days (day_no, date, city, title) VALUES (?, ?, ?, ?)`);
-const insItem = db.prepare(
-  `INSERT INTO items (day_id, sort_order, time, type, title, note, url, url_label, cost)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-);
+// items は seed しない。
+// item は spot / leg のどちらかに必ず紐づく制約（DB の CHECK）があり、
+// 旅程は UI（ItineraryBuilder：スポット候補・移動区間からブロックを追加）や
+// travel-plan skill 経由で組む前提。days の枠だけ用意する。
+// （下の d.items は「想定プラン」のメモとして残してあるが投入はしない）
+const insDay = db.prepare(`INSERT INTO days (id, day_no, date, city, title) VALUES (?, ?, ?, ?, ?)`);
 for (const d of days) {
-  const { lastInsertRowid: dayId } = insDay.run(d.day_no, d.date, d.city, d.title);
-  d.items.forEach((it, i) => {
-    insItem.run(dayId, i, it.time ?? null, it.type, it.title, it.note ?? null, it.url ?? null, it.url_label ?? null, it.cost ?? null);
-  });
+  insDay.run(randomUUID(), d.day_no, d.date, d.city, d.title);
 }
 
 // ---- route -------------------------------------------------
@@ -227,15 +226,15 @@ const route: SeedRoute[] = [
   { name: "ニース", lat: 43.7102, lng: 7.262, hub: 1, leg_type: "flight", note: "Day 8–9｜エズ・モナコ" },
   { name: "マルセイユ", lat: 43.2965, lng: 5.3698, hub: 1, leg_type: "train", note: "Day 10｜帰路の拠点" },
 ];
-const insRoute = db.prepare(`INSERT INTO route (order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?)`);
-route.forEach((r, i) => insRoute.run(i, r.name, r.lat, r.lng, r.hub, r.leg_type, r.note));
+const insRoute = db.prepare(`INSERT INTO route (id, order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+route.forEach((r, i) => insRoute.run(randomUUID(), i, r.name, r.lat, r.lng, r.hub, r.leg_type, r.note));
 
 // ---- legs（都市間移動の詳細ルート）------------------------------
 // order_index は route の (i)→(i+1) 区間に対応。
 // 鉄道区間は経路の通過地点を GPX 化して保存（実際の GPX に差し替え可能）。
-// 空路は gpx を持たず、地図では破線でフォールバック表示。
+// legs.geojson は NOT NULL のため、空路も端点を結ぶ直線 LineString を必ず持たせる。
 const legs: SeedLeg[] = [
-  { order_index: 0, from_name: "成田／羽田", to_name: "チューリッヒ", mode: "flight", coords: null, note: "国際線（直行 約14h）" },
+  { order_index: 0, from_name: "成田／羽田", to_name: "チューリッヒ", mode: "flight", coords: [[35.5494, 139.7798], [47.4647, 8.5492]], note: "国際線（直行 約14h）" },
   {
     order_index: 1, from_name: "チューリッヒ", to_name: "ルツェルン", mode: "train", note: "SBB 直通 約1h",
     coords: [[47.4647, 8.5492], [47.1724, 8.5174], [47.0502, 8.3093]],
@@ -256,16 +255,16 @@ const legs: SeedLeg[] = [
     order_index: 5, from_name: "グリンデルワルト", to_name: "ジュネーブ", mode: "train", note: "ベルン〜ローザンヌ経由",
     coords: [[46.6242, 8.0414], [46.6863, 7.8632], [46.948, 7.4474], [46.8022, 7.151], [46.5197, 6.6323], [46.2044, 6.1432]],
   },
-  { order_index: 6, from_name: "ジュネーブ", to_name: "ニース", mode: "flight", coords: null, note: "直行フライト 約1h" },
+  { order_index: 6, from_name: "ジュネーブ", to_name: "ニース", mode: "flight", coords: [[46.2044, 6.1432], [43.7102, 7.262]], note: "直行フライト 約1h" },
   {
     order_index: 7, from_name: "ニース", to_name: "マルセイユ", mode: "train", note: "TGV（コートダジュール〜トゥーロン）",
     coords: [[43.7102, 7.262], [43.5528, 7.0174], [43.4247, 6.7685], [43.1242, 5.928], [43.2965, 5.3698]],
   },
 ];
-const insLeg = db.prepare(`INSERT INTO legs (order_index, from_name, to_name, mode, geojson, note) VALUES (?, ?, ?, ?, ?, ?)`);
+const insLeg = db.prepare(`INSERT INTO legs (id, order_index, from_name, to_name, mode, geojson, note) VALUES (?, ?, ?, ?, ?, ?, ?)`);
 legs.forEach((l) => {
   const geojson = l.coords ? JSON.stringify(toLineString(l.coords)) : null;
-  insLeg.run(l.order_index, l.from_name, l.to_name, l.mode, geojson, l.note);
+  insLeg.run(randomUUID(), l.order_index, l.from_name, l.to_name, l.mode, geojson, l.note);
 });
 
 // ---- budget ------------------------------------------------
@@ -279,16 +278,16 @@ const budget: SeedBudget[] = [
   { category: "海外旅行保険", per_person: 10000, note: "ハネムーンは手厚めがおすすめ。" },
   { category: "お土産・予備費", per_person: 40000, note: "為替変動・チップ・雑費のバッファ。" },
 ];
-const insBudget = db.prepare(`INSERT INTO budget (sort_order, category, per_person, note) VALUES (?, ?, ?, ?)`);
-budget.forEach((b, i) => insBudget.run(i, b.category, b.per_person, b.note));
+const insBudget = db.prepare(`INSERT INTO budget (id, sort_order, category, per_person, note) VALUES (?, ?, ?, ?, ?)`);
+budget.forEach((b, i) => insBudget.run(randomUUID(), i, b.category, b.per_person, b.note));
 
 // ---- spots（行きたいスポット候補のサンプル）-----------------
 const spots: SeedSpot[] = [
   { name: "シヨン城", name_en: "Château de Chillon", category: "観光", city: "モントルー", country: "スイス", lat: 46.4143, lng: 6.9276, url: "https://www.chillon.ch/en/", google_maps_url: "https://maps.app.goo.gl/8YbY2Yq3Z4w5xK6n7", note: "レマン湖畔の水城。ジュネーブから足を延ばせる候補。", source: "サンプル" },
   { name: "グラン・カニオン・デュ・ヴェルドン", name_en: "Gorges du Verdon", category: "自然", city: "プロヴァンス", country: "フランス", lat: 43.7494, lng: 6.3389, url: "https://www.verdontourisme.com/en/", google_maps_url: "https://maps.app.goo.gl/1Aa2Bb3Cc4Dd5Ee6", note: "ヨーロッパのグランドキャニオン。マルセイユ前の候補。", source: "サンプル" },
 ];
-const insSpot = db.prepare(`INSERT INTO spots (name, name_en, category, city, country, lat, lng, url, google_maps_url, note, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-spots.forEach((s) => insSpot.run(s.name, s.name_en, s.category, s.city, s.country, s.lat, s.lng, s.url, s.google_maps_url, s.note, s.source));
+const insSpot = db.prepare(`INSERT INTO spots (id, name, name_en, category, city, country, lat, lng, url, google_maps_url, note, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+spots.forEach((s) => insSpot.run(randomUUID(), s.name, s.name_en, s.category, s.city, s.country, s.lat, s.lng, s.url, s.google_maps_url, s.note, s.source));
 
 console.log(`投入完了: trip=1, days=${count("days")}, items=${count("items")}, route=${count("route")}, legs=${count("legs")}, budget=${count("budget")}, spots=${count("spots")}`);
 db.close();

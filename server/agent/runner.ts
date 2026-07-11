@@ -32,7 +32,9 @@ export interface AgentImage {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
-const SESSION_DIR = join(ROOT, "data", "agent-sessions");
+// チャット履歴 JSONL の保存先。本番では GCS FUSE マウント（/data/agent-sessions）を
+// 指すよう AGENT_SESSIONS_DIR で上書きする。未設定ならローカルの data/agent-sessions。
+const SESSION_DIR = process.env.AGENT_SESSIONS_DIR || join(ROOT, "data", "agent-sessions");
 
 const PROVIDER = process.env.GEMINI_PROVIDER ?? "google";
 const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";

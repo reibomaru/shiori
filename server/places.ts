@@ -163,7 +163,7 @@ async function fetchPlace(spot: Spot, knownPlaceId: string | null | undefined, s
 /** 複数スポットの評価＋写真の取得結果。 */
 export interface SpotRatingsResult {
   configured: boolean;
-  ratings: Record<number, SpotRatingValue | null>;
+  ratings: Record<string, SpotRatingValue | null>;
 }
 
 /**
@@ -173,7 +173,7 @@ export interface SpotRatingsResult {
 export async function getSpotRatings(db: DatabaseSync, spots: Spot[], signal?: AbortSignal): Promise<SpotRatingsResult> {
   const hasKey = !!apiKey();
   const entries = await Promise.all(
-    spots.map(async (s): Promise<[number, SpotRatingValue | null]> => {
+    spots.map(async (s): Promise<[string, SpotRatingValue | null]> => {
       const row = readCache(db, s.id);
       if (isFresh(row)) return [s.id, rowToValue(row)];
       if (!hasKey) return [s.id, rowToValue(row)]; // キー無し: 期限切れでもあるものは返す

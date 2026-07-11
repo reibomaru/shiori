@@ -1,0 +1,11 @@
+# Terraform のローカル状態・秘匿値・プラグインは追跡しない。
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override.tf.json
+tfplan

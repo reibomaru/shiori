@@ -4,8 +4,14 @@
 // ============================================================
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { basicAuth } from "hono/basic-auth";
+import { HTTPException } from "hono/http-exception";
+import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import type { SQLInputValue } from "node:sqlite";
 import { openDb } from "../db/db.ts";
+import { applyPending, currentVersion, expectedVersion } from "../db/migrate-runner.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
 import { getSpotRatings, invalidateSpotCache } from "./places.ts";
 import { registerSpotChatRoute } from "./agent/route.ts";
@@ -29,8 +35,38 @@ function legToFeature(l: LegRow): LegFeature {
 }
 
 const db = openDb();
+
+// ---- スキーマ版の検証 -------------------------------------
+// 本番では未適用のマイグレーションがあれば起動を拒否（複数インスタンスが
+// 各自マイグレートする事故を防ぐ）。開発では利便性のため自動適用する。
+{
+  const cur = currentVersion(db);
+  const exp = expectedVersion();
+  if (cur < exp) {
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        `✖ 未適用のマイグレーションがあります（現在 v${cur} / 期待 v${exp}）。` +
+          `\n  マイグレーション Job（db/migrate.ts）を実行してから再デプロイしてください。`,
+      );
+      process.exit(1);
+    }
+    console.warn(`… 開発環境: 未適用マイグレーションを自動適用します（v${cur} → v${exp}）`);
+    applyPending(db);
+  }
+}
+
 const app = new Hono();
 const PORT = Number(process.env.PORT || 8080);
+
+// ---- Basic 認証 -------------------------------------------
+// 資格情報（BASIC_AUTH_USER / BASIC_AUTH_PASS）が設定されている場合のみ有効化。
+// ヘルスチェックは Cloud Run のプローブ用に素通しする。
+const BASIC_USER = process.env.BASIC_AUTH_USER;
+const BASIC_PASS = process.env.BASIC_AUTH_PASS;
+if (BASIC_USER && BASIC_PASS) {
+  const auth = basicAuth({ username: BASIC_USER, password: BASIC_PASS });
+  app.use("*", (c, next) => (c.req.path === "/health" ? next() : auth(c, next)));
+}
 
 // ---- 共通ヘルパー ------------------------------------------
 /** 許可フィールドだけで UPDATE を組み立てる（部分更新対応） */
@@ -44,8 +80,22 @@ function updateRow(table: string, id: SQLInputValue, body: Record<string, unknow
 }
 
 app.onError((err, c) => {
+  // HTTPException（Basic 認証の 401 など）は本来の応答をそのまま返す。
+  if (err instanceof HTTPException) return err.getResponse();
   console.error(err);
-  return c.json({ error: String(err.message || err) }, 500);
+  const msg = String(err.message || err);
+  // DB の制約違反はクライアント側の入力ミス（不正な予定）なので 400 で返す。
+  //   - items: 移動は leg_id、スポット(spot/meal/hotel)は spot_id が必須（free は例外）
+  //   - legs : geojson 必須
+  if (/constraint/i.test(msg)) {
+    const hint = /CHECK constraint/i.test(msg)
+      ? "予定は移動なら leg_id、スポット(spot/meal/hotel)なら spot_id のどちらか一方が必要です（free は例外）。"
+      : /NOT NULL constraint failed: legs\.geojson/i.test(msg)
+        ? "移動区間（leg）には geojson が必須です。"
+        : "データが制約に違反しています。";
+    return c.json({ error: hint, detail: msg }, 400);
+  }
+  return c.json({ error: msg }, 500);
 });
 
 // ---- 全データ取得（React の初期ロード） ---------------------
@@ -72,10 +122,10 @@ app.put("/api/trip", async (c) => {
 const DAY_FIELDS = ["day_no", "date", "city", "title"];
 app.post("/api/days", async (c) => {
   const b = await c.req.json();
-  const { lastInsertRowid } = db
-    .prepare("INSERT INTO days (day_no, date, city, title) VALUES (?, ?, ?, ?)")
-    .run(b.day_no ?? 0, b.date ?? null, b.city ?? null, b.title ?? null);
-  return c.json(db.prepare("SELECT * FROM days WHERE id = ?").get(lastInsertRowid));
+  const id = b.id ?? randomUUID();
+  db.prepare("INSERT INTO days (id, day_no, date, city, title) VALUES (?, ?, ?, ?, ?)")
+    .run(id, b.day_no ?? 0, b.date ?? null, b.city ?? null, b.title ?? null);
+  return c.json(db.prepare("SELECT * FROM days WHERE id = ?").get(id));
 });
 app.put("/api/days/:id", async (c) => {
   updateRow("days", c.req.param("id"), await c.req.json(), DAY_FIELDS);
@@ -91,12 +141,12 @@ const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "u
 app.post("/api/items", async (c) => {
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM items WHERE day_id = ?").get(b.day_id) as { m: number }).m;
-  const { lastInsertRowid } = db
-    .prepare(`INSERT INTO items (day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id, leg_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(b.day_id, b.sort_order ?? maxOrder + 1, b.time ?? null, b.type ?? "spot", b.title ?? "（無題）",
+  const id = b.id ?? randomUUID();
+  db.prepare(`INSERT INTO items (id, day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id, leg_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, b.day_id, b.sort_order ?? maxOrder + 1, b.time ?? null, b.type ?? "spot", b.title ?? "（無題）",
          b.note ?? null, b.url ?? null, b.url_label ?? null, b.cost ?? null, b.spot_id ?? null, b.leg_id ?? null);
-  return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(lastInsertRowid));
+  return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(id));
 });
 app.put("/api/items/:id", async (c) => {
   updateRow("items", c.req.param("id"), await c.req.json(), ITEM_FIELDS);
@@ -112,10 +162,10 @@ const BUDGET_FIELDS = ["sort_order", "category", "per_person", "note"];
 app.post("/api/budget", async (c) => {
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM budget").get() as { m: number }).m;
-  const { lastInsertRowid } = db
-    .prepare("INSERT INTO budget (sort_order, category, per_person, note) VALUES (?, ?, ?, ?)")
-    .run(b.sort_order ?? maxOrder + 1, b.category ?? "（費目）", b.per_person ?? 0, b.note ?? null);
-  return c.json(db.prepare("SELECT * FROM budget WHERE id = ?").get(lastInsertRowid));
+  const id = b.id ?? randomUUID();
+  db.prepare("INSERT INTO budget (id, sort_order, category, per_person, note) VALUES (?, ?, ?, ?, ?)")
+    .run(id, b.sort_order ?? maxOrder + 1, b.category ?? "（費目）", b.per_person ?? 0, b.note ?? null);
+  return c.json(db.prepare("SELECT * FROM budget WHERE id = ?").get(id));
 });
 app.put("/api/budget/:id", async (c) => {
   updateRow("budget", c.req.param("id"), await c.req.json(), BUDGET_FIELDS);
@@ -152,10 +202,10 @@ const ROUTE_FIELDS = ["order_index", "name", "lat", "lng", "hub", "leg_type", "n
 app.post("/api/route", async (c) => {
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) AS m FROM route").get() as { m: number }).m;
-  const { lastInsertRowid } = db
-    .prepare("INSERT INTO route (order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(b.order_index ?? maxOrder + 1, b.name ?? "（地点）", b.lat ?? null, b.lng ?? null, b.hub ?? 0, b.leg_type ?? null, b.note ?? null);
-  return c.json(db.prepare("SELECT * FROM route WHERE id = ?").get(lastInsertRowid));
+  const id = b.id ?? randomUUID();
+  db.prepare("INSERT INTO route (id, order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(id, b.order_index ?? maxOrder + 1, b.name ?? "（地点）", b.lat ?? null, b.lng ?? null, b.hub ?? 0, b.leg_type ?? null, b.note ?? null);
+  return c.json(db.prepare("SELECT * FROM route WHERE id = ?").get(id));
 });
 app.put("/api/route/:id", async (c) => {
   updateRow("route", c.req.param("id"), await c.req.json(), ROUTE_FIELDS);
@@ -171,10 +221,10 @@ const LEG_FIELDS = ["order_index", "from_name", "to_name", "mode", "geojson", "n
 app.post("/api/legs", async (c) => {
   const b = await c.req.json();
   const geojson = b.geojson == null ? null : typeof b.geojson === "string" ? b.geojson : JSON.stringify(b.geojson);
-  const { lastInsertRowid } = db
-    .prepare("INSERT INTO legs (order_index, from_name, to_name, mode, geojson, note) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(b.order_index ?? 0, b.from_name ?? null, b.to_name ?? null, b.mode ?? "train", geojson, b.note ?? null);
-  return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(lastInsertRowid) as LegRow));
+  const id = b.id ?? randomUUID();
+  db.prepare("INSERT INTO legs (id, order_index, from_name, to_name, mode, geojson, note) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(id, b.order_index ?? 0, b.from_name ?? null, b.to_name ?? null, b.mode ?? "train", geojson, b.note ?? null);
+  return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(id) as LegRow));
 });
 app.put("/api/legs/:id", async (c) => {
   const b = await c.req.json();
@@ -293,11 +343,22 @@ app.get("/api/geocode", async (c) => {
   return c.json({ results });
 });
 
-// ---- ルート / ヘルスチェック（ブラウザで開いたときの確認用）----
-app.get("/", (c) =>
-  c.json({ name: "しおり API", status: "ok", endpoints: ["/api/trip", "/health"] })
-);
+// ---- ヘルスチェック ----------------------------------------
 app.get("/health", (c) => c.json({ status: "ok", uptime: process.uptime() }));
+
+// ---- フロント配信（本番: dist を静的配信 + SPA フォールバック）----
+// これらは全 /api ルートより後に登録するため、API が優先して処理される。
+const DIST_DIR = "./dist";
+if (existsSync(DIST_DIR)) {
+  app.use("/*", serveStatic({ root: DIST_DIR }));
+  // 実ファイルが無いパスは index.html を返す（react-router のクライアントルーティング）。
+  app.get("/*", serveStatic({ path: `${DIST_DIR}/index.html` }));
+} else {
+  // dist が無い（API のみで起動した場合）の確認用ルート。
+  app.get("/", (c) =>
+    c.json({ name: "しおり API", status: "ok", endpoints: ["/api/trip", "/health"] }),
+  );
+}
 
 const server = serve({ fetch: app.fetch, port: PORT }, () => {
   console.log(`🚆 しおり API (Hono): http://localhost:${PORT}  (DB: ${process.env.TRAVEL_DB || "data/travel.db"})`);

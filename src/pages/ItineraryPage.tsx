@@ -6,7 +6,7 @@ export default function ItineraryPage() {
   const { data } = useTrip();
   if (!data) return null;
   return (
-    <div className="h-full p-6">
+    <div className="h-full p-4 md:p-6">
       <ItineraryBuilder days={data.days} spots={data.spots} legs={data.legs} route={data.route} />
     </div>
   );

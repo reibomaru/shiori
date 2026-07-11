@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PanelRightOpen } from "lucide-react";
 import { useTrip } from "../store";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { useSpotChat } from "../hooks/useSpotChat";
 import Spots from "../components/Spots";
 import SpotChat from "../components/spotChat/SpotChat";
@@ -12,8 +13,10 @@ const STORAGE_KEY = "spotChatWidth";
 
 export default function SpotsPage() {
   const { data, reload } = useTrip();
+  const isMobile = useIsMobile();
   const chat = useSpotChat();
-  const [chatOpen, setChatOpen] = useState(true);
+  // モバイルはチャットが全画面を覆うため、初期は閉じて候補一覧を見せる。
+  const [chatOpen, setChatOpen] = useState(() => !isMobile);
   const [chatWidth, setChatWidth] = useState(() => {
     const saved = Number(localStorage.getItem(STORAGE_KEY));
     return saved >= CHAT_MIN ? saved : CHAT_DEFAULT;
@@ -64,8 +67,8 @@ export default function SpotsPage() {
         <Spots spots={data.spots} reload={reload} />
       </div>
 
-      {/* スプリッター（ドラッグで幅調整） */}
-      {chatOpen && (
+      {/* スプリッター（ドラッグで幅調整・デスクトップのみ） */}
+      {chatOpen && !isMobile && (
         <div
           onMouseDown={startDrag}
           title="ドラッグで幅を調整"
@@ -76,9 +79,12 @@ export default function SpotsPage() {
         </div>
       )}
 
-      {/* 右: チャット（会話履歴はヘッダーのセレクトボックスで選択） */}
+      {/* 右: チャット（会話履歴はヘッダーのセレクトボックスで選択）。モバイルは全画面オーバーレイ。 */}
       {chatOpen && (
-        <div className="shrink-0" style={{ width: chatWidth }}>
+        <div
+          className={isMobile ? "absolute inset-0 z-30 bg-white" : "shrink-0"}
+          style={isMobile ? undefined : { width: chatWidth }}
+        >
           <SpotChat chat={chat} reload={reload} onClose={() => setChatOpen(false)} />
         </div>
       )}

@@ -112,7 +112,7 @@ function Editor({
       )}
       <div className="flex flex-wrap items-center gap-2">
         <input
-          className={`${fieldCls} min-w-[12rem] flex-1`}
+          className={`${fieldCls} min-w-[8rem] flex-1`}
           value={draft.title ?? ""}
           placeholder="タイトル"
           onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
@@ -136,7 +136,7 @@ function Editor({
       />
       <div className="flex flex-wrap items-center gap-2">
         <input
-          className={`${fieldCls} min-w-[14rem] flex-1`}
+          className={`${fieldCls} min-w-[8rem] flex-1`}
           value={draft.url ?? ""}
           placeholder="https://… 保存したいリンク"
           onChange={(e) => setDraft((d) => ({ ...d, url: e.target.value }))}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   FaMapLocationDot,
@@ -9,6 +9,7 @@ import {
   FaRegCalendar,
   FaUserGroup,
   FaYenSign,
+  FaBars,
 } from "react-icons/fa6";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
@@ -38,30 +39,69 @@ export default function Layout() {
     pathname.startsWith("/map") ||
     pathname.startsWith("/spots") ||
     pathname.startsWith("/itinerary");
+  // navOpen: デスクトップ（md+）でのサイドバー折りたたみ。
+  // mobileOpen: モバイル（md 未満）でのドロワー開閉。
   const [navOpen, setNavOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // ページ遷移したらモバイルのドロワーは閉じる。
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   return (
     <div className="flex min-h-screen bg-slate-100">
-      {/* ===== サイドバーを開くボタン（折りたたみ時のみ・左端中央） ===== */}
+      {/* ===== モバイル用トップバー（md 未満のみ・ハンバーガー） ===== */}
+      <header className="no-print fixed inset-x-0 top-0 z-[550] flex h-14 items-center gap-3 bg-gradient-to-r from-cyan-800 to-blue-900 px-4 text-white md:hidden">
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="メニューを開く"
+          className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
+        >
+          <FaBars size={18} />
+        </button>
+        <h1 className="min-w-0 flex-1 truncate text-sm font-bold">{data?.trip?.title ?? "しおり"}</h1>
+        <button
+          onClick={() => window.print()}
+          aria-label="PDF出力"
+          className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-white/10"
+        >
+          <FaPrint size={16} />
+        </button>
+      </header>
+
+      {/* ===== サイドバーを開くボタン（デスクトップの折りたたみ時のみ・左端中央） ===== */}
       {!navOpen && (
         <button
           onClick={() => setNavOpen(true)}
           aria-label="メニューを開く"
-          className="no-print fixed left-0 top-1/2 z-[600] flex -translate-y-1/2 items-center rounded-r-lg bg-cyan-800 py-3 pl-1.5 pr-2 text-white shadow-lg transition-colors hover:bg-cyan-700"
+          className="no-print fixed left-0 top-1/2 z-[600] hidden -translate-y-1/2 items-center rounded-r-lg bg-cyan-800 py-3 pl-1.5 pr-2 text-white shadow-lg transition-colors hover:bg-cyan-700 md:flex"
         >
           <TbLayoutSidebarLeftExpand size={20} />
         </button>
       )}
 
-      {/* ===== 左サイドメニュー（印刷時は非表示） ===== */}
+      {/* ===== モバイルのドロワー背景 ===== */}
+      {mobileOpen && (
+        <div
+          className="no-print fixed inset-0 z-[560] bg-slate-900/50 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* ===== 左サイドメニュー（印刷時は非表示） =====
+          モバイル: 左からのドロワー（fixed + translate）。デスクトップ: 静的に横並び（navOpen で折りたたみ）。 */}
       <aside
-        className={`no-print sticky top-0 z-[500] h-screen shrink-0 flex-col overflow-hidden bg-gradient-to-b from-cyan-800 via-sky-800 to-blue-900 text-white transition-all duration-200 ${
-          navOpen ? "flex w-60" : "hidden w-0"
-        }`}
+        className={`no-print fixed inset-y-0 left-0 z-[570] flex w-72 max-w-[80vw] flex-col overflow-hidden bg-gradient-to-b from-cyan-800 via-sky-800 to-blue-900 text-white transition-transform duration-200 md:sticky md:top-0 md:z-[500] md:h-screen md:max-w-none md:translate-x-0 md:transition-all ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        } ${navOpen ? "md:flex md:w-60" : "md:hidden md:w-0"}`}
       >
         <div className="relative border-b border-white/10 px-5 py-5">
           <button
-            onClick={() => setNavOpen(false)}
+            onClick={() => {
+              setNavOpen(false);
+              setMobileOpen(false);
+            }}
             aria-label="メニューを閉じる"
             className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
           >
@@ -115,8 +155,11 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* ===== メイン（ページ） ===== */}
-      <main className={`min-w-0 flex-1 ${fullBleed ? "" : "px-6 py-6"} h-screen overflow-y-auto print:h-auto print:overflow-visible print:px-0 print:py-0`}>
+      {/* ===== メイン（ページ） =====
+          モバイルは固定トップバー（h-14）分だけ下げ、余白も控えめにする。 */}
+      <main className={`mt-14 h-[calc(100dvh-3.5rem)] min-w-0 flex-1 overflow-y-auto md:mt-0 md:h-screen ${
+        fullBleed ? "" : "px-4 py-4 md:px-6 md:py-6"
+      } print:mt-0 print:h-auto print:overflow-visible print:px-0 print:py-0`}>
         {error ? (
           <div className="mx-auto max-w-xl p-10 text-center">
             <p className="text-rose-600">API に接続できません: {error}</p>

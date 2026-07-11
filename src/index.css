@@ -25,6 +25,14 @@ body {
   border-radius: 0;
 }
 
+/* deck.gl ウィジェット（方位磁針・ズーム等）の外枠が既定で半透明白
+   （rgba(255,255,255,0.3)）のため、地図に対して薄いフチ＝変なパディングに
+   見える。白で塗りつぶして無地の白ボタンに揃える。 */
+.deck-widget-button,
+.deck-widget-button-group {
+  --button-stroke: #fff;
+}
+
 /* ============ 印刷（PDF出力）用 ============ */
 @media print {
   @page {

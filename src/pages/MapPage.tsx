@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { TbLayoutSidebarRightExpand } from "react-icons/tb";
 import { useTrip } from "../store";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { api, type SpotRating } from "../api";
 import MapView from "../components/MapView";
 import MoveProcess from "../components/MoveProcess";
@@ -11,8 +12,10 @@ const PANEL_MAX = 640;
 
 export default function MapPage() {
   const { data, reload } = useTrip();
+  const isMobile = useIsMobile();
   const [selectedLeg, setSelectedLeg] = useState<number | null>(null);
-  const [panelOpen, setPanelOpen] = useState(true);
+  // モバイルはパネルが地図を全面で覆うため、初期は閉じて地図を見せる。
+  const [panelOpen, setPanelOpen] = useState(() => !isMobile);
   // いま地図に見えているスポット id（一覧の並び替えに使う）
   const [visibleSpotIds, setVisibleSpotIds] = useState<string[]>([]);
   // 候補スポットのピン表示/非表示（パネルの候補スポット見出し横のチェックで切替）
@@ -129,26 +132,31 @@ export default function MapPage() {
           onSelectLeg={setSelectedLeg}
           onSelectSpot={openSpotDetail}
           focusSpotId={detailSpotId}
-          rightInset={panelOpen ? panelWidth : 0}
+          rightInset={panelOpen && !isMobile ? panelWidth : 0}
           onVisibleSpotsChange={setVisibleSpotIds}
           showSpots={showSpots}
           itineraryLegOrder={orderedLegIds}
         />
       </div>
 
-      {/* 移動の工程：地図上にオーバーレイ（背景は透過） */}
+      {/* 移動の工程：地図上にオーバーレイ（背景は透過）。モバイルは全幅で覆う。 */}
       {panelOpen ? (
-        <div className="absolute right-0 top-0 z-10 flex h-full" style={{ width: panelWidth }}>
-          {/* 幅調整スプリッター */}
-          <div
-            onPointerDown={startDrag}
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="パネルの幅を調整"
-            className="group relative w-2 shrink-0 cursor-col-resize touch-none"
-          >
-            <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-300/70 transition-colors group-hover:bg-cyan-500/80" />
-          </div>
+        <div
+          className="absolute right-0 top-0 z-10 flex h-full w-full md:w-auto"
+          style={isMobile ? undefined : { width: panelWidth }}
+        >
+          {/* 幅調整スプリッター（デスクトップのみ） */}
+          {!isMobile && (
+            <div
+              onPointerDown={startDrag}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="パネルの幅を調整"
+              className="group relative w-2 shrink-0 cursor-col-resize touch-none"
+            >
+              <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-300/70 transition-colors group-hover:bg-cyan-500/80" />
+            </div>
+          )}
           <MoveProcess
             legs={data.legs}
             spots={data.spots}

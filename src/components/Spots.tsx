@@ -194,7 +194,7 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
             <li
               key={s.id}
               onClick={() => setOpenId(s.id)}
-              className="flex min-w-0 basis-[calc(50%-0.375rem)] max-w-md cursor-pointer flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-colors hover:border-cyan-300 hover:bg-slate-50"
+              className="flex min-w-0 basis-full max-w-md cursor-pointer flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-colors hover:border-cyan-300 hover:bg-slate-50 sm:basis-[calc(50%-0.375rem)]"
             >
               <SpotCard
                 spot={s}

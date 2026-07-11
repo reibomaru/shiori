@@ -177,7 +177,7 @@ export default function MapView({
 
   const initialViewState = useMemo(() => {
     const euro = cities.filter((c) => c.position[1] > 40 && c.position[1] < 52 && c.position[0] > -6 && c.position[0] < 20);
-    const base = { longitude: 7, latitude: 46.4, zoom: 6.4, pitch: 45, bearing: -12 };
+    const base = { longitude: 7, latitude: 46.4, zoom: 6.4, pitch: 45, bearing: 0 };
     if (euro.length < 2) return base;
     const lons = euro.map((c) => c.position[0]); const lats = euro.map((c) => c.position[1]);
     try {
@@ -186,7 +186,7 @@ export default function MapView({
         [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
         { padding: 90 }
       );
-      return { longitude, latitude, zoom: Math.min(zoom, 9), pitch: 45, bearing: -12 };
+      return { longitude, latitude, zoom: Math.min(zoom, 9), pitch: 45, bearing: 0 };
     } catch {
       return base;
     }

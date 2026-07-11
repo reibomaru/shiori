@@ -2,6 +2,7 @@
 // POST /api/spots/chat の SSE（fetch + ReadableStream）を読み、
 // 本文・ツール実行・提案・コストを state へ反映する。
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Spot } from "../types";
 import { api, type ChatSessionSummary } from "../api";
 
@@ -15,6 +16,8 @@ export interface Proposal {
   spot: Partial<Spot> | null;
   /** update/delete 時の既存の値。create では null。 */
   current: Spot | null;
+  /** 履歴復元時に付与される解決状態（保存/破棄）。live では未設定。 */
+  status?: ProposalStatus;
 }
 
 export interface ToolChip {
@@ -91,7 +94,10 @@ export function useSpotChat() {
   const [statuses, setStatuses] = useState<Record<string, ProposalStatus>>({});
 
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
-  const [activeId, setActiveId] = useState<string>(() => crypto.randomUUID());
+  // アクティブな会話は URL クエリ（?chat=<sessionId>）で保持し、リロードや共有で復元できるようにする。
+  const [searchParams, setSearchParams] = useSearchParams();
+  const restoreId = useRef(searchParams.get("chat")).current; // 初回マウント時の ?chat=（復元対象）
+  const [activeId, setActiveId] = useState<string>(() => restoreId || crypto.randomUUID());
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   // send 内で参照する最新の sessionId（state のクロージャ陳腐化を避ける）。
@@ -100,7 +106,11 @@ export function useSpotChat() {
 
   const loadSessions = useCallback(async () => {
     try {
-      setSessions(await api.listChatSessions());
+      const list = await api.listChatSessions();
+      setSessions(list);
+      // アクティブな会話のコストを一覧から反映（URL 復元時に表示できるように）。
+      const cur = list.find((s) => s.id === sessionIdRef.current);
+      if (cur) setUsage((u) => (u.costUSD === 0 ? { ...u, costUSD: cur.cost_usd } : u));
     } catch {
       /* 一覧取得失敗は致命的でない */
     }
@@ -109,6 +119,32 @@ export function useSpotChat() {
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
+
+  // activeId が変わったら URL の ?chat= に反映（履歴は汚さないよう replace）。
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.set("chat", activeId);
+        return p;
+      },
+      { replace: true },
+    );
+  }, [activeId, setSearchParams]);
+
+  // 初回マウント時、URL に ?chat= があればその会話履歴を復元する。
+  const didRestore = useRef(false);
+  useEffect(() => {
+    if (didRestore.current || !restoreId) return;
+    didRestore.current = true;
+    setLoadingHistory(true);
+    setError(null);
+    api
+      .getChatSessionMessages(restoreId)
+      .then((msgs) => setMessages(msgs))
+      .catch((e) => setError(String(e instanceof Error ? e.message : e)))
+      .finally(() => setLoadingHistory(false));
+  }, [restoreId]);
 
   /** 最後の assistant メッセージを更新するヘルパー。 */
   const patchLastAssistant = useCallback((fn: (m: ChatMessage) => ChatMessage) => {

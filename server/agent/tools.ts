@@ -23,11 +23,12 @@ export interface SpotToolsOptions {
   webSearchApiKey: string;
 }
 
-/** 提案ごとに振る一時 ID（フロントの承認ボタンと突き合わせる用）。 */
-let proposalSeq = 0;
-function nextTempId(): string {
-  proposalSeq += 1;
-  return `prop-${Date.now()}-${proposalSeq}`;
+/**
+ * 提案カードの ID。toolCall id 由来にすることで、SSE 直後だけでなく
+ * 履歴復元（JSONL の toolCall id）でも同じ ID になり、保存/破棄の状態を保てる。
+ */
+function proposalIdFor(toolCallId: string): string {
+  return `prop-${toolCallId}`;
 }
 
 const text = (s: string): AgentToolResult<unknown> =>
@@ -103,17 +104,17 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
       "スポットの新規追加（id 省略）または既存候補の更新（id 指定）をユーザーに提案する。DB には書き込まず、ユーザーが UI で承認して初めて保存される。緯度経度は分かる範囲で埋め、出典(source)・公式 URL・Google マップのリンク(google_maps_url)もできるだけ付ける。口コミや星評価はリンク先で見られるので保存しない。",
     promptSnippet: "propose_upsert_spot({id?, name, ...}) — 追加/更新を提案（保存はユーザー承認後）",
     parameters: Type.Object({
-      id: Type.Optional(Type.Number({ description: "更新対象の既存スポット id。新規追加なら省略" })),
+      id: Type.Optional(Type.String({ description: "更新対象の既存スポット id（UUID）。新規追加なら省略" })),
       ...proposalFields,
     }),
-    async execute(_id, p) {
+    async execute(toolCallId, p) {
       const op = p.id != null ? "update" : "create";
       let current = null;
       if (p.id != null) {
         current = spotsRepo.getSpot(db, p.id);
         if (!current) return text(`id=${p.id} の候補が見つかりません。list_spots で id を確認してください。`);
       }
-      const tempId = nextTempId();
+      const tempId = proposalIdFor(toolCallId);
       const spot = pickDraft(p as Record<string, unknown>);
       await emit("proposal", { tempId, op, id: p.id ?? null, spot, current });
       return text(
@@ -130,12 +131,12 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
       "既存候補の削除をユーザーに提案する。DB には書き込まず、ユーザーが UI で承認して初めて削除される。",
     promptSnippet: "propose_delete_spot({id}) — 削除を提案（実行はユーザー承認後）",
     parameters: Type.Object({
-      id: Type.Number({ description: "削除対象の既存スポット id" }),
+      id: Type.String({ description: "削除対象の既存スポット id（UUID）" }),
     }),
-    async execute(_id, p) {
+    async execute(toolCallId, p) {
       const current = spotsRepo.getSpot(db, p.id);
       if (!current) return text(`id=${p.id} の候補が見つかりません。list_spots で id を確認してください。`);
-      const tempId = nextTempId();
+      const tempId = proposalIdFor(toolCallId);
       await emit("proposal", { tempId, op: "delete", id: p.id, spot: null, current });
       return text(`「${current.name}」の削除を提案しました。ユーザーが「削除」を押すと確定します。`);
     },

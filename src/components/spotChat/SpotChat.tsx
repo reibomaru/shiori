@@ -239,8 +239,8 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
         {saveError && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{saveError}</div>}
       </div>
 
-      {/* 入力 */}
-      <div className="border-t border-slate-100 p-3">
+      {/* 入力（メッセージ欄と地続きに見せるため区切り線は置かない） */}
+      <div className="p-3">
         {/* 添付画像のプレビュー */}
         {attached.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">

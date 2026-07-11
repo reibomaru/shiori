@@ -324,6 +324,12 @@ sequenceDiagram
   （`litestream restore → migrate → 確定`）。GCS バケット / Secret は Service と共有。
 - **失敗時**: ジョブが非ゼロ終了 → 新リビジョンは配信しない。バックアップは無傷なので、
   旧イメージで `min-instances=1` に戻せば即復旧。
+- **デプロイの自動分岐**: `deploy` ワークフローは push に `db/migrations/` の差分が
+  含まれるかを判定し、**スキーマ変更時だけ** デプロイ前に単一ライタ窓での migrate を自動で挟む:
+  - コード変更のみ → `build → deploy`（無停止でイメージ差し替え）
+  - スキーマ変更あり → `build → 退避(min=0) → バックアップ → migrate Job → deploy(min=1)`
+  未適用のまま deploy するとフェイルファストで起動拒否になるため、この順序を1本のフローで保証する。
+  migrate 失敗時は旧リビジョンを `min=1` に戻して可用性を復帰する。
 
 ## 11. バックアップ & ロールバック
 

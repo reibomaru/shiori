@@ -71,7 +71,8 @@ printf '%s' "<好きなパスワード>"    | gcloud secrets versions add BASIC_
 ### 6. 初回デプロイ
 
 `main` へ push すると `deploy` ワークフローが実イメージをビルド・デプロイする。
-スキーマ変更を伴うときは先に `migrate` ワークフローを手動実行する。
+`db/migrations/` に差分がある push では、デプロイ前に単一ライタ窓での
+マイグレーションを自動で挟む（コード変更のみの push は無停止でデプロイ）。
 
 ## 注意
 

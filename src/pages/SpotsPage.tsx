@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { PanelRightOpen } from "lucide-react";
 import { useTrip } from "../store";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useVisualViewport } from "../hooks/useVisualViewport";
 import { useSpotChat } from "../hooks/useSpotChat";
 import Spots from "../components/Spots";
 import SpotChat from "../components/spotChat/SpotChat";
@@ -14,6 +15,9 @@ const STORAGE_KEY = "spotChatWidth";
 export default function SpotsPage() {
   const { data, reload } = useTrip();
   const isMobile = useIsMobile();
+  // モバイルはチャットを全画面オーバーレイで出す。キーボードで縮む可視領域に
+  // 合わせて高さ・上端を決め、入力欄がキーボードに隠れて崩れるのを防ぐ。
+  const vp = useVisualViewport();
   const chat = useSpotChat();
   // モバイルはチャットが全画面を覆うため、初期は閉じて候補一覧を見せる。
   const [chatOpen, setChatOpen] = useState(() => !isMobile);
@@ -82,8 +86,8 @@ export default function SpotsPage() {
       {/* 右: チャット（会話履歴はヘッダーのセレクトボックスで選択）。モバイルは全画面オーバーレイ。 */}
       {chatOpen && (
         <div
-          className={isMobile ? "absolute inset-0 z-30 bg-white" : "shrink-0"}
-          style={isMobile ? undefined : { width: chatWidth }}
+          className={isMobile ? "fixed inset-x-0 z-[560] bg-white" : "shrink-0"}
+          style={isMobile ? { top: vp.offsetTop, height: vp.height } : { width: chatWidth }}
         >
           <SpotChat chat={chat} reload={reload} onClose={() => setChatOpen(false)} />
         </div>

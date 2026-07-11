@@ -31,7 +31,7 @@ export type BudgetRow = BudgetItem;
 
 /** spots テーブルの生の行。instagram は JSON 文字列のまま保持する。 */
 export type SpotRow = {
-  id: number;
+  id: string;
   name: string;
   name_en: string | null;
   category: string | null;
@@ -50,7 +50,7 @@ export type SpotRow = {
 
 /** legs テーブルの生の行（geojson は LineString geometry の JSON 文字列）。 */
 export type LegRow = {
-  id: number;
+  id: string;
   order_index: number;
   from_name: string | null;
   to_name: string | null;
@@ -61,7 +61,7 @@ export type LegRow = {
 
 /** spot_place_cache テーブルの生の行。 */
 export type SpotPlaceCacheRow = {
-  spot_id: number;
+  spot_id: string;
   place_id: string | null;
   rating: number | null;
   rating_count: number | null;

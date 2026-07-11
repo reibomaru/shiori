@@ -8,9 +8,11 @@ import type { Block, BlockPatch } from "./builderModel";
 import type { ItemType } from "../../types";
 import { ITEM_META, yen } from "../../itemMeta";
 
-// 編集パネルで選べる種別は非移動系のみ。移動（鉄道/飛行機/バス等）の作成は
-// 「移動タブ」の OSRM ルート作成に限定する（ルート情報を伴うため）。
-const EDITABLE_TYPES: ItemType[] = ["spot", "meal", "hotel", "free"];
+// 編集パネルで種別を切り替えられるのは「スポット由来（spot_id あり）」のブロックのみ。
+// spot/meal/hotel はいずれも spot_id を持つため相互に切り替えても CHECK 制約を満たす。
+// 手入力の自由項目（spot_id/leg_id なし）は free 固定（下でピッカー自体を出さない）。
+// 移動（鉄道/飛行機/バス等）は「移動タブ」の OSRM ルート作成に限定する（leg_id を伴う）。
+const EDITABLE_TYPES: ItemType[] = ["spot", "meal", "hotel"];
 
 /** ドラッグ中のオーバーレイや一覧で使う、ブロックの本体表示（アイコン＋タイトル＋費用＋由来）。 */
 export function BlockBody({ block }: { block: Block }) {
@@ -84,8 +86,9 @@ function Editor({
 
   return (
     <div className="mt-2 space-y-2 rounded-lg bg-slate-50 p-2.5 ring-1 ring-slate-200">
-      {/* 種別ピッカーは非移動系のみ。移動由来のブロック（leg_id あり）では種別を変えない。 */}
-      {block.leg_id == null && (
+      {/* 種別ピッカーはスポット由来（spot_id あり）のブロックのみ。
+          手入力の自由項目（spot_id/leg_id なし）は free 固定、移動（leg_id あり）は種別を変えない。 */}
+      {block.spot_id != null && (
         <div className="flex flex-wrap gap-1">
           {EDITABLE_TYPES.map((t) => {
             const m = ITEM_META[t];

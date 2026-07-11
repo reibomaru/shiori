@@ -93,12 +93,12 @@ export default function MapView({
   spots?: Spot[];
   selectedLeg?: number | null;
   onSelectLeg?: (order: number | null) => void;
-  onSelectSpot?: (id: number) => void;
-  focusSpotId?: number | null;
+  onSelectSpot?: (id: string) => void;
+  focusSpotId?: string | null;
   rightInset?: number; // 右オーバーレイ（工程パネル）の幅。中心をその分だけ可視領域へ寄せる
-  onVisibleSpotsChange?: (ids: number[]) => void; // いま地図に見えているスポット id
+  onVisibleSpotsChange?: (ids: string[]) => void; // いま地図に見えているスポット id
   showSpots?: boolean; // 候補スポットのピン表示/非表示（パネルのチェックで切替）
-  itineraryLegOrder?: number[]; // 旅程に組み込まれた leg id を旅程順に並べた配列。指定時はこれだけを順番表示
+  itineraryLegOrder?: string[]; // 旅程に組み込まれた leg id を旅程順に並べた配列。指定時はこれだけを順番表示
 }) {
   const [base, setBase] = useState<BaseId>("osm");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,7 +118,7 @@ export default function MapView({
   // 旅程に組み込まれた移動だけを旅程順に表示する（指定があれば）。
   const legSeq = new Map(itineraryLegOrder.map((id, i) => [id, i] as const));
   const itinActive = itineraryLegOrder.length > 0;
-  const inItin = (legId: number | undefined) => !itinActive || (legId != null && legSeq.has(legId));
+  const inItin = (legId: string | undefined) => !itinActive || (legId != null && legSeq.has(legId));
 
   const detailed = legs.filter(
     (f) => f.geometry && f.geometry.coordinates.length >= 2 && inItin(f.properties.id)
@@ -207,7 +207,7 @@ export default function MapView({
   useEffect(() => {
     if (!onVisibleSpotsChange) return;
     const el = containerRef.current;
-    let ids: number[] = [];
+    let ids: string[] = [];
     if (el && showSpots && el.clientWidth > 0) {
       try {
         const vp = new WebMercatorViewport({

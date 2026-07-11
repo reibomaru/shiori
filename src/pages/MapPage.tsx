@@ -14,15 +14,15 @@ export default function MapPage() {
   const [selectedLeg, setSelectedLeg] = useState<number | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
   // いま地図に見えているスポット id（一覧の並び替えに使う）
-  const [visibleSpotIds, setVisibleSpotIds] = useState<number[]>([]);
+  const [visibleSpotIds, setVisibleSpotIds] = useState<string[]>([]);
   // 候補スポットのピン表示/非表示（パネルの候補スポット見出し横のチェックで切替）
   const [showSpots, setShowSpots] = useState(true);
 
   const spots = data?.spots ?? [];
   // 旅程に組み込まれた移動（leg_id）を、旅程の記載順（日→予定順）に並べた leg id 配列。
   const orderedLegIds = useMemo(() => {
-    const ids: number[] = [];
-    const seen = new Set<number>();
+    const ids: string[] = [];
+    const seen = new Set<string>();
     for (const d of [...(data?.days ?? [])].sort((a, b) => a.day_no - b.day_no))
       for (const it of [...d.items].sort((a, b) => a.sort_order - b.sort_order))
         if (it.leg_id != null && !seen.has(it.leg_id)) {
@@ -35,10 +35,10 @@ export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawSpot = searchParams.get("spot");
   const detailSpotId =
-    rawSpot != null && spots.some((s) => s.id === Number(rawSpot)) ? Number(rawSpot) : null;
+    rawSpot != null && spots.some((s) => s.id === rawSpot) ? rawSpot : null;
 
   const openSpotDetail = useCallback(
-    (id: number) => {
+    (id: string) => {
       setPanelOpen(true);
       // スポット選択時は鉄道などの区間ハイライトを解除する
       setSelectedLeg(null);
@@ -69,7 +69,7 @@ export default function MapPage() {
   const draggingRef = useRef(false);
 
   // Google マップの評価・写真。一覧ページと同じソース（DB に30日キャッシュ）。
-  const [ratings, setRatings] = useState<Record<number, SpotRating | null>>({});
+  const [ratings, setRatings] = useState<Record<string, SpotRating | null>>({});
   const idsKey = spots.map((s) => s.id).join(",");
   useEffect(() => {
     if (spots.length === 0) return;

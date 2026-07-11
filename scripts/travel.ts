@@ -9,6 +9,7 @@
 //  JSON を取る系は引数に JSON 文字列を渡します（シングルクォート推奨）。
 // ============================================================
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import type { SQLInputValue } from "node:sqlite";
 import { openDb } from "../db/db.ts";
 import { extractLineString, lineStringLatLngs } from "../db/geo.ts";
@@ -24,14 +25,14 @@ function parseJson(s: string, label: string): Record<string, unknown> {
 }
 /** SQLite はプリミティブしかバインドできないため、配列/オブジェクトは JSON 文字列にする */
 const bindVal = (v: unknown): SQLInputValue => (v !== null && typeof v === "object" ? JSON.stringify(v) : (v as SQLInputValue));
-/** 許可フィールドだけ INSERT */
+/** 許可フィールドだけ INSERT。id 未指定なら UUID を採番する（PK は TEXT/UUID）。 */
 function insert(table: string, obj: Record<string, unknown>, fields: string[]): unknown {
-  const cols = fields.filter((f) => obj[f] !== undefined);
+  const id = (obj.id as string | undefined) ?? randomUUID();
+  const cols = ["id", ...fields.filter((f) => obj[f] !== undefined)];
   const ph = cols.map(() => "?").join(", ");
-  const { lastInsertRowid } = db
-    .prepare(`INSERT INTO ${table} (${cols.join(", ")}) VALUES (${ph})`)
-    .run(...cols.map((f) => bindVal(obj[f])));
-  return db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(lastInsertRowid);
+  db.prepare(`INSERT INTO ${table} (${cols.join(", ")}) VALUES (${ph})`)
+    .run(id, ...cols.slice(1).map((f) => bindVal(obj[f])));
+  return db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
 }
 function update(table: string, id: SQLInputValue, obj: Record<string, unknown>, fields: string[]): unknown {
   const cols = fields.filter((f) => obj[f] !== undefined);
@@ -47,7 +48,8 @@ function dayIdByNo(no: number): number {
 }
 
 const SPOT_FIELDS = ["name", "name_en", "category", "city", "country", "lat", "lng", "url", "google_maps_url", "note", "source", "icon", "instagram"];
-const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id"];
+// item は spot（spot/meal/hotel）か leg（flight/train/bus/car/walk）のどちらか一方に必ず紐づく（free は例外）。DB の CHECK 制約で強制。
+const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id", "leg_id"];
 const DAY_FIELDS = ["day_no", "date", "city", "title"];
 const BUDGET_FIELDS = ["sort_order", "category", "per_person", "note"];
 const ROUTE_FIELDS = ["order_index", "name", "lat", "lng", "hub", "leg_type", "note"];

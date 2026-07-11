@@ -1,0 +1,12 @@
+# Litestream 設定。SQLite（$TRAVEL_DB）を GCS バケットへ継続レプリケートする。
+# GCS 認証は Cloud Run 実行 SA の ADC（メタデータサーバ）を自動利用する。
+# 変数は起動スクリプト側の環境変数から展開される:
+#   TRAVEL_DB          … DB ファイルパス（例 /data/travel.db）
+#   LITESTREAM_BUCKET  … レプリカ先の GCS バケット
+#   LITESTREAM_PATH    … バケット内のプレフィックス（例 litestream）
+dbs:
+  - path: ${TRAVEL_DB}
+    replicas:
+      - type: gcs
+        bucket: ${LITESTREAM_BUCKET}
+        path: ${LITESTREAM_PATH}

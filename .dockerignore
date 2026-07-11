@@ -1,10 +1,14 @@
-# ビルドコンテキストから除外（ホストの node_modules は OS 差があるため使わない）。
+# ビルドコンテキストから除外。フロントのビルド（vite build）に src/public/index.html が
+# 必要なので、それらは除外しない。
 node_modules
 dist
 .git
 data
 .env
 *.log
-src
-public
+
+# インフラ/ドキュメント/CI はイメージに不要。
+infra/terraform
+docs
+.github
 searxng

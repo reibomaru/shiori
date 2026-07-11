@@ -4,9 +4,14 @@
 // ============================================================
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { basicAuth } from "hono/basic-auth";
+import { HTTPException } from "hono/http-exception";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import type { SQLInputValue } from "node:sqlite";
 import { openDb } from "../db/db.ts";
+import { applyPending, currentVersion, expectedVersion } from "../db/migrate-runner.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
 import { getSpotRatings, invalidateSpotCache } from "./places.ts";
 import { registerSpotChatRoute } from "./agent/route.ts";
@@ -30,8 +35,38 @@ function legToFeature(l: LegRow): LegFeature {
 }
 
 const db = openDb();
+
+// ---- スキーマ版の検証 -------------------------------------
+// 本番では未適用のマイグレーションがあれば起動を拒否（複数インスタンスが
+// 各自マイグレートする事故を防ぐ）。開発では利便性のため自動適用する。
+{
+  const cur = currentVersion(db);
+  const exp = expectedVersion();
+  if (cur < exp) {
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        `✖ 未適用のマイグレーションがあります（現在 v${cur} / 期待 v${exp}）。` +
+          `\n  マイグレーション Job（db/migrate.ts）を実行してから再デプロイしてください。`,
+      );
+      process.exit(1);
+    }
+    console.warn(`… 開発環境: 未適用マイグレーションを自動適用します（v${cur} → v${exp}）`);
+    applyPending(db);
+  }
+}
+
 const app = new Hono();
 const PORT = Number(process.env.PORT || 8080);
+
+// ---- Basic 認証 -------------------------------------------
+// 資格情報（BASIC_AUTH_USER / BASIC_AUTH_PASS）が設定されている場合のみ有効化。
+// ヘルスチェックは Cloud Run のプローブ用に素通しする。
+const BASIC_USER = process.env.BASIC_AUTH_USER;
+const BASIC_PASS = process.env.BASIC_AUTH_PASS;
+if (BASIC_USER && BASIC_PASS) {
+  const auth = basicAuth({ username: BASIC_USER, password: BASIC_PASS });
+  app.use("*", (c, next) => (c.req.path === "/health" ? next() : auth(c, next)));
+}
 
 // ---- 共通ヘルパー ------------------------------------------
 /** 許可フィールドだけで UPDATE を組み立てる（部分更新対応） */
@@ -45,6 +80,8 @@ function updateRow(table: string, id: SQLInputValue, body: Record<string, unknow
 }
 
 app.onError((err, c) => {
+  // HTTPException（Basic 認証の 401 など）は本来の応答をそのまま返す。
+  if (err instanceof HTTPException) return err.getResponse();
   console.error(err);
   const msg = String(err.message || err);
   // DB の制約違反はクライアント側の入力ミス（不正な予定）なので 400 で返す。
@@ -306,11 +343,22 @@ app.get("/api/geocode", async (c) => {
   return c.json({ results });
 });
 
-// ---- ルート / ヘルスチェック（ブラウザで開いたときの確認用）----
-app.get("/", (c) =>
-  c.json({ name: "しおり API", status: "ok", endpoints: ["/api/trip", "/health"] })
-);
+// ---- ヘルスチェック ----------------------------------------
 app.get("/health", (c) => c.json({ status: "ok", uptime: process.uptime() }));
+
+// ---- フロント配信（本番: dist を静的配信 + SPA フォールバック）----
+// これらは全 /api ルートより後に登録するため、API が優先して処理される。
+const DIST_DIR = "./dist";
+if (existsSync(DIST_DIR)) {
+  app.use("/*", serveStatic({ root: DIST_DIR }));
+  // 実ファイルが無いパスは index.html を返す（react-router のクライアントルーティング）。
+  app.get("/*", serveStatic({ path: `${DIST_DIR}/index.html` }));
+} else {
+  // dist が無い（API のみで起動した場合）の確認用ルート。
+  app.get("/", (c) =>
+    c.json({ name: "しおり API", status: "ok", endpoints: ["/api/trip", "/health"] }),
+  );
+}
 
 const server = serve({ fetch: app.fetch, port: PORT }, () => {
   console.log(`🚆 しおり API (Hono): http://localhost:${PORT}  (DB: ${process.env.TRAVEL_DB || "data/travel.db"})`);

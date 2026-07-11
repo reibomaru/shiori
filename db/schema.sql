@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS trip (
   travelers   TEXT,
   party_size  INTEGER DEFAULT 2,
   fx_note     TEXT
+  -- memo（旅全体のフリーテキストメモ）は 0005 で追加。schema.sql は baseline(v3) の到達点。
 );
 
 -- 行きたいスポットのライブラリ（地球の歩き方などから登録していく場所）

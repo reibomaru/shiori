@@ -50,7 +50,10 @@ async function http<T>(url: string, method: string, body?: unknown): Promise<T> 
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) throw new Error(`${method} ${url} -> ${res.status}`);
-  return res.json() as Promise<T>;
+  // 空ボディ（Content-Length: 0 や 204）を res.json() に渡すと
+  // "Unexpected end of JSON input" で落ちるため、テキストを見てから解釈する。
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export const api = {

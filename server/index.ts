@@ -275,10 +275,15 @@ app.get("/api/osrm", async (c) => {
   const from = c.req.query("from"); // "lng,lat"
   const to = c.req.query("to"); // "lng,lat"
   const profile = c.req.query("profile") || "driving";
+  // via="lng,lat;lng,lat;…"（経由地。順に from → via… → to で経路を組む）。
+  const viaPoints = (c.req.query("via") || "").split(";").map((s) => s.trim()).filter(Boolean);
   if (!from || !to) return c.json({ error: "from と to（'lng,lat'）が必要です" }, 400);
   const base = (process.env.OSRM_URL || "https://router.project-osrm.org").replace(/\/$/, "");
+  // 経由地を挟んで座標列を組み立てる（from;via1;…;to）。
+  const coordStr = [from, ...viaPoints, to].join(";");
   // steps=true で各ステップの道路名を取得し、候補を区別できる「主な経路」を作る。
-  const url = `${base}/route/v1/${profile}/${from};${to}?alternatives=3&overview=full&geometries=geojson&steps=true`;
+  // 経由地を固定すると alternatives が減る（候補が 1 本になりうる）点は許容。
+  const url = `${base}/route/v1/${profile}/${coordStr}?alternatives=3&overview=full&geometries=geojson&steps=true`;
   const res = await fetch(url, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
   if (!res.ok) return c.json({ error: `OSRM ${res.status}` }, 502);
   const data: any = await res.json();
@@ -320,26 +325,27 @@ app.get("/api/osrm", async (c) => {
 });
 
 // ---- ジオコーディング（地名→座標の入力補完用）------------
-// Photon（OSM ベース・キー不要）へのプロキシ。CORS 回避と利用ポリシー遵守のため
-// サーバ経由にする。lat/lon を渡すと近傍を優先（location bias）。
-app.get("/api/geocode", async (c) => {
-  const q = (c.req.query("q") || "").trim();
-  if (q.length < 2) return c.json({ results: [] });
-  const lat = c.req.query("lat");
-  const lon = c.req.query("lon");
-  // tag=aeroway:aerodrome のような OSM タグで種別を絞る（例: 空港検索）。カンマ区切り可。
-  const tags = (c.req.query("tag") || "").split(",").map((t) => t.trim()).filter(Boolean);
+// ひらがな・カタカナ・漢字を含むか（日本語クエリの判定）。
+const hasJapanese = (s: string) =>
+  /[぀-ゟ゠-ヿ㐀-鿿豈-﫿ｦ-ﾟ]/.test(s);
+
+// Photon（OSM ベース・キー不要）で検索。主に英語（name / name:en 等）向け。
+async function geocodePhoton(
+  q: string,
+  bias: { lat?: string; lon?: string },
+  tags: string[],
+) {
   const base = (process.env.PHOTON_URL || "https://photon.komoot.io").replace(/\/$/, "");
   const params = new URLSearchParams({ q, limit: "6", lang: process.env.PHOTON_LANG || "en" });
-  if (lat && lon) {
-    params.set("lat", lat);
-    params.set("lon", lon);
+  if (bias.lat && bias.lon) {
+    params.set("lat", bias.lat);
+    params.set("lon", bias.lon);
   }
   for (const t of tags) params.append("osm_tag", t);
   const res = await fetch(`${base}/api/?${params}`, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
-  if (!res.ok) return c.json({ error: `geocode ${res.status}`, results: [] }, 502);
+  if (!res.ok) throw new Error(`geocode ${res.status}`);
   const data: any = await res.json();
-  const results = (data.features || [])
+  return (data.features || [])
     .map((f: any) => {
       const p = f.properties || {};
       const [lng, lat2] = f.geometry?.coordinates || [];
@@ -352,7 +358,74 @@ app.get("/api/geocode", async (c) => {
       return { name: p.name || parts[0] || q, label: parts.join(", "), lng, lat: lat2 };
     })
     .filter((r: any) => r.lng != null && r.lat != null);
-  return c.json({ results });
+}
+
+// Nominatim で検索。accept-language=ja + namedetails で日本語名（name:ja）を拾う。
+// 公開 Photon は日本語検索が弱いため、日本語クエリはこちらを使う。
+async function geocodeNominatim(
+  q: string,
+  bias: { lat?: string; lon?: string },
+  tags: string[],
+) {
+  const base = (process.env.NOMINATIM_URL || "https://nominatim.openstreetmap.org").replace(/\/$/, "");
+  const params = new URLSearchParams({
+    q,
+    format: "jsonv2",
+    limit: "6",
+    namedetails: "1",
+    addressdetails: "1",
+    "accept-language": "ja",
+  });
+  // viewbox（近傍を優先）。bounded=0 なので範囲外も候補に残る。
+  if (bias.lat && bias.lon) {
+    const dlat = parseFloat(bias.lat);
+    const dlon = parseFloat(bias.lon);
+    if (!Number.isNaN(dlat) && !Number.isNaN(dlon)) {
+      const d = 3; // 度（おおよその優先範囲）
+      params.set("viewbox", `${dlon - d},${dlat + d},${dlon + d},${dlat - d}`);
+      params.set("bounded", "0");
+    }
+  }
+  const res = await fetch(`${base}/search?${params}`, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
+  if (!res.ok) throw new Error(`geocode ${res.status}`);
+  const data: any = await res.json();
+  // OSM タグ（例: aeroway:aerodrome）指定時は class/type で絞り込む。
+  const wanted = tags.map((t) => t.split(":"));
+  return (Array.isArray(data) ? data : [])
+    .filter((f: any) =>
+      wanted.length === 0 ||
+      wanted.some(([k, v]) => f.category === k && (!v || f.type === v)),
+    )
+    .map((f: any) => {
+      const nd = f.namedetails || {};
+      // name:ja があれば日本語名を優先、無ければ英語表記にフォールバック。
+      const name = nd["name:ja"] || nd.name || f.name || (f.display_name || "").split(",")[0] || q;
+      return {
+        name,
+        label: f.display_name || name,
+        lng: parseFloat(f.lon),
+        lat: parseFloat(f.lat),
+      };
+    })
+    .filter((r: any) => !Number.isNaN(r.lng) && !Number.isNaN(r.lat));
+}
+
+// CORS 回避と利用ポリシー遵守のためサーバ経由にする。lat/lon を渡すと近傍を優先。
+// 日本語クエリは Nominatim（accept-language=ja）、それ以外は Photon を使う。
+app.get("/api/geocode", async (c) => {
+  const q = (c.req.query("q") || "").trim();
+  if (q.length < 2) return c.json({ results: [] });
+  const bias = { lat: c.req.query("lat"), lon: c.req.query("lon") };
+  // tag=aeroway:aerodrome のような OSM タグで種別を絞る（例: 空港検索）。カンマ区切り可。
+  const tags = (c.req.query("tag") || "").split(",").map((t) => t.trim()).filter(Boolean);
+  try {
+    const results = hasJapanese(q)
+      ? await geocodeNominatim(q, bias, tags)
+      : await geocodePhoton(q, bias, tags);
+    return c.json({ results });
+  } catch (e) {
+    return c.json({ error: String(e), results: [] }, 502);
+  }
 });
 
 // ---- ヘルスチェック ----------------------------------------

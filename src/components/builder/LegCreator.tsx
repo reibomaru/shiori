@@ -191,7 +191,7 @@ export default function LegCreator({
       }
     : undefined;
   const [mode, setMode] = useState("train");
-  const [vias, setVias] = useState<(Place | null)[]>([]); // 飛行機の経由空港
+  const [vias, setVias] = useState<(Place | null)[]>([]); // 経由地（飛行機は経由空港 / それ以外は経路の経由地）
   const [candidates, setCandidates] = useState<OsrmRoute[] | null>(null);
   const [sel, setSel] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -200,9 +200,19 @@ export default function LegCreator({
 
   // 飛行機は OSRM を使わず、空港（経由地含む）を直接つないで保存する。
   const isFlight = mode === "flight";
-  const addVia = () => setVias((v) => [...v, null]);
-  const setVia = (i: number, p: Place) => setVias((v) => v.map((x, j) => (j === i ? p : x)));
-  const removeVia = (i: number) => setVias((v) => v.filter((_, j) => j !== i));
+  // 経由地を変更したら、取得済みの経路候補は無効化する（OSRM 再計算が必要）。
+  const addVia = () => {
+    setVias((v) => [...v, null]);
+    setCandidates(null);
+  };
+  const setVia = (i: number, p: Place) => {
+    setVias((v) => v.map((x, j) => (j === i ? p : x)));
+    setCandidates(null);
+  };
+  const removeVia = (i: number) => {
+    setVias((v) => v.filter((_, j) => j !== i));
+    setCandidates(null);
+  };
 
   function reset() {
     setFrom(null);
@@ -233,7 +243,8 @@ export default function LegCreator({
     setError(null);
     setCandidates(null);
     try {
-      const r = await api.osrmRoute(`${from.lng},${from.lat}`, `${to.lng},${to.lat}`);
+      const viaCoords = (vias.filter(Boolean) as Place[]).map((v) => `${v.lng},${v.lat}`);
+      const r = await api.osrmRoute(`${from.lng},${from.lat}`, `${to.lng},${to.lat}`, "driving", viaCoords);
       if (!r.routes?.length) setError(r.error ? `経路が見つかりません（${r.error}）` : "経路が見つかりません");
       else {
         setCandidates(r.routes);
@@ -264,6 +275,9 @@ export default function LegCreator({
       } else {
         if (!candidates) return;
         const chosen = candidates[sel];
+        // 通過サマリ。ユーザー指定の経由地があればそれを優先、無ければ逆ジオコードの通過町名。
+        const viaNames = (vias.filter(Boolean) as Place[]).map((v) => v.name);
+        const pass = viaNames.length ? viaNames : chosen.waypoints ?? [];
         await api.createLeg({
           order_index: nextOrderIndex,
           from_name: from.name,
@@ -271,11 +285,7 @@ export default function LegCreator({
           mode,
           geojson: chosen.geometry,
           note: `${fmtKm(chosen.distance)} / ${fmtDur(chosen.duration)}${
-            chosen.waypoints?.length
-              ? ` · 通過: ${chosen.waypoints.join(" → ")}`
-              : chosen.via
-                ? ` · ${chosen.via}`
-                : ""
+            pass.length ? ` · 通過: ${pass.join(" → ")}` : chosen.via ? ` · ${chosen.via}` : ""
           }`,
         });
       }
@@ -392,6 +402,35 @@ export default function LegCreator({
                         <PlaceInput places={places} bias={bias} value={from} onChange={setFrom} placeholder="出発地（地名で検索）" />
                         <FaArrowRightLong className="shrink-0 text-slate-400" />
                         <PlaceInput places={places} bias={bias} value={to} onChange={setTo} placeholder="目的地（地名で検索）" />
+                      </div>
+                      {/* 経由地（from → via… → to の順で経路を計算） */}
+                      <div className="mt-2 space-y-2">
+                        {vias.map((v, i) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <span className="shrink-0 text-slate-300">↳</span>
+                            <PlaceInput places={places} bias={bias} value={v} onChange={(p) => setVia(i, p)} placeholder={`経由地 ${i + 1}（地名で検索）`} />
+                            <button
+                              type="button"
+                              onClick={() => removeVia(i)}
+                              aria-label="経由地を削除"
+                              className="shrink-0 rounded p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
+                            >
+                              <FaXmark />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={addVia}
+                          className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 hover:border-cyan-300 hover:text-cyan-700"
+                        >
+                          <FaPlus className="text-[10px]" /> 経由地を追加
+                        </button>
+                        {vias.some(Boolean) && (
+                          <p className="text-[11px] leading-relaxed text-slate-400">
+                            指定した経由地を通る経路を計算します（出発地 → 経由地… → 目的地）。
+                          </p>
+                        )}
                       </div>
                     </div>
 

@@ -106,7 +106,16 @@ function IconPicker({ spot, reload }: { spot: Spot; reload: () => void }) {
   );
 }
 
-export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => void }) {
+export default function Spots({
+  spots,
+  reload,
+  headerAction,
+}: {
+  spots: Spot[];
+  reload: () => void;
+  /** 見出し右（件数バッジの隣）に置くアクション。モバイルのチャット開くボタン等。 */
+  headerAction?: React.ReactNode;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Spot | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -175,11 +184,14 @@ export default function Spots({ spots, reload }: { spots: Spot[]; reload: () => 
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       />
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800">
           <FaCompass className="text-cyan-700" /> 行きたいスポット候補
         </h2>
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{spots.length} 件</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{spots.length} 件</span>
+          {headerAction}
+        </div>
       </div>
       <p className="mb-3 text-xs text-slate-400">
         ガイドブックを見ながら Skill で登録した候補。カードをクリックすると詳細と Instagram を表示します。

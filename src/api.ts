@@ -96,10 +96,12 @@ export const api = {
       }`,
       "GET"
     ),
-  // OSRM の経路候補を取得（from/to は "lng,lat"）。
-  osrmRoute: (from: string, to: string, profile = "driving") =>
+  // OSRM の経路候補を取得（from/to/vias は "lng,lat"）。経由地は from→via…→to の順。
+  osrmRoute: (from: string, to: string, profile = "driving", vias: string[] = []) =>
     http<{ routes: OsrmRoute[]; error?: string }>(
-      `/api/osrm?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&profile=${profile}`,
+      `/api/osrm?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&profile=${profile}${
+        vias.length ? `&via=${encodeURIComponent(vias.join(";"))}` : ""
+      }`,
       "GET"
     ),
 

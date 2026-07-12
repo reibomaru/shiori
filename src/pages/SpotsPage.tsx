@@ -66,8 +66,10 @@ export default function SpotsPage() {
 
   return (
     <div ref={containerRef} className="relative flex h-full bg-slate-100">
-      {/* 左: 行きたいスポット候補（囲いなし・スクロール）。閉じているときは開くボタン分だけ右に余白。 */}
-      <div className={`min-w-0 flex-1 overflow-y-auto p-5 ${!chatOpen ? "pr-14" : ""}`}>
+      {/* 左: 行きたいスポット候補（囲いなし・スクロール）。
+          デスクトップで閉じているときだけ、右上の開くボタン分の余白を空ける。
+          モバイルはチャットが全画面オーバーレイで、開くボタンは右下に浮かせるため余白不要。 */}
+      <div className={`min-w-0 flex-1 overflow-y-auto p-5 ${!chatOpen && !isMobile ? "pr-14" : ""}`}>
         <Spots spots={data.spots} reload={reload} />
       </div>
 
@@ -100,16 +102,28 @@ export default function SpotsPage() {
         </div>
       )}
 
-      {/* チャットを開くボタン（閉じているとき・右上・閉じるボタンと同じさりげないトーン） */}
-      {!chatOpen && (
-        <button
-          onClick={() => setChatOpen(true)}
-          title="チャットを開く"
-          className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
-        >
-          <PanelRightOpen size={16} />
-        </button>
-      )}
+      {/* チャットを開くボタン（閉じているとき）。
+          デスクトップ: 右上のさりげないトーン。モバイル: 見出し・件数バッジと重ならないよう右下に浮かせる FAB。 */}
+      {!chatOpen &&
+        (isMobile ? (
+          <button
+            onClick={() => setChatOpen(true)}
+            title="チャットを開く"
+            aria-label="チャットを開く"
+            className="absolute bottom-5 right-5 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-600 shadow-lg ring-1 ring-black/5 transition-colors hover:bg-slate-50 hover:text-slate-900"
+          >
+            <PanelRightOpen size={22} />
+          </button>
+        ) : (
+          <button
+            onClick={() => setChatOpen(true)}
+            title="チャットを開く"
+            aria-label="チャットを開く"
+            className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+          >
+            <PanelRightOpen size={16} />
+          </button>
+        ))}
     </div>
   );
 }

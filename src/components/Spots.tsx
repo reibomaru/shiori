@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaCompass } from "react-icons/fa6";
+import { FaCompass, FaTableCellsLarge, FaList, FaLink, FaInstagram } from "react-icons/fa6";
 import type { Spot } from "../types";
 import { api, type SpotRating } from "../api";
 import { SPOT_ICONS, resolveSpotIcon } from "../spotIcons";
+import { RatingBadge, GoogleMapsLink } from "./SpotDetailContent";
 import ConfirmDialog from "./ConfirmDialog";
 import SpotDetailModal from "./SpotDetailModal";
 import SpotCard from "./SpotCard";
+
+type ViewMode = "card" | "list";
+const VIEW_STORAGE_KEY = "spots.viewMode";
+
+function loadViewMode(): ViewMode {
+  try {
+    return localStorage.getItem(VIEW_STORAGE_KEY) === "list" ? "list" : "card";
+  } catch {
+    return "card";
+  }
+}
 
 /**
  * スポットのアイコンを選ぶボタン＋ドロップダウン。
@@ -120,6 +132,17 @@ export default function Spots({
   const [pendingDelete, setPendingDelete] = useState<Spot | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // 表示モード（カード / リスト）。選択は localStorage に保存し次回も維持する。
+  const [view, setView] = useState<ViewMode>(loadViewMode);
+  function changeView(next: ViewMode) {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, next);
+    } catch {
+      /* 保存できなくても表示は切り替える */
+    }
+  }
+
   // Google マップの評価（★）。Places API でライブ取得し DB には保存しない。
   // キー未設定・取得失敗時は ★ を出さないだけ（地図やリンクはそのまま）。
   const [ratings, setRatings] = useState<Record<string, SpotRating | null>>({});
@@ -190,6 +213,32 @@ export default function Spots({
         </h2>
         <div className="flex shrink-0 items-center gap-2">
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{spots.length} 件</span>
+          {spots.length > 0 && (
+            <div className="no-print flex items-center rounded-lg bg-slate-100 p-0.5" role="group" aria-label="表示切り替え">
+              <button
+                type="button"
+                onClick={() => changeView("card")}
+                aria-pressed={view === "card"}
+                title="カード表示"
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-sm transition-colors ${
+                  view === "card" ? "bg-white text-cyan-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <FaTableCellsLarge />
+              </button>
+              <button
+                type="button"
+                onClick={() => changeView("list")}
+                aria-pressed={view === "list"}
+                title="リスト表示"
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-sm transition-colors ${
+                  view === "list" ? "bg-white text-cyan-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <FaList />
+              </button>
+            </div>
+          )}
           {headerAction}
         </div>
       </div>
@@ -200,7 +249,7 @@ export default function Spots({
         <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-sm text-slate-400">
           まだ候補がありません。Skill から登録してみましょう。
         </p>
-      ) : (
+      ) : view === "card" ? (
         <ul className="flex flex-wrap gap-3">
           {spots.map((s) => (
             <li
@@ -233,6 +282,81 @@ export default function Spots({
               />
             </li>
           ))}
+        </ul>
+      ) : (
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white">
+          {spots.map((s) => {
+            const cover = ratings[s.id]?.photoUrls?.[0];
+            const rating = ratings[s.id];
+            const igCount = s.instagram?.length ?? 0;
+            return (
+              <li
+                key={s.id}
+                onClick={() => setOpenId(s.id)}
+                className="flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-slate-50"
+              >
+                {/* サムネ（なければ種別アイコン）。 */}
+                {cover ? (
+                  <img
+                    src={cover}
+                    alt={s.name}
+                    loading="lazy"
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                    className="h-10 w-10 shrink-0 rounded-md object-cover"
+                  />
+                ) : (
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-lg leading-none ring-1 ring-slate-200">
+                    {resolveSpotIcon(s).emoji}
+                  </span>
+                )}
+                {/* 名称・英名 */}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold text-slate-800">
+                    {s.name}
+                    {s.name_en && <span className="ml-1 text-xs font-normal text-slate-400">{s.name_en}</span>}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                    {s.country && <span>{s.country}</span>}
+                    {s.city && <span>· {s.city}</span>}
+                    {s.category && <span className="rounded bg-slate-100 px-1.5 py-0.5">{s.category}</span>}
+                    {rating && <RatingBadge rating={rating.rating} count={rating.userRatingCount} />}
+                  </div>
+                </div>
+                {/* 操作（リンク / 詳細 / 削除）。行クリックと競合しないよう stopPropagation。 */}
+                <div className="flex shrink-0 items-center gap-3 text-xs">
+                  {s.google_maps_url && (
+                    <GoogleMapsLink url={s.google_maps_url} onClick={(e) => e.stopPropagation()} />
+                  )}
+                  {s.url && (
+                    <a
+                      href={s.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="hidden items-center gap-1 font-medium text-cyan-700 hover:underline sm:inline-flex"
+                    >
+                      <FaLink className="text-[10px]" /> リンク
+                    </a>
+                  )}
+                  {igCount > 0 && (
+                    <span className="hidden items-center gap-1 font-medium text-pink-500 sm:inline-flex">
+                      <FaInstagram /> {igCount}
+                    </span>
+                  )}
+                  <span className="text-cyan-700">詳細 ›</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPendingDelete(s);
+                    }}
+                    className="rounded px-2 py-1 text-rose-600 hover:bg-rose-50"
+                  >
+                    削除
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

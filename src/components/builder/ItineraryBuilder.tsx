@@ -1,6 +1,6 @@
 // 旅程ビルダー。右ドックのパレットから DnD／クリックで部品（スポット候補・移動区間）を差し込み、
 // タイムライン上で並べ替え・日跨ぎ移動できる。各操作は items API に永続化する（楽観的更新）。
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -17,14 +17,26 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
 } from "@dnd-kit/sortable";
-import { FaPlus, FaCircleInfo, FaRegCalendarDays, FaPen, FaCheck, FaTrashCan } from "react-icons/fa6";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  FaPlus,
+  FaCircleInfo,
+  FaRegCalendarDays,
+  FaPen,
+  FaCheck,
+  FaTrashCan,
+  FaGripVertical,
+} from "react-icons/fa6";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import type { Day, LegFeature, RoutePoint, Spot } from "../../types";
 import { yen } from "../../itemMeta";
-import { api } from "../../api";
+import { api, type SpotRating } from "../../api";
 import { useTrip } from "../../store";
 import ConfirmDialog from "../ConfirmDialog";
+import SpotDetailModal from "../SpotDetailModal";
 import Palette, { type PlacedIndex } from "./Palette";
 import BlockCard, { BlockBody } from "./BlockCard";
 import {
@@ -46,8 +58,12 @@ function fmtDate(d: string | null) {
   return `${dt.getMonth() + 1}/${dt.getDate()}（${WD[dt.getDay()]}）`;
 }
 
+// ブロックのドロップ先（`day:`）と、日そのものの並べ替え対象（`dayrow:`）で id を分ける。
+// どちらも同じ DndContext に載るため、prefix で判別できるよう命名を分離する。
 const dayKey = (id: string) => `day:${id}`;
 const dayIdFromKey = (key: string) => key.slice(4);
+const DAY_ROW_PREFIX = "dayrow:";
+const dayRowKey = (id: string) => `${DAY_ROW_PREFIX}${id}`;
 
 // ---- 1 日のカード（ドロップ先＋並べ替えコンテナ） --------------------------
 const dayField =
@@ -57,10 +73,12 @@ function DayHeader({
   day,
   onSave,
   onDelete,
+  dragHandleProps,
 }: {
   day: BuilderDay;
   onSave: (patch: { date?: string | null; city?: string | null; title?: string | null }) => void;
   onDelete: () => void;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ date: day.date, city: day.city, title: day.title });
@@ -68,7 +86,17 @@ function DayHeader({
 
   if (!editing) {
     return (
-      <header className="mb-3 flex items-start gap-3 border-b border-slate-100 pb-2.5">
+      <header className="mb-3 flex items-start gap-2 border-b border-slate-100 pb-2.5">
+        {dragHandleProps && (
+          <button
+            {...dragHandleProps}
+            type="button"
+            className="no-print mt-2 shrink-0 cursor-grab touch-none rounded p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing"
+            aria-label="ドラッグして日を並べ替え"
+          >
+            <FaGripVertical />
+          </button>
+        )}
         <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white">
           <span className="text-[9px] leading-none opacity-80">DAY</span>
           <span className="text-lg font-bold leading-none">{day.day_no}</span>
@@ -158,6 +186,7 @@ function DayColumn({
   onTimeCommit,
   onSave,
   onRemove,
+  onOpenDetail,
   onAddManual,
   onDaySave,
   onDayDelete,
@@ -167,19 +196,41 @@ function DayColumn({
   onTimeCommit: (uid: string, v: string) => void;
   onSave: (uid: string, patch: BlockPatch) => void;
   onRemove: (uid: string) => void;
+  onOpenDetail: (spotId: string) => void;
   onAddManual: () => void;
   onDaySave: (patch: { date?: string | null; city?: string | null; title?: string | null }) => void;
   onDayDelete: () => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: dayKey(day.id) });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: dayKey(day.id) });
+  // 日そのものの並べ替え（`dayrow:` id）。ハンドルは DayHeader のグリップに割り当てる。
+  const {
+    setNodeRef: setSortRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: dayRowKey(day.id) });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
-    <section className="day-card rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-      <DayHeader day={day} onSave={onDaySave} onDelete={onDayDelete} />
+    <section
+      ref={setSortRef}
+      style={style}
+      className={`day-card rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 ${
+        isDragging ? "relative z-10 opacity-50" : ""
+      }`}
+    >
+      <DayHeader
+        day={day}
+        onSave={onDaySave}
+        onDelete={onDayDelete}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
 
       <SortableContext items={day.blocks.map((b) => String(b.id))} strategy={verticalListSortingStrategy}>
         <ul
-          ref={setNodeRef}
+          ref={setDropRef}
           className={`min-h-[3rem] space-y-2 rounded-xl p-1 transition-colors ${
             isOver ? "bg-cyan-50 ring-2 ring-dashed ring-cyan-300" : ""
           }`}
@@ -197,6 +248,7 @@ function DayColumn({
                 onTimeCommit={(v) => onTimeCommit(b.id, v)}
                 onSave={(patch) => onSave(b.id, patch)}
                 onRemove={() => onRemove(b.id)}
+                onOpenDetail={b.spot_id != null ? () => onOpenDetail(b.spot_id!) : undefined}
               />
             ))
           )}
@@ -210,6 +262,23 @@ function DayColumn({
         <FaPlus className="text-[10px]" /> 自由項目を追加（食事・自由時間など）
       </button>
     </section>
+  );
+}
+
+/** 日と日の間（および先頭）に空の日を差し込むための、ホバーで現れる挿入ボタン。 */
+function InsertDayRow({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="no-print group relative flex h-4 items-center justify-center">
+      <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-cyan-200 opacity-0 transition-opacity group-hover:opacity-100" />
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="ここに日を追加"
+        className="relative flex items-center gap-1 rounded-full border border-dashed border-cyan-300 bg-white px-2.5 py-0.5 text-[11px] font-medium text-cyan-700 opacity-0 shadow-sm transition-opacity hover:bg-cyan-50 focus:opacity-100 group-hover:opacity-100"
+      >
+        <FaPlus className="text-[9px]" /> ここに日を追加
+      </button>
+    </div>
   );
 }
 
@@ -231,8 +300,11 @@ export default function ItineraryBuilder({
     () => typeof window === "undefined" || window.innerWidth >= 1024
   );
   const [activeBlock, setActiveBlock] = useState<Block | null>(null);
+  const [activeDay, setActiveDay] = useState<BuilderDay | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ id: string; title: string } | null>(null);
   const [pendingDeleteDay, setPendingDeleteDay] = useState<BuilderDay | null>(null);
+  // スポット由来カードの詳細モーダル（一覧ページ・地図パネルと同じ SpotDetailModal を再利用）。
+  const [openSpotId, setOpenSpotId] = useState<string | null>(null);
   // サーバに作成済みのブロック id（UUID）。POST 完了前の楽観的ブロックは含まれず、
   // 未作成の行への PUT/DELETE を防ぐ（旧実装の「id の符号」判定の置き換え）。
   const savedIds = useRef<Set<string>>(
@@ -243,6 +315,47 @@ export default function ItineraryBuilder({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  // Google マップの評価・写真。一覧ページ・地図と同じソース（DB に30日キャッシュ）。
+  // 取得失敗時は写真・★ なしで詳細モーダルを表示する。
+  const [ratings, setRatings] = useState<Record<string, SpotRating | null>>({});
+  const idsKey = spots.map((s) => s.id).join(",");
+  useEffect(() => {
+    if (spots.length === 0) return;
+    let cancelled = false;
+    api
+      .getSpotRatings()
+      .then((r) => {
+        if (!cancelled) setRatings(r.ratings ?? {});
+      })
+      .catch(() => {
+        /* 取得失敗時は写真・★ なしで続行 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [idsKey, spots.length]);
+
+  // 詳細モーダルはサイドバー・右パレットを覆わず、本文（<main>）エリア内で中央寄せにする。
+  // サイドバーの開閉で幅が変わるので main の位置・幅を実測して追従させる（Spots.tsx と同様）。
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [area, setArea] = useState<{ left: number; width: number } | null>(null);
+  useEffect(() => {
+    const main = rootRef.current?.closest("main");
+    if (!main) return;
+    const update = () => {
+      const r = main.getBoundingClientRect();
+      setArea({ left: r.left, width: r.width });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(main);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   // 配置状況の索引（パレットのバッジ・フィルタ用）。
   const placed: PlacedIndex = useMemo(() => {
@@ -336,6 +449,66 @@ export default function ItineraryBuilder({
   }
 
   // ---- 日（days）の操作 ---------------------------------------------------
+  /** 各日の day_no を index どおり（1 始まり）に採番し直して保存。変わった日だけ PUT。 */
+  async function persistDayOrder(dayList: BuilderDay[]) {
+    const jobs: Promise<unknown>[] = [];
+    dayList.forEach((d, i) => {
+      if (d.day_no !== i + 1) jobs.push(api.updateDay(d.id, { day_no: i + 1 }));
+    });
+    await Promise.all(jobs);
+    await reload();
+  }
+
+  /**
+   * 日の並べ替え（from → to）。
+   * 日付（date）は位置（スロット）に固定し、都市・タイトル・予定だけを入れ替える。
+   * こうすることで並べ替え後も日付は昇順のまま整合する（例: Day2 を先頭へ動かすと、
+   * その内容が Day1 の日付を受け継ぎ、以降の日付も繰り上がる）。day_no も採番し直す。
+   */
+  function reorderDays(activeDayId: string, overDayId: string) {
+    const from = days.findIndex((d) => d.id === activeDayId);
+    const to = days.findIndex((d) => d.id === overDayId);
+    if (from < 0 || to < 0 || from === to) return;
+    const slotDates = days.map((d) => d.date); // 位置ごとの日付（並べ替えても動かさない）
+    const prev = new Map(days.map((d) => [d.id, d] as const));
+    const next = arrayMove(days, from, to).map((d, i) => ({
+      ...d,
+      day_no: i + 1,
+      date: slotDates[i],
+    }));
+    setDays(next);
+    void persistDayReorder(next, prev);
+  }
+
+  /** 並べ替え後、day_no / date が変わった日だけ PUT で永続化する。 */
+  async function persistDayReorder(dayList: BuilderDay[], prev: Map<string, BuilderDay>) {
+    const jobs: Promise<unknown>[] = [];
+    for (const d of dayList) {
+      const before = prev.get(d.id);
+      const patch: Record<string, unknown> = {};
+      if (before?.day_no !== d.day_no) patch.day_no = d.day_no;
+      if (before?.date !== d.date) patch.date = d.date;
+      if (Object.keys(patch).length) jobs.push(api.updateDay(d.id, patch));
+    }
+    await Promise.all(jobs);
+    await reload();
+  }
+
+  /** index 位置に空の日を挿入し、以降の day_no を採番し直す。 */
+  async function insertDayAt(index: number) {
+    const created = (await api.createDay({ day_no: index + 1, date: null, city: null, title: null })) as {
+      id: string;
+      day_no: number;
+      date: string | null;
+      city: string | null;
+      title: string | null;
+    };
+    const next = [...days];
+    next.splice(index, 0, { ...created, blocks: [] }); // created は day_no=index+1、既存日は旧 day_no
+    setDays(next.map((d, i) => ({ ...d, day_no: i + 1 })));
+    await persistDayOrder(next);
+  }
+
   async function addDay() {
     const last = days[days.length - 1];
     const dayNo = days.reduce((m, d) => Math.max(m, d.day_no), 0) + 1;
@@ -365,8 +538,20 @@ export default function ItineraryBuilder({
   }
 
   // ---- DnD ハンドラ -------------------------------------------------------
+  /** ドロップ先 id（dayrow: / day: / ブロック id）から対象の日 id を解決する。 */
+  function resolveDayId(overId: string): string | null {
+    if (overId.startsWith(DAY_ROW_PREFIX)) return overId.slice(DAY_ROW_PREFIX.length);
+    if (overId.startsWith("day:")) return dayIdFromKey(overId);
+    return days.find((d) => d.blocks.some((b) => String(b.id) === overId))?.id ?? null;
+  }
+
   function onDragStart(e: DragStartEvent) {
     const id = String(e.active.id);
+    if (id.startsWith(DAY_ROW_PREFIX)) {
+      const d = days.find((x) => x.id === id.slice(DAY_ROW_PREFIX.length));
+      if (d) setActiveDay(d);
+      return;
+    }
     if (id.startsWith("palette:")) {
       const [, kind, refId] = id.split(":");
       if (kind === "spot") {
@@ -388,11 +573,18 @@ export default function ItineraryBuilder({
     const activeId = String(e.active.id);
     const overId = e.over ? String(e.over.id) : null;
     setActiveBlock(null);
+    setActiveDay(null);
     if (!overId) return;
 
-    const targetDayId = overId.startsWith("day:")
-      ? dayIdFromKey(overId)
-      : days.find((d) => d.blocks.some((b) => String(b.id) === overId))?.id;
+    // 日そのものの並べ替え。
+    if (activeId.startsWith(DAY_ROW_PREFIX)) {
+      const overDayId = resolveDayId(overId);
+      if (overDayId) reorderDays(activeId.slice(DAY_ROW_PREFIX.length), overDayId);
+      return;
+    }
+
+    // ブロックのドロップ先。日カード余白（dayrow:）に落ちた場合も日として解決する。
+    const targetDayId = resolveDayId(overId);
     if (targetDayId == null) return;
 
     // パレットからの新規差し込み。
@@ -450,23 +642,34 @@ export default function ItineraryBuilder({
             <p className="no-print mb-3 flex items-center gap-1.5 text-xs text-slate-400">
               <FaCircleInfo /> 右のパレットから部品をドラッグ、または「この日に追加」で差し込めます。概算合計 {yen(totalCost)}/人
             </p>
-            <div className="flex flex-col gap-4 pb-8">
-              {days.map((d) => (
-                <DayColumn
-                  key={d.id}
-                  day={d}
-                  onTimeChange={setTimeLocal}
-                  onTimeCommit={commitTime}
-                  onSave={saveBlock}
-                  onRemove={(id) => {
-                    const b = d.blocks.find((x) => x.id === id);
-                    setPendingRemove({ id, title: b?.title ?? "" });
-                  }}
-                  onAddManual={() => addBlock(d.id, newBlockManual(), -1)}
-                  onDaySave={(patch) => saveDay(d.id, patch)}
-                  onDayDelete={() => setPendingDeleteDay(d)}
-                />
-              ))}
+            <div className="flex flex-col gap-2 pb-8">
+              <SortableContext
+                items={days.map((d) => dayRowKey(d.id))}
+                strategy={verticalListSortingStrategy}
+              >
+                {days.map((d, i) => (
+                  <div key={d.id} className="flex flex-col gap-2">
+                    {i === 0 && <InsertDayRow onClick={() => insertDayAt(0)} />}
+                    <DayColumn
+                      day={d}
+                      onTimeChange={setTimeLocal}
+                      onTimeCommit={commitTime}
+                      onSave={saveBlock}
+                      onRemove={(id) => {
+                        const b = d.blocks.find((x) => x.id === id);
+                        setPendingRemove({ id, title: b?.title ?? "" });
+                      }}
+                      onOpenDetail={setOpenSpotId}
+                      onAddManual={() => addBlock(d.id, newBlockManual(), -1)}
+                      onDaySave={(patch) => saveDay(d.id, patch)}
+                      onDayDelete={() => setPendingDeleteDay(d)}
+                    />
+                    {i < days.length - 1 && (
+                      <InsertDayRow onClick={() => insertDayAt(i + 1)} />
+                    )}
+                  </div>
+                ))}
+              </SortableContext>
               <button
                 onClick={addDay}
                 className="no-print flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-cyan-300 py-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-50"
@@ -505,6 +708,20 @@ export default function ItineraryBuilder({
               <BlockBody block={activeBlock} />
             </div>
           )}
+          {activeDay && (
+            <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl ring-1 ring-cyan-300">
+              <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white">
+                <span className="text-[9px] leading-none opacity-80">DAY</span>
+                <span className="text-lg font-bold leading-none">{activeDay.day_no}</span>
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs text-slate-500">{fmtDate(activeDay.date)}</div>
+                {activeDay.title && (
+                  <div className="truncate text-base font-bold text-slate-800">{activeDay.title}</div>
+                )}
+              </div>
+            </div>
+          )}
         </DragOverlay>
       </DndContext>
 
@@ -539,6 +756,15 @@ export default function ItineraryBuilder({
           setPendingDeleteDay(null);
         }}
         onCancel={() => setPendingDeleteDay(null)}
+      />
+
+      <SpotDetailModal
+        spots={spots}
+        openId={openSpotId}
+        ratings={ratings}
+        reload={reload}
+        onClose={() => setOpenSpotId(null)}
+        area={area}
       />
     </div>
   );

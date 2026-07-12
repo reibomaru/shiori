@@ -175,12 +175,16 @@ export default function BlockCard({
   onTimeCommit,
   onSave,
   onRemove,
+  onOpenDetail,
 }: {
   block: Block;
   onTimeChange: (v: string) => void;
   onTimeCommit: (v: string) => void;
   onSave: (patch: BlockPatch) => void;
   onRemove: () => void;
+  // スポット由来（spot_id あり）のカード本体クリックで詳細モーダルを開く。
+  // 自由項目・移動区間では undefined（開く手段を出さない）。
+  onOpenDetail?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: String(block.id),
@@ -212,7 +216,29 @@ export default function BlockCard({
           placeholder="時刻"
           className="w-14 shrink-0 rounded-md border border-slate-200 px-1.5 py-1 text-center text-xs tabular-nums focus:border-cyan-500 focus:outline-none"
         />
-        <BlockBody block={block} />
+        {onOpenDetail ? (
+          // 本体（アイコン＋タイトル）をクリックで詳細モーダルを開く。中にリンク <a> を
+          // 内包するため <button> ではなく role="button" の div にする（a のネスト回避）。
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={onOpenDetail}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenDetail();
+              }
+            }}
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg text-left transition-colors hover:bg-slate-50"
+            aria-label={`${block.title} の詳細を見る`}
+          >
+            <BlockBody block={block} />
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <BlockBody block={block} />
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setEditing((v) => !v)}

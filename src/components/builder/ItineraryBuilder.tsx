@@ -305,6 +305,7 @@ export default function ItineraryBuilder({
   const [pendingDeleteDay, setPendingDeleteDay] = useState<BuilderDay | null>(null);
   // スポット由来カードの詳細モーダル（一覧ページ・地図パネルと同じ SpotDetailModal を再利用）。
   const [openSpotId, setOpenSpotId] = useState<string | null>(null);
+  const [pendingDeleteLeg, setPendingDeleteLeg] = useState<LegFeature | null>(null);
   // サーバに作成済みのブロック id（UUID）。POST 完了前の楽観的ブロックは含まれず、
   // 未作成の行への PUT/DELETE を防ぐ（旧実装の「id の符号」判定の置き換え）。
   const savedIds = useRef<Set<string>>(
@@ -537,6 +538,12 @@ export default function ItineraryBuilder({
     reload();
   }
 
+  // ---- 移動区間（legs）の削除 ---------------------------------------------
+  async function deleteLeg(legId: string) {
+    await api.deleteLeg(legId);
+    reload();
+  }
+
   // ---- DnD ハンドラ -------------------------------------------------------
   /** ドロップ先 id（dayrow: / day: / ブロック id）から対象の日 id を解決する。 */
   function resolveDayId(overId: string): string | null {
@@ -695,6 +702,7 @@ export default function ItineraryBuilder({
                   placed={placed}
                   onAddSpot={(s, dayId) => addBlock(dayId, newBlockFromSpot(s), -1)}
                   onAddLeg={(l, dayId) => addBlock(dayId, newBlockFromLeg(l), -1)}
+                  onDeleteLeg={(l) => setPendingDeleteLeg(l)}
                   onLegCreated={reload}
                 />
               </aside>
@@ -765,6 +773,29 @@ export default function ItineraryBuilder({
         reload={reload}
         onClose={() => setOpenSpotId(null)}
         area={area}
+      />
+
+      <ConfirmDialog
+        open={pendingDeleteLeg !== null}
+        title="この移動を削除しますか？"
+        message={
+          pendingDeleteLeg
+            ? (() => {
+                const p = pendingDeleteLeg.properties;
+                const placedNos = placed.legs.get(p.id) ?? [];
+                const where =
+                  placedNos.length > 0
+                    ? `旅程（${placedNos.map((n) => `Day${n}`).join("・")}）に配置済みの予定はそのまま残ります。`
+                    : "";
+                return `「${p.from ?? "?"} → ${p.to ?? "?"}」の移動区間を削除します。この操作は取り消せません。${where}`;
+              })()
+            : undefined
+        }
+        onConfirm={() => {
+          if (pendingDeleteLeg) deleteLeg(pendingDeleteLeg.properties.id);
+          setPendingDeleteLeg(null);
+        }}
+        onCancel={() => setPendingDeleteLeg(null)}
       />
     </div>
   );

@@ -9,6 +9,7 @@ import {
   FaGripVertical,
   FaPlus,
   FaChevronDown,
+  FaTrashCan,
 } from "react-icons/fa6";
 import type { LegFeature, RoutePoint, Spot } from "../../types";
 import { ITEM_META } from "../../itemMeta";
@@ -83,6 +84,7 @@ function PaletteCard({
   dayNos,
   days,
   onAdd,
+  onDelete,
 }: {
   dragId: string;
   emoji: React.ReactNode;
@@ -92,6 +94,7 @@ function PaletteCard({
   dayNos: number[];
   days: BuilderDay[];
   onAdd: (dayId: string) => void;
+  onDelete?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: dragId });
   const placed = dayNos.length > 0;
@@ -121,7 +124,23 @@ function PaletteCard({
         <div className="mt-0.5 truncate text-[11px] text-slate-400">{subtitle}</div>
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <PlacedBadge dayNos={dayNos} />
-          <AddToDayMenu days={days} onPick={onAdd} />
+          <div className="flex items-center gap-1">
+            {onDelete && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="rounded-md p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
+                aria-label="この移動を削除"
+                title="この移動を削除"
+              >
+                <FaTrashCan className="text-[11px]" />
+              </button>
+            )}
+            <AddToDayMenu days={days} onPick={onAdd} />
+          </div>
         </div>
       </div>
     </div>
@@ -136,6 +155,7 @@ export default function Palette({
   placed,
   onAddSpot,
   onAddLeg,
+  onDeleteLeg,
   onLegCreated,
 }: {
   spots: Spot[];
@@ -145,6 +165,7 @@ export default function Palette({
   placed: PlacedIndex;
   onAddSpot: (spot: Spot, dayId: string) => void;
   onAddLeg: (leg: LegFeature, dayId: string) => void;
+  onDeleteLeg: (leg: LegFeature) => void;
   onLegCreated: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("spots");
@@ -258,6 +279,7 @@ export default function Palette({
                   dayNos={placed.legs.get(l.properties.id) ?? []}
                   days={days}
                   onAdd={(dayId) => onAddLeg(l, dayId)}
+                  onDelete={() => onDeleteLeg(l)}
                 />
               );
             })

@@ -114,6 +114,10 @@ app.get("/api/trip", (c) => {
 
 // ---- trip メタ --------------------------------------------
 app.put("/api/trip", async (c) => {
+  // trip は id=1 の 1 行だけを持つシングルトン。まだ行が無い DB（本番の初期状態など）では
+  // UPDATE が 0 行に当たり SELECT が undefined → c.json(undefined) が空ボディを返し、
+  // フロントの res.json() が "Unexpected end of JSON input" で落ちる。先に行を用意する。
+  db.prepare("INSERT OR IGNORE INTO trip (id) VALUES (1)").run();
   updateRow("trip", 1, await c.req.json(), ["title", "subtitle", "start_date", "end_date", "travelers", "party_size", "fx_note", "memo"]);
   return c.json(db.prepare("SELECT * FROM trip WHERE id = 1").get());
 });

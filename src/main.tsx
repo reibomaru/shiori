@@ -7,6 +7,7 @@ import Layout from "./components/Layout";
 import ItineraryPage from "./pages/ItineraryPage";
 import BudgetPage from "./pages/BudgetPage";
 import SpotsPage from "./pages/SpotsPage";
+import MemoPage from "./pages/MemoPage";
 
 // 地図(deck.gl)は重いので必要時のみ遅延ロード
 const MapPage = lazy(() => import("./pages/MapPage"));
@@ -29,6 +30,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/itinerary" element={<ItineraryPage />} />
             <Route path="/budget" element={<BudgetPage />} />
             <Route path="/spots" element={<SpotsPage />} />
+            <Route path="/memo" element={<MemoPage />} />
             <Route path="*" element={<Navigate to="/itinerary" replace />} />
           </Route>
         </Routes>

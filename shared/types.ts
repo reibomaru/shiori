@@ -18,6 +18,7 @@ export interface TripMeta {
   travelers: string;
   party_size: number;
   fx_note: string;
+  memo: string | null;
 }
 
 export interface Item {

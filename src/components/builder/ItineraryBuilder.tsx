@@ -98,7 +98,7 @@ function DayHeader({
 
   return (
     <header className="no-print mb-3 border-b border-slate-100 pb-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white">
           <span className="text-[9px] leading-none opacity-80">DAY</span>
           <span className="text-lg font-bold leading-none">{day.day_no}</span>
@@ -107,13 +107,13 @@ function DayHeader({
           type="date"
           value={draft.date ?? ""}
           onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value || null }))}
-          className={`${dayField} w-40`}
+          className={`${dayField} w-36`}
         />
         <input
           value={draft.city ?? ""}
           onChange={(e) => setDraft((d) => ({ ...d, city: e.target.value || null }))}
           placeholder="都市"
-          className={`${dayField} w-32`}
+          className={`${dayField} min-w-0 flex-1`}
         />
       </div>
       <input
@@ -226,7 +226,10 @@ export default function ItineraryBuilder({
 }) {
   const { reload } = useTrip();
   const [days, setDays] = useState<BuilderDay[]>(() => seedDays(srcDays));
-  const [paletteOpen, setPaletteOpen] = useState(true);
+  // パレットは lg 以上でドック表示。lg 未満はオーバーレイのため初期は閉じる。
+  const [paletteOpen, setPaletteOpen] = useState(
+    () => typeof window === "undefined" || window.innerWidth >= 1024
+  );
   const [activeBlock, setActiveBlock] = useState<Block | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ id: string; title: string } | null>(null);
   const [pendingDeleteDay, setPendingDeleteDay] = useState<BuilderDay | null>(null);
@@ -480,21 +483,27 @@ export default function ItineraryBuilder({
             </div>
           </div>
 
-          {/* 右ドックのパレット */}
+          {/* 右のパレット。lg 以上はドック、lg 未満はオーバーレイのドロワー。 */}
           {paletteOpen && (
-            <aside className="no-print hidden w-80 shrink-0 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 lg:block">
-              <Palette
-                spots={spots}
-                legs={legs}
-                route={route}
-                days={days}
-                placed={placed}
-                onAddSpot={(s, dayId) => addBlock(dayId, newBlockFromSpot(s), -1)}
-                onAddLeg={(l, dayId) => addBlock(dayId, newBlockFromLeg(l), -1)}
-                onDeleteLeg={(l) => setPendingDeleteLeg(l)}
-                onLegCreated={reload}
+            <>
+              <div
+                className="no-print fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm lg:hidden"
+                onClick={() => setPaletteOpen(false)}
               />
-            </aside>
+              <aside className="no-print fixed bottom-0 right-0 top-14 z-40 flex w-80 max-w-[85vw] flex-col overflow-hidden bg-white shadow-xl ring-1 ring-slate-200 lg:static lg:top-0 lg:z-auto lg:max-w-none lg:shrink-0 lg:rounded-2xl lg:shadow-sm">
+                <Palette
+                  spots={spots}
+                  legs={legs}
+                  route={route}
+                  days={days}
+                  placed={placed}
+                  onAddSpot={(s, dayId) => addBlock(dayId, newBlockFromSpot(s), -1)}
+                  onAddLeg={(l, dayId) => addBlock(dayId, newBlockFromLeg(l), -1)}
+                  onDeleteLeg={(l) => setPendingDeleteLeg(l)}
+                  onLegCreated={reload}
+                />
+              </aside>
+            </>
           )}
         </div>
 

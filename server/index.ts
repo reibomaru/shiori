@@ -13,7 +13,7 @@ import type { SQLInputValue } from "node:sqlite";
 import { openDb } from "../db/db.ts";
 import { applyPending, currentVersion, expectedVersion } from "../db/migrate-runner.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
-import { getSpotRatings, invalidateSpotCache } from "./places.ts";
+import { getSpotRatings, invalidateSpotCache, previewPlace } from "./places.ts";
 import { registerSpotChatRoute } from "./agent/route.ts";
 import type {
   TripMeta,
@@ -114,7 +114,11 @@ app.get("/api/trip", (c) => {
 
 // ---- trip メタ --------------------------------------------
 app.put("/api/trip", async (c) => {
-  updateRow("trip", 1, await c.req.json(), ["title", "subtitle", "start_date", "end_date", "travelers", "party_size", "fx_note"]);
+  // trip は id=1 の 1 行だけを持つシングルトン。まだ行が無い DB（本番の初期状態など）では
+  // UPDATE が 0 行に当たり SELECT が undefined → c.json(undefined) が空ボディを返し、
+  // フロントの res.json() が "Unexpected end of JSON input" で落ちる。先に行を用意する。
+  db.prepare("INSERT OR IGNORE INTO trip (id) VALUES (1)").run();
+  updateRow("trip", 1, await c.req.json(), ["title", "subtitle", "start_date", "end_date", "travelers", "party_size", "fx_note", "memo"]);
   return c.json(db.prepare("SELECT * FROM trip WHERE id = 1").get());
 });
 
@@ -153,7 +157,11 @@ app.put("/api/items/:id", async (c) => {
   return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(c.req.param("id")));
 });
 app.delete("/api/items/:id", (c) => {
-  db.prepare("DELETE FROM items WHERE id = ?").run(c.req.param("id"));
+  const id = c.req.param("id");
+  // 移動の予定（leg_id あり）は、紐づく地図の移動ルート（legs）も一緒に削除して連動させる。
+  const row = db.prepare("SELECT leg_id FROM items WHERE id = ?").get(id) as { leg_id: string | null } | undefined;
+  db.prepare("DELETE FROM items WHERE id = ?").run(id);
+  if (row?.leg_id != null) db.prepare("DELETE FROM legs WHERE id = ?").run(row.leg_id);
   return c.json({ ok: true });
 });
 
@@ -182,6 +190,10 @@ app.delete("/api/budget/:id", (c) => {
 app.get("/api/spots/ratings", async (c) => {
   const spots = spotsRepo.listSpots(db);
   return c.json(await getSpotRatings(db, spots));
+});
+// 提案プレビュー: 保存前スポットの評価・写真を名称等のクエリでライブ取得（DB 非永続化）。
+app.get("/api/spots/place-preview", async (c) => {
+  return c.json(await previewPlace(c.req.query("q") ?? ""));
 });
 app.get("/api/spots", (c) => c.json(spotsRepo.listSpots(db)));
 app.post("/api/spots", async (c) => c.json(spotsRepo.createSpot(db, await c.req.json())));

@@ -70,62 +70,64 @@ export interface PinIcon {
 // 生成した data URL はアイコン種別ごとにキャッシュ（毎フレームの再生成を防ぐ）
 const pinCache = new Map<string, PinIcon>();
 
-/** Google マップの保存リスト風の「色付きピン＋中央に絵文字」を canvas で生成し、IconLayer 用 descriptor を返す。 */
+/**
+ * Google マップの POI ピン風の「小さめの色付き丸＋中央に絵文字」を canvas で生成し、IconLayer 用 descriptor を返す。
+ * しずく形の尖り（tip）だと 3D/回転時にアンカーがズレて見えるため、円の中心をアンカーにして地点に正確に重ねる。
+ */
 export function spotPinIcon(def: SpotIconDef): PinIcon {
   const cached = pinCache.get(def.key);
   if (cached) return cached;
 
-  const W = 88;
-  const H = 112;
-  const cx = W / 2;
-  const cy = 40;
-  const r = 34;
-  const tipY = H - 6;
+  const S = 64; // canvas 一辺（影が切れないよう本体より大きめの正方形）
+  const cx = S / 2;
+  const cy = S / 2;
+  const r = 22; // 丸の半径
 
   const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = S;
+  canvas.height = S;
   const ctx = canvas.getContext("2d")!;
 
-  // しずく形パス（頭の円 + 下の尖り）。尖り先から円への接線で自然な形にする。
-  const d = tipY - cy;
-  const ang = Math.acos(Math.min(1, r / d));
-  const drawTeardrop = () => {
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, Math.PI / 2 + ang, Math.PI / 2 - ang + Math.PI * 2);
-    ctx.lineTo(cx, tipY);
-    ctx.closePath();
-  };
-
-  // 影付きで本体を塗る
+  // 影付きの色付き円（シンプルな丸マーカー）
   ctx.save();
   ctx.shadowColor = "rgba(15,23,42,.35)";
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 2;
-  drawTeardrop();
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetY = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = `rgb(${def.rgb.join(",")})`;
   ctx.fill();
   ctx.restore();
 
   // 白い縁取り
-  drawTeardrop();
-  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.lineWidth = 3;
   ctx.strokeStyle = "#ffffff";
   ctx.stroke();
 
-  // 中央の白い円（絵文字の下地）
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.64, 0, Math.PI * 2);
-  ctx.fillStyle = "#ffffff";
-  ctx.fill();
+  // 中央の絵文字。textBaseline:"middle" 頼みだと iOS の絵文字フォントは実グリフが
+  // em ボックスに対して下寄り・右寄りになり中央からズレる。measureText の実グリフ境界
+  // （actualBoundingBox）を測り、その中心を丸の中心(cx,cy)へ厳密に合わせる。
+  ctx.font = '24px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  const m = ctx.measureText(def.emoji);
+  const left = m.actualBoundingBoxLeft ?? 0;
+  const right = m.actualBoundingBoxRight ?? 0;
+  const asc = m.actualBoundingBoxAscent ?? 0;
+  const desc = m.actualBoundingBoxDescent ?? 0;
+  if (right + left > 0 && asc + desc > 0) {
+    // 実グリフの中心が (cx,cy) に来るようペン位置を補正
+    ctx.fillText(def.emoji, cx - (right - left) / 2, cy + (asc - desc) / 2);
+  } else {
+    // measureText が境界を返さない環境向けフォールバック
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(def.emoji, cx, cy);
+  }
 
-  // 絵文字
-  ctx.font = '34px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(def.emoji, cx, cy + 1);
-
-  const icon: PinIcon = { url: canvas.toDataURL(), width: W, height: H, anchorX: cx, anchorY: tipY };
+  const icon: PinIcon = { url: canvas.toDataURL(), width: S, height: S, anchorX: cx, anchorY: cy };
   pinCache.set(def.key, icon);
   return icon;
 }

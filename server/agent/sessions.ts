@@ -84,4 +84,25 @@ export function getSession(db: DatabaseSync, id: string): ChatSessionRow | null 
 /** セッションを削除（行のみ。JSONL ファイルの削除は呼び出し側で行う）。 */
 export function deleteSession(db: DatabaseSync, id: string): void {
   db.prepare("DELETE FROM chat_sessions WHERE id = ?").run(id);
+  db.prepare("DELETE FROM proposal_resolutions WHERE session_id = ?").run(id);
+}
+
+/** 提案カードの解決状態（保存/破棄）。 */
+export type ProposalStatus = "saved" | "dismissed";
+
+/** 提案カードの解決状態を記録する（保存・破棄を押したとき）。 */
+export function recordResolution(db: DatabaseSync, sessionId: string, proposalId: string, status: ProposalStatus): void {
+  db.prepare(
+    `INSERT INTO proposal_resolutions (session_id, proposal_id, status, resolved_at)
+     VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(session_id, proposal_id) DO UPDATE SET status = excluded.status, resolved_at = excluded.resolved_at`,
+  ).run(sessionId, proposalId, status);
+}
+
+/** セッション内の提案 id → 解決状態のマップ（履歴復元時に付与する）。 */
+export function getResolutions(db: DatabaseSync, sessionId: string): Record<string, ProposalStatus> {
+  const rows = db
+    .prepare("SELECT proposal_id, status FROM proposal_resolutions WHERE session_id = ?")
+    .all(sessionId) as Array<{ proposal_id: string; status: ProposalStatus }>;
+  return Object.fromEntries(rows.map((r) => [r.proposal_id, r.status]));
 }

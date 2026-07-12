@@ -50,7 +50,10 @@ async function http<T>(url: string, method: string, body?: unknown): Promise<T> 
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) throw new Error(`${method} ${url} -> ${res.status}`);
-  return res.json() as Promise<T>;
+  // 空ボディ（Content-Length: 0 や 204）を res.json() に渡すと
+  // "Unexpected end of JSON input" で落ちるため、テキストを見てから解釈する。
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export const api = {
@@ -71,6 +74,12 @@ export const api = {
   deleteBudget: (id: string) => http(`/api/budget/${id}`, "DELETE"),
 
   getSpotRatings: () => http<SpotRatingsResponse>(`/api/spots/ratings`, "GET"),
+  // 提案プレビュー用: 保存前スポットの評価・写真を名称等のクエリで取得。
+  previewSpotPhotos: (q: string) =>
+    http<{ configured: boolean; rating: SpotRating | null }>(
+      `/api/spots/place-preview?q=${encodeURIComponent(q)}`,
+      "GET"
+    ),
   createSpot: (body: Record<string, unknown>) => http(`/api/spots`, "POST", body),
   updateSpot: (id: string, patch: Record<string, unknown>) => http(`/api/spots/${id}`, "PUT", patch),
   deleteSpot: (id: string) => http(`/api/spots/${id}`, "DELETE"),
@@ -99,4 +108,7 @@ export const api = {
   getChatSessionMessages: (id: string) =>
     http<ChatMessage[]>(`/api/spots/chat/sessions/${id}/messages`, "GET"),
   deleteChatSession: (id: string) => http(`/api/spots/chat/sessions/${id}`, "DELETE"),
+  // 提案カードの解決状態（保存/破棄）を永続化。リロード後も再保存させないため。
+  resolveProposal: (sessionId: string, proposalId: string, status: "saved" | "dismissed") =>
+    http(`/api/spots/chat/sessions/${sessionId}/resolutions`, "POST", { proposalId, status }),
 };

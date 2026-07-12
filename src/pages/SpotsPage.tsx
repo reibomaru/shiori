@@ -70,7 +70,7 @@ export default function SpotsPage() {
           デスクトップで閉じているときだけ、右上の開くボタン分の余白を空ける。
           モバイルはチャットが全画面オーバーレイで、開くボタンは右下に浮かせるため余白不要。 */}
       <div
-        className={`min-w-0 flex-1 overflow-y-auto p-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-5 ${
+        className={`min-w-0 flex-1 overflow-y-auto p-5 pb-[calc(9rem+env(safe-area-inset-bottom))] md:pb-5 ${
           !chatOpen && !isMobile ? "pr-14" : ""
         }`}
       >

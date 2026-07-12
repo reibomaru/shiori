@@ -4,6 +4,10 @@ dist/
 *.log
 tsconfig.tsbuildinfo
 
+# ローカルの作業計画ドキュメント
+plan.md
+plan.pdf
+
 # AI アシスタント: 秘密情報とエージェントのセッションファイル
 .env
 data/agent-sessions/

@@ -87,6 +87,7 @@ export const api = {
   updateRoute: (id: string, patch: Record<string, unknown>) => http(`/api/route/${id}`, "PUT", patch),
 
   createLeg: (body: Record<string, unknown>) => http(`/api/legs`, "POST", body),
+  deleteLeg: (id: string) => http(`/api/legs/${id}`, "DELETE"),
   // 地名→座標（Photon）。lat/lon を渡すと近傍を優先。tag で OSM 種別（例: 空港）に絞る。
   geocode: (q: string, bias?: { lat: number; lng: number }, tag?: string) =>
     http<{ results: GeocodeResult[]; error?: string }>(

@@ -51,9 +51,10 @@ export function BlockBody({ block }: { block: Block }) {
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 font-medium text-cyan-700 hover:underline"
+              className="inline-flex min-w-0 max-w-[12rem] items-center gap-1 font-medium text-cyan-700 hover:underline"
             >
-              <FaLink className="text-[9px]" /> {block.url_label || "リンク"}
+              <FaLink className="shrink-0 text-[9px]" />
+              <span className="min-w-0 flex-1 truncate">{block.url_label || "リンク"}</span>
             </a>
           )}
         </div>

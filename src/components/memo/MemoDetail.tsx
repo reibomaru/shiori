@@ -75,12 +75,23 @@ export default function MemoDetail({
         </div>
         {editBody ? (
           <div className="space-y-2">
-            <textarea
-              value={bodyDraft}
-              onChange={(e) => setBodyDraft(e.target.value)}
-              placeholder="持ち物リスト、思いつき、リンク、画像から読み取った情報などを Markdown で自由に書けます。「AI で編集」から画像を渡して書いてもらうこともできます。"
-              className="min-h-[16rem] w-full resize-y rounded-xl border border-slate-200 bg-white p-4 font-mono text-sm leading-relaxed text-slate-700 shadow-sm focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-100"
-            />
+            {/* Markdown を直接編集。右（広い画面）／下（狭い画面）にライブプレビューを出す。 */}
+            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+              <textarea
+                value={bodyDraft}
+                onChange={(e) => setBodyDraft(e.target.value)}
+                placeholder="Markdown で自由に書けます（見出し・箇条書き・表・```mermaid 図も可）。「AI で編集」から画像を渡して書いてもらうこともできます。"
+                className="min-h-[20rem] w-full resize-y rounded-xl border border-slate-200 bg-white p-4 font-mono text-sm leading-relaxed text-slate-700 shadow-sm focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-100"
+              />
+              <div className="min-h-[20rem] overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">プレビュー</p>
+                {bodyDraft.trim() ? (
+                  <Markdown>{bodyDraft}</Markdown>
+                ) : (
+                  <p className="text-sm text-slate-400">入力するとここにプレビューが表示されます。</p>
+                )}
+              </div>
+            </div>
             <div className="flex items-center justify-end gap-2">
               <button
                 onClick={() => {

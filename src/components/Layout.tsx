@@ -36,11 +36,13 @@ const NAV = [
 export default function Layout() {
   const { data, error } = useTrip();
   const { pathname } = useLocation();
-  // 地図・候補・旅程（ビルダー）は全画面（余白なし）。
+  // 地図・候補・旅程（ビルダー）・メモ詳細（AI 編集パネル併設）は全画面（余白なし）。
+  // メモ一覧(/memo)は従来どおり中央寄せ。詳細(/memo/:id)のみ全画面にする。
   const fullBleed =
     pathname.startsWith("/map") ||
     pathname.startsWith("/spots") ||
-    pathname.startsWith("/itinerary");
+    pathname.startsWith("/itinerary") ||
+    pathname.startsWith("/memo/");
   // navOpen: デスクトップ（md+）でのサイドバー折りたたみ。
   // mobileOpen: モバイル（md 未満）でのドロワー開閉。
   const [navOpen, setNavOpen] = useState(true);

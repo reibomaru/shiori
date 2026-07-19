@@ -1,6 +1,17 @@
 // API クライアント。Vite の proxy 経由で /api を叩きます。
-import type { TripPayload } from "./types";
+import type { TripPayload, MemoPage, MemoImageMeta } from "./types";
 import type { ChatMessage } from "./hooks/useSpotChat";
+import type { MemoChatMessage } from "./hooks/useMemoChat";
+
+/** メモの抽出/添付に使う画像（base64・プレフィックス無し）。 */
+export interface MemoImage {
+  data: string;
+  mimeType: string;
+}
+
+/** 取り込んだ元画像の配信 URL。version（updated_at）を付けて回転後のキャッシュを更新する。 */
+export const memoImageUrl = (id: string, version?: string) =>
+  `/api/memo/images/${id}${version ? `?v=${encodeURIComponent(version)}` : ""}`;
 
 /** チャットセッション一覧の 1 行（サーバの chat_sessions より）。 */
 export interface ChatSessionSummary {
@@ -104,6 +115,28 @@ export const api = {
       }`,
       "GET"
     ),
+
+  // ---- メモ（複数ページ） ----
+  listMemoPages: () => http<MemoPage[]>(`/api/memo/pages`, "GET"),
+  createMemoPage: (body: Record<string, unknown> = {}) => http<MemoPage>(`/api/memo/pages`, "POST", body),
+  updateMemoPage: (id: string, patch: Record<string, unknown>) => http<MemoPage>(`/api/memo/pages/${id}`, "PUT", patch),
+  deleteMemoPage: (id: string) => http(`/api/memo/pages/${id}`, "DELETE"),
+  // 元画像を保存しつつ情報を抽出して HTML/テキストをページに追記し、更新後のページを返す。
+  // 抽出に失敗しても元画像は保存され、warning が添えられる。
+  extractMemoPage: (id: string, images: MemoImage[]) =>
+    http<MemoPage & { warning?: string }>(`/api/memo/pages/${id}/extract`, "POST", { images }),
+  deleteMemoImage: (id: string) => http(`/api/memo/images/${id}`, "DELETE"),
+  // 画像の実体を差し替える（回転後の PNG を保存）。更新後のメタを返す。
+  replaceMemoImage: (id: string, image: MemoImage) => http<MemoImageMeta>(`/api/memo/images/${id}`, "PUT", image),
+
+  // ---- メモ編集チャットのセッション ----
+  listMemoChatSessions: () => http<ChatSessionSummary[]>(`/api/memo/chat/sessions`, "GET"),
+  getMemoChatSessionMessages: (id: string) =>
+    http<MemoChatMessage[]>(`/api/memo/chat/sessions/${id}/messages`, "GET"),
+  deleteMemoChatSession: (id: string) => http(`/api/memo/chat/sessions/${id}`, "DELETE"),
+  // 提案カードの解決状態（保存/破棄）を永続化。リロード後も再保存させないため。
+  resolveMemoProposal: (sessionId: string, proposalId: string, status: "saved" | "dismissed") =>
+    http(`/api/memo/chat/sessions/${sessionId}/resolutions`, "POST", { proposalId, status }),
 
   // ---- スポット候補チャットのセッション ----
   listChatSessions: () => http<ChatSessionSummary[]>(`/api/spots/chat/sessions`, "GET"),

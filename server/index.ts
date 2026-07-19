@@ -13,8 +13,14 @@ import type { SQLInputValue } from "node:sqlite";
 import { openDb } from "../db/db.ts";
 import { applyPending, currentVersion, expectedVersion } from "../db/migrate-runner.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
+import * as memoRepo from "../db/memo-repo.ts";
 import { getSpotRatings, invalidateSpotCache, previewPlace } from "./places.ts";
-import { registerSpotChatRoute } from "./agent/route.ts";
+import { registerSpotChatRoute, registerMemoChatRoute } from "./agent/route.ts";
+import { extractGraphFromImages, extractHtmlFromImages } from "./agent/extract.ts";
+import { normalizeImageForWeb } from "./agent/images.ts";
+import { MissingApiKeyError } from "./agent/runner.ts";
+import type { AgentImage } from "./agent/runner.ts";
+import { sanitizeHtml, htmlToText } from "./agent/html.ts";
 import type {
   TripMeta,
   Day,
@@ -208,6 +214,105 @@ app.delete("/api/spots/:id", (c) => c.json(spotsRepo.deleteSpot(db, c.req.param(
 
 // ---- spots チャット（AI エージェントによる候補編集の提案）----
 registerSpotChatRoute(app, db);
+registerMemoChatRoute(app, db);
+
+// ---- memo pages（複数ページのメモ）--------------------------
+app.get("/api/memo/pages", (c) => c.json(memoRepo.listMemoPages(db)));
+app.post("/api/memo/pages", async (c) => c.json(memoRepo.createMemoPage(db, await c.req.json())));
+app.put("/api/memo/pages/:id", async (c) => {
+  const patch = (await c.req.json()) as Record<string, unknown>;
+  // html を書き換えるとき（エージェント編集など）は無害化し、平文(text)も再生成して同期する。
+  if (typeof patch.html === "string") {
+    const clean = sanitizeHtml(patch.html);
+    patch.html = clean;
+    if (patch.text === undefined) patch.text = htmlToText(clean);
+  }
+  return c.json(memoRepo.updateMemoPage(db, c.req.param("id"), patch));
+});
+app.delete("/api/memo/pages/:id", (c) => c.json(memoRepo.deleteMemoPage(db, c.req.param("id"))));
+
+// 取り込んだ元画像の配信（BLOB をそのまま返す）。内容は不変なので長期キャッシュ可。
+app.get("/api/memo/images/:id", (c) => {
+  const img = memoRepo.getMemoImageData(db, c.req.param("id"));
+  if (!img) return c.json({ error: "画像が見つかりません。" }, 404);
+  return new Response(img.data, {
+    headers: { "Content-Type": img.mime_type, "Cache-Control": "private, max-age=31536000, immutable" },
+  });
+});
+// 画像 1 枚の実体を差し替える（クライアントで回転した PNG を保存）。更新後のメタを返す。
+app.put("/api/memo/images/:id", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { data?: unknown; mimeType?: unknown };
+  if (typeof body.data !== "string" || typeof body.mimeType !== "string") {
+    return c.json({ error: "data（base64）と mimeType が必要です。" }, 400);
+  }
+  const meta = memoRepo.replaceMemoImageData(db, c.req.param("id"), { data: body.data, mimeType: body.mimeType });
+  if (!meta) return c.json({ error: "画像が見つかりません。" }, 404);
+  return c.json(meta);
+});
+// 元画像 1 枚を削除する。
+app.delete("/api/memo/images/:id", (c) => c.json(memoRepo.deleteMemoImage(db, c.req.param("id"))));
+
+// 画像（じゃらん等のスクショ）から情報を抽出し、HTML と平文をページに追記する。
+// 元画像は必ず保存し、抽出した HTML は無害化して保存する（表示は iframe(sandbox) 側でも多層防御）。
+// 抽出に失敗しても元画像は残し、warning を添えて 200 で返す。
+app.post("/api/memo/pages/:id/extract", async (c) => {
+  const id = c.req.param("id");
+  const page = memoRepo.getMemoPage(db, id);
+  if (!page) return c.json({ error: "メモページが見つかりません。" }, 404);
+
+  const body = (await c.req.json().catch(() => ({}))) as { images?: unknown };
+  const images: AgentImage[] = Array.isArray(body.images)
+    ? (body.images as Array<{ data?: unknown; mimeType?: unknown }>)
+        .filter((im): im is AgentImage => !!im && typeof im.data === "string" && typeof im.mimeType === "string")
+        .slice(0, 4)
+    : [];
+  if (images.length === 0) return c.json({ error: "画像が指定されていません。" }, 400);
+
+  // Web で表示できる形式へ正規化（HEIC/HEIF → PNG）。保存・抽出の両方に使う。
+  const normalized = await Promise.all(images.map(normalizeImageForWeb));
+
+  // 先に元画像を保存する（抽出が失敗・空でも原本は残す）。
+  memoRepo.addMemoImages(db, id, normalized);
+
+  // HTML（表・チャート等）とグラフ構造（フローチャート・相関図等）を並行で抽出する。
+  // グラフは付加価値なので、失敗しても HTML 側には影響させない。
+  const [htmlRes, graphRes] = await Promise.allSettled([
+    extractHtmlFromImages({ images: normalized }),
+    extractGraphFromImages({ images: normalized }),
+  ]);
+
+  let html = "";
+  let warning: string | undefined;
+  if (htmlRes.status === "fulfilled") {
+    html = sanitizeHtml(htmlRes.value);
+  } else {
+    const err = htmlRes.reason;
+    warning =
+      err instanceof MissingApiKeyError
+        ? `${err.message}（元画像は保存しました）`
+        : `情報の抽出に失敗しました: ${err instanceof Error ? err.message : String(err)}（元画像は保存しました）`;
+  }
+  const addedGraph = graphRes.status === "fulfilled" ? graphRes.value : null;
+  if (!warning && !html && !addedGraph) warning = "画像から情報を読み取れませんでした（元画像は保存しました）";
+
+  const patch: memoRepo.MemoPageBody = {};
+  if (html) {
+    const text = htmlToText(html);
+    // 既存の内容に追記（複数の画像/ページを 1 つのメモに貯められる）。
+    patch.html = page.html ? `${page.html}\n<hr />\n${html}` : html;
+    patch.text = page.text ? `${page.text}\n\n${text}` : text;
+  }
+  if (addedGraph) {
+    // 新規ノードの id に一意な接頭辞を付け、既存グラフと衝突なく統合する。
+    patch.graph = memoRepo.mergeMemoGraph(page.graph, addedGraph, `g${randomUUID().slice(0, 8)}-`);
+  }
+  if (Object.keys(patch).length > 0) {
+    memoRepo.updateMemoPage(db, id, patch);
+  }
+  // 画像メタを反映した最新ページを返す。
+  const updated = memoRepo.getMemoPage(db, id);
+  return c.json(warning ? { ...updated, warning } : updated);
+});
 
 // ---- route ------------------------------------------------
 const ROUTE_FIELDS = ["order_index", "name", "lat", "lng", "hub", "leg_type", "note"];

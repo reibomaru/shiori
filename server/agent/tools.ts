@@ -13,6 +13,8 @@ import type { AgentToolResult, ToolDefinition } from "@earendil-works/pi-coding-
 import { Type } from "typebox";
 import type { DatabaseSync } from "node:sqlite";
 import * as spotsRepo from "../../db/spots-repo.ts";
+import * as memoRepo from "../../db/memo-repo.ts";
+import { htmlToText } from "./html.ts";
 import type { EmitFn } from "./runner.ts";
 
 /** createSpotTools のオプション。 */
@@ -34,27 +36,41 @@ function proposalIdFor(toolCallId: string): string {
 const text = (s: string): AgentToolResult<unknown> =>
   ({ content: [{ type: "text", text: s }], details: undefined }) as AgentToolResult<unknown>;
 
-/** スポット下書きから、提案に載せるフィールドだけ抜き出す。 */
-function pickDraft(p: Record<string, unknown>): Record<string, unknown> {
+/** 許可フィールドのみを提案の下書きとして抜き出す。 */
+function pickFields(p: Record<string, unknown>, fields: readonly string[]): Record<string, unknown> {
   const draft: Record<string, unknown> = {};
-  for (const k of spotsRepo.SPOT_FIELDS) {
+  for (const k of fields) {
     if (p[k] !== undefined && p[k] !== null) draft[k] = p[k];
   }
   return draft;
 }
 
-/** HTML をざっくりプレーンテキストへ（fetch_url 用）。 */
-function htmlToText(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
-    .trim();
+/** メモ提案で下書きに載せるフィールド（history.ts の MEMO_PROPOSAL_FIELDS と揃える）。 */
+export const MEMO_PROPOSAL_FIELDS = ["title", "body"] as const;
+
+/** memo_pages の一覧を返す読み取り専用ツール（spot / memo 双方で共有）。 */
+function makeListMemoPages(db: DatabaseSync): ToolDefinition {
+  return defineTool({
+    name: "list_memo_pages",
+    label: "メモを参照",
+    description:
+      "ユーザーがメモ機能に保存した情報を一覧で取得する。じゃらん等の宿・スポット紹介ページの画像から抽出したテキストや、自由記述のメモが入っている。各メモの id・タイトル・内容が分かる。",
+    promptSnippet: "list_memo_pages() — ユーザーのメモ（抽出情報）を取得",
+    parameters: Type.Object({}),
+    async execute() {
+      const pages = memoRepo.listMemoPages(db);
+      if (pages.length === 0) return text("メモはまだ 1 件もありません。");
+      const blocks = pages.map((p) => {
+        // body(自由記述) と text(画像からの抽出) を結合し、長すぎる場合は切り詰める。
+        const content = [p.body, p.text]
+          .filter((s): s is string => !!s && !!s.trim())
+          .join("\n")
+          .slice(0, 2000);
+        return `#${p.id} ${p.title}\n${content || "（内容なし）"}`;
+      });
+      return text(`メモ ${pages.length} 件:\n\n${blocks.join("\n\n---\n\n")}`);
+    },
+  });
 }
 
 /**
@@ -82,6 +98,8 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
       return text(`現在 ${spots.length} 件:\n${lines.join("\n")}`);
     },
   });
+
+  const list_memo_pages = makeListMemoPages(db);
 
   const proposalFields = {
     name: Type.String({ description: "スポット名（日本語）" }),
@@ -115,7 +133,7 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
         if (!current) return text(`id=${p.id} の候補が見つかりません。list_spots で id を確認してください。`);
       }
       const tempId = proposalIdFor(toolCallId);
-      const spot = pickDraft(p as Record<string, unknown>);
+      const spot = pickFields(p as Record<string, unknown>, spotsRepo.SPOT_FIELDS);
       await emit("proposal", { tempId, op, id: p.id ?? null, spot, current });
       return text(
         `${op === "update" ? "更新" : "追加"}の提案を表示しました（「${p.name}」）。` +
@@ -321,5 +339,101 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
     },
   });
 
-  return [list_spots, propose_upsert_spot, propose_delete_spot, resolve_map_url, geocode, fetch_url, web_search];
+  return [list_spots, list_memo_pages, propose_upsert_spot, propose_delete_spot, resolve_map_url, geocode, fetch_url, web_search];
+}
+
+/** createMemoTools のオプション。 */
+export interface MemoToolsOptions {
+  db: DatabaseSync;
+  emit: EmitFn;
+}
+
+/**
+ * メモ編集エージェント用のツール一式。
+ * スポットと同じくプレビュー承認制で、DB は直接書き換えず propose_* で提案するだけ。
+ */
+export function createMemoTools({ db, emit }: MemoToolsOptions): ToolDefinition[] {
+  const list_memo_pages = makeListMemoPages(db);
+
+  const get_memo_page = defineTool({
+    name: "get_memo_page",
+    label: "メモを取得",
+    description:
+      "指定した id のメモページの現在の内容（タイトル・本文）を取得する。編集を提案する前に、対象メモの現在の内容を正確に把握するために使う。",
+    promptSnippet: "get_memo_page({id}) — メモ 1 件の現在の内容を取得",
+    parameters: Type.Object({
+      id: Type.String({ description: "対象メモページの id（UUID）" }),
+    }),
+    async execute(_toolCallId, p) {
+      const page = memoRepo.getMemoPage(db, p.id);
+      if (!page) return text(`id=${p.id} のメモが見つかりません。list_memo_pages で id を確認してください。`);
+      // 旧バージョンで画像から取り込んだ情報(html/text)が残っていれば、本文へ取り込む参考として併記する。
+      const legacy = (page.text?.trim() || (page.html ? htmlToText(page.html) : "")).slice(0, 4000);
+      const parts = [
+        `id: ${page.id}`,
+        `タイトル: ${page.title}`,
+        `本文(body, Markdown):\n${page.body?.trim() || "（空）"}`,
+      ];
+      if (legacy) parts.push(`参考（過去に画像から取り込んだ情報。必要なら本文へまとめてよい）:\n${legacy}`);
+      return text(parts.join("\n\n"));
+    },
+  });
+
+  const propose_upsert_memo_page = defineTool({
+    name: "propose_upsert_memo_page",
+    label: "メモの作成/編集を提案",
+    description:
+      "メモページの新規作成（id 省略）または既存メモの編集（id 指定）をユーザーに提案する。DB には書き込まず、ユーザーが画面のボタンで承認して初めて保存される。" +
+      "タイトル(title)と本文(body, Markdown)を編集できる。誤字修正・要約・整形・追記や、添付画像から読み取った内容の本文への反映など、ユーザーの指示に沿って変更後の内容を渡す。" +
+      "変更するフィールドだけを渡し（変更しないフィールドは省略）、body を変更するときは変更後の全文を渡す。表などは Markdown で表現する。",
+    promptSnippet: "propose_upsert_memo_page({id?, title?, body?}) — メモの作成/編集を提案（保存はユーザー承認後）",
+    parameters: Type.Object({
+      id: Type.Optional(Type.String({ description: "編集対象の既存メモ id（UUID）。新規作成なら省略" })),
+      title: Type.Optional(Type.String({ description: "メモのタイトル" })),
+      body: Type.Optional(Type.String({ description: "本文（Markdown）。変更後の全文を渡す" })),
+    }),
+    async execute(toolCallId, p) {
+      const op = p.id != null ? "update" : "create";
+      let current = null;
+      if (p.id != null) {
+        current = memoRepo.getMemoPage(db, p.id);
+        if (!current) return text(`id=${p.id} のメモが見つかりません。list_memo_pages で id を確認してください。`);
+      }
+      // 変更するフィールドだけを提案に載せる。空文字は「未指定」として扱い、
+      // 既存の本文/HTML を誤って空にしないようにする（クリアは UI で行う）。
+      const page = pickFields(p as Record<string, unknown>, MEMO_PROPOSAL_FIELDS);
+      for (const k of Object.keys(page)) {
+        if (typeof page[k] === "string" && page[k].trim() === "") delete page[k];
+      }
+      if (Object.keys(page).length === 0) {
+        return text("変更内容（title / body / html のいずれか）が指定されていません。");
+      }
+      const tempId = proposalIdFor(toolCallId);
+      await emit("proposal", { tempId, op, id: p.id ?? null, page, current });
+      return text(
+        `${op === "update" ? "編集" : "作成"}の提案を表示しました。` +
+          `ユーザーが画面の「保存」を押すと確定します。あなたは保存しないでください。`,
+      );
+    },
+  });
+
+  const propose_delete_memo_page = defineTool({
+    name: "propose_delete_memo_page",
+    label: "メモの削除を提案",
+    description:
+      "既存メモページの削除をユーザーに提案する。DB には書き込まず、ユーザーが画面のボタンで承認して初めて削除される。",
+    promptSnippet: "propose_delete_memo_page({id}) — メモの削除を提案（実行はユーザー承認後）",
+    parameters: Type.Object({
+      id: Type.String({ description: "削除対象の既存メモ id（UUID）" }),
+    }),
+    async execute(toolCallId, p) {
+      const current = memoRepo.getMemoPage(db, p.id);
+      if (!current) return text(`id=${p.id} のメモが見つかりません。list_memo_pages で id を確認してください。`);
+      const tempId = proposalIdFor(toolCallId);
+      await emit("proposal", { tempId, op: "delete", id: p.id, page: null, current });
+      return text(`「${current.title}」の削除を提案しました。ユーザーが「削除」を押すと確定します。`);
+    },
+  });
+
+  return [list_memo_pages, get_memo_page, propose_upsert_memo_page, propose_delete_memo_page];
 }

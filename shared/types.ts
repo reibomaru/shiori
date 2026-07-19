@@ -96,6 +96,59 @@ export interface Spot {
   created_at: string;
 }
 
+/** メモに取り込んだ元画像のメタ情報（実体 data は含まない）。配信は /api/memo/images/:id。 */
+export interface MemoImageMeta {
+  id: string;
+  page_id: string;
+  mime_type: string;
+  sort_order: number;
+  created_at: string;
+  /** 回転保存などで内容が変わった時刻。配信 URL の ?v= に使いキャッシュを更新する。 */
+  updated_at: string;
+}
+
+/** グラフ構造（フローチャート・組織図・相関図など）のノード。 */
+export interface MemoGraphNode {
+  id: string;
+  label: string;
+}
+
+/** グラフ構造のエッジ（from → to）。有向。label は関係名など（任意）。 */
+export interface MemoGraphEdge {
+  from: string;
+  to: string;
+  label?: string;
+  /** 矢印なしの無向な関係のとき true。既定は有向（矢印あり）。 */
+  undirected?: boolean;
+}
+
+/** 画像から読み取ったグラフ構造（ノード＋エッジ）。React Flow で閲覧表示する。 */
+export interface MemoGraph {
+  nodes: MemoGraphNode[];
+  edges: MemoGraphEdge[];
+}
+
+/**
+ * メモの 1 ページ。自由記述の Markdown 本文(body)に加え、
+ * 画像から抽出した HTML(html) と、その平文(text)、取り込んだ元画像(images) を持つ。
+ * html は iframe(sandbox) で安全に表示し、text はスポット登録エージェントが参照する。
+ * グラフ構造の図（ノード＋エッジ）は graph に構造化して保持し、React Flow で表示する。
+ */
+export interface MemoPage {
+  id: string;
+  title: string;
+  body: string | null;
+  html: string | null;
+  text: string | null;
+  /** 画像から読み取ったグラフ構造。無ければ null。 */
+  graph: MemoGraph | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  /** 取り込んだ元画像のメタ一覧（実体は別エンドポイントで配信）。 */
+  images: MemoImageMeta[];
+}
+
 export interface TripPayload {
   trip: TripMeta | null;
   days: Day[];

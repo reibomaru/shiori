@@ -77,6 +77,8 @@ export type ChatSessionRow = {
   title: string | null;
   message_count: number;
   cost_usd: number;
+  /** 会話の種類。'spot'（スポット編集）/ 'memo'（メモ編集）。 */
+  kind: string;
   created_at: string;
   updated_at: string;
 };

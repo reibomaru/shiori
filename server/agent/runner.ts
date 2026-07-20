@@ -39,7 +39,7 @@ const SESSION_DIR = process.env.AGENT_SESSIONS_DIR || join(ROOT, "data", "agent-
 const PROVIDER = process.env.GEMINI_PROVIDER ?? "google";
 const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
 
-const SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「行きたいスポット候補」を管理する日本語アシスタントです。
+export const SPOT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「行きたいスポット候補」を管理する日本語アシスタントです。
 
 # もっとも重要なルール
 - あなたは DB を直接書き換えません。スポットの追加・更新・削除は必ず propose_* ツールで「提案」として出すだけです。
@@ -48,6 +48,7 @@ const SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「行きたい
 
 # 使えるツール
 - list_spots(): 既存候補の一覧。重複確認や、更新・削除の対象 id の特定に使う。
+- list_memo_pages(): ユーザーがメモ機能に保存した情報（じゃらん等の画像から抽出したテキストや自由記述メモ）を取得する。ユーザーが「メモから」「保存した情報を元に」などと言ったときや、宿・スポットの詳細を補完したいときに参照する。
 - resolve_map_url(url): Google マップの共有リンク（maps.app.goo.gl 等の短縮URL）を辿って地名・緯度経度を取得する。
 - web_search(query): URL が分からないスポットを名前だけで調べる。
 - fetch_url(url): ユーザーが貼った URL や検索で見つけた公式ページの本文を読む。
@@ -103,6 +104,12 @@ export function summarizeToolInput(name: string, input: unknown): string | undef
       return s(o.name);
     case "propose_delete_spot":
       return o.id != null ? `#${o.id}` : undefined;
+    case "get_memo_page":
+      return o.id != null ? `#${o.id}` : undefined;
+    case "propose_upsert_memo_page":
+      return s(o.title);
+    case "propose_delete_memo_page":
+      return o.id != null ? `#${o.id}` : undefined;
     default:
       return undefined;
   }
@@ -110,10 +117,12 @@ export function summarizeToolInput(name: string, input: unknown): string | undef
 
 export class MissingApiKeyError extends Error {}
 
-/** runSpotAgent のパラメータ。 */
-export interface RunSpotAgentParams {
+/** runChatAgent のパラメータ。 */
+export interface RunChatAgentParams {
   /** ユーザー入力 */
   prompt: string;
+  /** システムプロンプト（ドメインごとに切り替える） */
+  systemPrompt: string;
   /** 前ターンの pi セッションファイル */
   resumeSessionFile?: string;
   /** リクエスト用ツール一式 */
@@ -127,16 +136,19 @@ export interface RunSpotAgentParams {
 
 /**
  * 1 プロンプト分のエージェント応答をストリームする。
+ * systemPrompt / customTools を差し替えることで、スポット編集・メモ編集など
+ * 異なるドメインのエージェントとして動かせる。
  * @returns 次回 resume 用の pi セッションファイルパス
  */
-export async function runSpotAgent({
+export async function runChatAgent({
   prompt,
+  systemPrompt,
   resumeSessionFile,
   customTools,
   emit,
   images,
   signal,
-}: RunSpotAgentParams): Promise<string | undefined> {
+}: RunChatAgentParams): Promise<string | undefined> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new MissingApiKeyError("GEMINI_API_KEY が未設定です。サーバの環境変数に設定してください。");
@@ -167,7 +179,7 @@ export async function runSpotAgent({
     noPromptTemplates: true,
     noThemes: true,
     noContextFiles: true,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt,
   });
   await loader.reload();
 

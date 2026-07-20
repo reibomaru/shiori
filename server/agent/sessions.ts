@@ -9,6 +9,9 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { ChatSessionRow } from "../../db/types.ts";
 
+/** 会話の種類。'spot'（スポット編集）/ 'memo'（メモ編集）。 */
+export type ChatKind = "spot" | "memo";
+
 /** 一覧表示用のセッション情報（has_history を boolean 化済み）。 */
 export interface SessionListItem {
   id: string;
@@ -28,12 +31,12 @@ function makeTitle(message: string | null | undefined): string {
 }
 
 /** セッション行が無ければ作成。初回メッセージがあればタイトルも設定。 */
-export function upsertSession(db: DatabaseSync, id: string, firstMessage?: string): void {
+export function upsertSession(db: DatabaseSync, id: string, firstMessage?: string, kind: ChatKind = "spot"): void {
   const row = db.prepare("SELECT id, title FROM chat_sessions WHERE id = ?").get(id) as
     | Pick<ChatSessionRow, "id" | "title">
     | undefined;
   if (!row) {
-    db.prepare("INSERT INTO chat_sessions (id, title) VALUES (?, ?)").run(id, makeTitle(firstMessage));
+    db.prepare("INSERT INTO chat_sessions (id, title, kind) VALUES (?, ?, ?)").run(id, makeTitle(firstMessage), kind);
   } else if (!row.title && firstMessage) {
     db.prepare("UPDATE chat_sessions SET title = ? WHERE id = ?").run(makeTitle(firstMessage), id);
   }
@@ -64,16 +67,17 @@ export function recordTurn(
   ).run(sessionFile ?? null, costUSD, id);
 }
 
-/** セッション一覧（更新の新しい順）。 */
-export function listSessions(db: DatabaseSync): SessionListItem[] {
+/** セッション一覧（指定した kind のみ・更新の新しい順）。 */
+export function listSessions(db: DatabaseSync, kind: ChatKind = "spot"): SessionListItem[] {
   return (db
     .prepare(
       `SELECT id, title, message_count, cost_usd, created_at, updated_at,
               (session_file IS NOT NULL) AS has_history
          FROM chat_sessions
+        WHERE kind = ?
         ORDER BY updated_at DESC`,
     )
-    .all() as Array<Omit<SessionListItem, "has_history"> & { has_history: number }>)
+    .all(kind) as Array<Omit<SessionListItem, "has_history"> & { has_history: number }>)
     .map((r) => ({ ...r, has_history: !!r.has_history }));
 }
 

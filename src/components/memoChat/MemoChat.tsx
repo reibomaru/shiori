@@ -2,32 +2,42 @@ import { useEffect, useRef, useState } from "react";
 import { FaPaperPlane, FaStop, FaWandMagicSparkles, FaImage, FaXmark, FaTrash } from "react-icons/fa6";
 import { PanelRightClose } from "lucide-react";
 import { api } from "../../api";
-import { type AttachedImage, type Proposal, type UseSpotChat } from "../../hooks/useSpotChat";
+import type { MemoProposal, UseMemoChat } from "../../hooks/useMemoChat";
+import type { AttachedImage } from "../../hooks/useSpotChat";
 import { readAttachedImage, isHeic } from "../../lib/readAttachedImage";
-import ProposalCard from "./ProposalCard";
-import SessionSelect from "./SessionSelect";
+import MemoProposalCard from "./MemoProposalCard";
+import SessionSelect from "../spotChat/SessionSelect";
 import ConfirmDialog from "../ConfirmDialog";
-import Markdown from "./Markdown";
+import Markdown from "../spotChat/Markdown";
 
 const MAX_IMAGES = 4;
 const MAX_BYTES = 12 * 1024 * 1024; // 1 枚あたり 12MB まで（HEIC の元ファイルは大きめ）
 
 const TOOL_LABELS: Record<string, string> = {
-  list_spots: "候補一覧を確認",
-  web_search: "Web 検索",
-  fetch_url: "ページ取得",
-  geocode: "座標を取得",
-  propose_upsert_spot: "追加/更新を提案",
-  propose_delete_spot: "削除を提案",
+  list_memo_pages: "メモ一覧を確認",
+  get_memo_page: "メモを取得",
+  propose_upsert_memo_page: "作成/編集を提案",
+  propose_delete_memo_page: "削除を提案",
 };
 
 const SUGGESTIONS = [
-  "ツェルマットでマッターホルンが見えるおすすめスポットを3つ追加して",
-  "ニースの海沿いで朝食できるカフェを調べて候補に入れて",
-  "今ある候補の重複を確認して整理を提案して",
+  "取り込んだ情報の誤字を直して整えて",
+  "このメモの要点を3行でメモ本文にまとめて",
+  "取り込んだ情報から持ち物リストを本文に追記して",
 ];
 
-export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat; reload: () => void; onClose?: () => void }) {
+export default function MemoChat({
+  chat,
+  reload,
+  onClose,
+  pageId,
+}: {
+  chat: UseMemoChat;
+  reload: () => void;
+  onClose?: () => void;
+  /** 現在開いているメモの id（提案の既定対象としてエージェントに渡す）。 */
+  pageId?: string;
+}) {
   const {
     messages, usage, streaming, error, statuses, loadingHistory,
     sessions, activeId, send, stop, setProposalStatus, newSession, selectSession, deleteSession,
@@ -54,16 +64,16 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, streaming]);
 
-  async function saveProposal(p: Proposal, body: Record<string, unknown>) {
+  async function saveProposal(p: MemoProposal, body: Record<string, unknown>) {
     setSavingId(p.tempId);
     setSaveError(null);
     try {
-      if (p.op === "create") await api.createSpot(body);
-      else if (p.op === "update" && p.id != null) await api.updateSpot(p.id, body);
-      else if (p.op === "delete" && p.id != null) await api.deleteSpot(p.id);
+      if (p.op === "create") await api.createMemoPage(body);
+      else if (p.op === "update" && p.id != null) await api.updateMemoPage(p.id, body);
+      else if (p.op === "delete" && p.id != null) await api.deleteMemoPage(p.id);
       setProposalStatus(p.tempId, "saved");
       // リロード後も再保存させないようサーバへ解決状態を永続化（失敗は致命的でない）。
-      void api.resolveProposal(activeId, p.tempId, "saved").catch(() => {});
+      void api.resolveMemoProposal(activeId, p.tempId, "saved").catch(() => {});
       reload();
     } catch (e) {
       setSaveError(`保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
@@ -72,15 +82,15 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
     }
   }
 
-  function dismissProposal(p: Proposal) {
+  function dismissProposal(p: MemoProposal) {
     setProposalStatus(p.tempId, "dismissed");
-    void api.resolveProposal(activeId, p.tempId, "dismissed").catch(() => {});
+    void api.resolveMemoProposal(activeId, p.tempId, "dismissed").catch(() => {});
   }
 
   function submit(text: string) {
     if ((!text.trim() && attached.length === 0) || streaming) return;
     setInput("");
-    void send(text, attached);
+    void send(text, attached, pageId);
     setAttached([]);
   }
 
@@ -117,10 +127,7 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
         )}
         <SessionSelect
           value={activeId}
-          options={[
-            ...(activeSaved ? [] : [{ id: activeId, title: "新しい会話" }]),
-            ...sessions,
-          ]}
+          options={[...(activeSaved ? [] : [{ id: activeId, title: "新しい会話" }]), ...sessions]}
           onSelect={(id) => {
             const s = sessions.find((x) => x.id === id);
             if (s) void selectSession(s);
@@ -153,8 +160,8 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
           <div className="mx-auto max-w-md py-6 text-center">
             <FaWandMagicSparkles className="mx-auto mb-2 text-2xl text-cyan-600" />
             <p className="text-sm text-slate-500">
-              行きたいスポットを言葉で伝えると、AI が情報を調べて候補への追加・更新・削除を提案します。
-              保存はあなたが確認してから確定します。
+              メモの内容（自由記述・画像から取り込んだ情報）を言葉で指示して編集できます。
+              誤字修正・要約・整形・追記など。保存はあなたが確認してから確定します。
             </p>
             <div className="mt-4 space-y-2 text-left">
               {SUGGESTIONS.map((s) => (
@@ -188,7 +195,6 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {/* ツール実行チップ */}
                   {m.tools.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {m.tools.map((t, j) => (
@@ -203,9 +209,8 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
                     </div>
                   )}
                   {m.text && <Markdown>{m.text}</Markdown>}
-                  {/* 提案カード */}
                   {m.proposals.map((p) => (
-                    <ProposalCard
+                    <MemoProposalCard
                       key={p.tempId}
                       proposal={p}
                       status={statuses[p.tempId] ?? p.status ?? "pending"}
@@ -229,7 +234,7 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
         {saveError && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{saveError}</div>}
       </div>
 
-      {/* 入力（メッセージ欄と地続きに見せるため区切り線は置かない） */}
+      {/* 入力 */}
       <div className="p-3">
         <input
           ref={fileRef}
@@ -242,9 +247,7 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
             e.target.value = "";
           }}
         />
-        {/* 一体型の入力カード：テキストと操作ボタンを 1 つの角丸にまとめる */}
         <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors focus-within:border-cyan-400">
-          {/* 添付画像のプレビュー */}
           {attached.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
               {attached.map((im, i) => (
@@ -272,7 +275,6 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
               }
             }}
             onKeyDown={(e) => {
-              // IME 変換中（日本語入力の確定 Enter など）は送信しない。
               if (e.nativeEvent.isComposing || e.keyCode === 229) return;
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -280,10 +282,9 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
               }
             }}
             rows={1}
-            placeholder="メッセージを入力…"
+            placeholder="メモの編集を指示…"
             className="max-h-32 min-h-[24px] w-full resize-none border-0 bg-transparent p-0 text-sm leading-6 placeholder:text-slate-400 focus:outline-none focus:ring-0"
           />
-          {/* 操作ボタン：カード内下段（左＝添付 / 右＝送信・中断） */}
           <div className="mt-2 flex items-center gap-1">
             <button
               onClick={() => fileRef.current?.click()}

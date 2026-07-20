@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Mermaid from "./Mermaid";
 
 // チャットのアシスタント本文を Markdown でリッチ表示する。
 // Tailwind の typography プラグインは未導入のため、要素ごとにクラスを当てる。
@@ -27,12 +28,27 @@ export default function Markdown({ children }: { children: string }) {
           blockquote: ({ children }) => (
             <blockquote className="my-2 border-l-2 border-slate-200 pl-3 text-slate-500">{children}</blockquote>
           ),
-          code: ({ children }) => (
-            <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[12px] text-slate-700">{children}</code>
-          ),
-          pre: ({ children }) => (
-            <pre className="mb-2 overflow-x-auto rounded-lg bg-slate-100 p-2.5 text-[12px] text-slate-700 last:mb-0">{children}</pre>
-          ),
+          // fenced code block（```）は pre > code、インラインは code のみで届く。
+          // pre は素通しにして、mermaid 判定・見た目を code 側に一本化する。
+          pre: ({ children }) => <>{children}</>,
+          code: ({ className, children }) => {
+            const text = String(children ?? "");
+            const lang = /language-(\w+)/.exec(className ?? "")?.[1];
+            if (lang === "mermaid") {
+              return <Mermaid chart={text.replace(/\n$/, "")} />;
+            }
+            // 言語指定つき or 改行を含む＝ブロック。それ以外はインライン。
+            if (lang || text.includes("\n")) {
+              return (
+                <pre className="mb-2 overflow-x-auto rounded-lg bg-slate-100 p-2.5 text-[12px] text-slate-700 last:mb-0">
+                  <code>{children}</code>
+                </pre>
+              );
+            }
+            return (
+              <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[12px] text-slate-700">{children}</code>
+            );
+          },
           table: ({ children }) => (
             <div className="mb-2 overflow-x-auto last:mb-0">
               <table className="w-full border-collapse text-[13px]">{children}</table>

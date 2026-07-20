@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaXmark, FaUpload, FaWandMagicSparkles, FaTrash, FaCheck } from "react-icons/fa6";
-import type { Expense } from "../../types";
+import type { Expense, ExpenseExtraction } from "../../types";
 import { api, expenseImageUrl, type MemoImage } from "../../api";
 import { readAttachedImage, isHeic } from "../../lib/readAttachedImage";
 import { CURRENCIES } from "../../lib/money";
 import type { AttachedImage } from "../../hooks/useSpotChat";
+import GmailImport from "./GmailImport";
 
 /** 実費の費目（budget の費目と揃える想定）。 */
 export const EXPENSE_CATEGORIES = ["宿泊", "交通", "食事", "観光", "買い物", "その他"];
@@ -90,6 +91,22 @@ export default function ExpenseFormDialog({
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
+  /** 抽出結果（画像 / Gmail 共通）をフォームに反映する（null 以外だけ上書き）。 */
+  function applyExtraction(x: ExpenseExtraction) {
+    setDraft((d) => ({
+      ...d,
+      title: x.title ?? d.title,
+      vendor: x.vendor ?? d.vendor,
+      amount: x.amount ?? d.amount,
+      currency: x.currency ?? d.currency,
+      paid: x.paid ?? d.paid,
+      incurred_on: x.incurred_on ?? d.incurred_on,
+      category: x.category ?? d.category,
+      note: x.note ?? d.note,
+      source_url: x.source_url ?? d.source_url,
+    }));
+  }
+
   async function addFiles(files: File[]) {
     const imgs = files.filter((f) => (f.type.startsWith("image/") || isHeic(f)) && f.size <= MAX_BYTES);
     if (imgs.length === 0) return;
@@ -106,17 +123,7 @@ export default function ExpenseFormDialog({
     try {
       const images: MemoImage[] = attached.map((a) => ({ data: a.base64, mimeType: a.mimeType }));
       const { extraction: x, warning: w } = await api.extractReceipt(images);
-      setDraft((d) => ({
-        ...d,
-        title: x.title ?? d.title,
-        vendor: x.vendor ?? d.vendor,
-        amount: x.amount ?? d.amount,
-        currency: x.currency ?? d.currency,
-        paid: x.paid ?? d.paid,
-        incurred_on: x.incurred_on ?? d.incurred_on,
-        category: x.category ?? d.category,
-        note: x.note ?? d.note,
-      }));
+      applyExtraction(x);
       if (w) setWarning(w);
     } catch (e) {
       setError(`抽出に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
@@ -268,6 +275,12 @@ export default function ExpenseFormDialog({
             )}
             {warning && <p className="mt-2 text-xs text-amber-600">{warning}</p>}
           </section>
+
+          {/* Gmail から取り込む（購入/予約完了メール） */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">または Gmail のメールから取り込む</label>
+            <GmailImport onExtracted={applyExtraction} onWarning={setWarning} disabled={busy} />
+          </div>
 
           {/* 費目 */}
           <div>

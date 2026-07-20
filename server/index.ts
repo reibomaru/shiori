@@ -231,6 +231,17 @@ app.put("/api/memo/pages/:id", async (c) => {
 });
 app.delete("/api/memo/pages/:id", (c) => c.json(memoRepo.deleteMemoPage(db, c.req.param("id"))));
 
+// アップロード画像を Web 表示可能な形式へ正規化する（HEIC/HEIF → PNG）。
+// ブラウザは HEIC を <img> で表示できず、クライアント変換も不安定なため、
+// サーバ（heic-convert）で確実に変換してプレビュー/送信の両方に使う。
+app.post("/api/image/normalize", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { data?: unknown; mimeType?: unknown };
+  if (typeof body.data !== "string") return c.json({ error: "data（base64）が必要です。" }, 400);
+  const mimeType = typeof body.mimeType === "string" ? body.mimeType : "image/heic";
+  const out = await normalizeImageForWeb({ data: body.data, mimeType });
+  return c.json(out);
+});
+
 // 取り込んだ元画像の配信（BLOB をそのまま返す）。内容は不変なので長期キャッシュ可。
 app.get("/api/memo/images/:id", (c) => {
   const img = memoRepo.getMemoImageData(db, c.req.param("id"));

@@ -121,6 +121,8 @@ export interface ExpenseExtraction {
   incurred_on: string | null; // YYYY-MM-DD
   category: string | null;
   note: string | null;
+  /** 参考リンク（Gmail 取り込み時に該当メールの URL が入る。画像抽出では null）。 */
+  source_url?: string | null;
 }
 
 export interface Spot {

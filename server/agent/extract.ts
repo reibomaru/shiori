@@ -323,3 +323,26 @@ export async function extractReceiptFromImages(args: {
   });
   return parseReceiptResponse(raw);
 }
+
+/**
+ * 購入/予約完了メールの本文テキスト（Gmail から取得）から、実費 1 件分の情報を構造化して返す。
+ * 画像版と同じ領収書プロンプト・同じ検証を使う。
+ * @throws MissingApiKeyError API キー未設定 / モデル解決失敗時
+ */
+export async function extractReceiptFromText(args: {
+  subject?: string;
+  text: string;
+  signal?: AbortSignal;
+}): Promise<ExpenseExtraction> {
+  const header = args.subject ? `件名: ${args.subject}\n\n` : "";
+  const raw = await runOneShot({
+    systemPrompt: RECEIPT_SYSTEM_PROMPT,
+    userPrompt:
+      "以下は購入/予約完了メールの本文です。指示どおり JSON で情報を書き出してください。\n\n---\n" +
+      header +
+      args.text,
+    images: [],
+    signal: args.signal,
+  });
+  return parseReceiptResponse(raw);
+}

@@ -4,25 +4,14 @@ import { PanelRightClose } from "lucide-react";
 import { api } from "../../api";
 import type { MemoProposal, UseMemoChat } from "../../hooks/useMemoChat";
 import type { AttachedImage } from "../../hooks/useSpotChat";
+import { readAttachedImage, isHeic } from "../../lib/readAttachedImage";
 import MemoProposalCard from "./MemoProposalCard";
 import SessionSelect from "../spotChat/SessionSelect";
 import ConfirmDialog from "../ConfirmDialog";
 import Markdown from "../spotChat/Markdown";
 
 const MAX_IMAGES = 4;
-const MAX_BYTES = 6 * 1024 * 1024; // 1 枚あたり 6MB まで
-
-function readImage(file: File): Promise<AttachedImage> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result);
-      resolve({ dataUrl, base64: dataUrl.split(",")[1] ?? "", mimeType: file.type });
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
+const MAX_BYTES = 12 * 1024 * 1024; // 1 枚あたり 12MB まで（HEIC の元ファイルは大きめ）
 
 const TOOL_LABELS: Record<string, string> = {
   list_memo_pages: "メモ一覧を確認",
@@ -64,9 +53,10 @@ export default function MemoChat({
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function addFiles(files: File[]) {
-    const imgs = files.filter((f) => f.type.startsWith("image/") && f.size <= MAX_BYTES);
+    // HEIC は type が空のこともあるため、拡張子でも画像として受け付ける。
+    const imgs = files.filter((f) => (f.type.startsWith("image/") || isHeic(f)) && f.size <= MAX_BYTES);
     if (imgs.length === 0) return;
-    const read = await Promise.all(imgs.map(readImage));
+    const read = await Promise.all(imgs.map(readAttachedImage));
     setAttached((prev) => [...prev, ...read].slice(0, MAX_IMAGES));
   }
 
@@ -249,7 +239,7 @@ export default function MemoChat({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif"
           multiple
           className="hidden"
           onChange={(e) => {

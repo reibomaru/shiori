@@ -33,6 +33,7 @@ import {
   getResolutions,
 } from "./sessions.ts";
 import { readSessionMessages } from "./history.ts";
+import { normalizeImageForWeb } from "./images.ts";
 
 const MEMO_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「メモ」を編集する日本語アシスタントです。
 メモは 1 つの Markdown 文書（タイトル + 本文 body）です。ユーザーの自由記述も、画像から読み取った情報も、すべてこの 1 つの本文にまとめます（別々の欄はありません）。
@@ -155,6 +156,8 @@ export function registerSpotChatRoute(app: Hono, db: DatabaseSync): void {
       stream.onAbort(() => controller.abort());
 
       const tools = createSpotTools({ db, emit, webSearchApiKey: WEBSEARCH_API_KEY });
+      // モデルが読めるよう HEIC/HEIF は PNG へ正規化（クライアント変換の保険）。
+      const modelImages = await Promise.all(images.map(normalizeImageForWeb));
 
       try {
         const sessionFile = await runChatAgent({
@@ -163,7 +166,7 @@ export function registerSpotChatRoute(app: Hono, db: DatabaseSync): void {
           resumeSessionFile: getSessionFile(db, sessionId),
           customTools: tools,
           emit,
-          images,
+          images: modelImages,
           signal: controller.signal,
         });
         recordTurn(db, sessionId, { sessionFile, costUSD });
@@ -262,6 +265,8 @@ export function registerMemoChatRoute(app: Hono, db: DatabaseSync): void {
       const tools = createMemoTools({ db, emit });
       // 開いているメモがあれば、その内容をプロンプト前置きとして与える（毎回 get 不要にする）。
       const prompt = pageId ? memoContextPreamble(db, pageId) + message : message;
+      // モデルが読めるよう HEIC/HEIF は PNG へ正規化（クライアント変換の保険）。
+      const modelImages = await Promise.all(images.map(normalizeImageForWeb));
 
       try {
         const sessionFile = await runChatAgent({
@@ -270,7 +275,7 @@ export function registerMemoChatRoute(app: Hono, db: DatabaseSync): void {
           resumeSessionFile: getSessionFile(db, sessionId),
           customTools: tools,
           emit,
-          images,
+          images: modelImages,
           signal: controller.signal,
         });
         recordTurn(db, sessionId, { sessionFile, costUSD });

@@ -78,6 +78,51 @@ export interface BudgetItem {
   note: string | null;
 }
 
+/**
+ * 実費（確定した予約・領収書）1 件。budget（1人あたり概算）とは別レイヤーの
+ * 「実際にいくら・いつ・何に支払ったか」を記録する。領収書/予約完了画面の
+ * 元画像は images（別テーブル）に紐づく。配信は /api/expenses/images/:id。
+ */
+export interface Expense {
+  id: string;
+  sort_order: number;
+  category: string; // 宿泊/交通/食事/観光 など（budget の費目と揃える想定）
+  title: string; // 予約/支払いの概要
+  vendor: string | null; // 予約先/店舗名
+  amount: number; // 確定金額（currency 建て）
+  currency: string; // 通貨コード（JPY / CHF / EUR など）
+  paid: number; // 0=未払い / 1=支払済
+  incurred_on: string | null; // 支払日 or 予約日（YYYY-MM-DD）
+  source_url: string | null; // 予約サイト・完了メールのリンク（参考）
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+  /** 紐づく領収書画像のメタ一覧（実体は別エンドポイントで配信）。 */
+  images: ExpenseImageMeta[];
+}
+
+/** 実費に紐づく領収書画像のメタ情報（実体 data は含まない）。配信は /api/expenses/images/:id。 */
+export interface ExpenseImageMeta {
+  id: string;
+  expense_id: string;
+  mime_type: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 領収書画像から抽出した実費情報（ユーザーが確認・修正してから保存する）。 */
+export interface ExpenseExtraction {
+  title: string | null;
+  vendor: string | null;
+  amount: number | null;
+  currency: string | null;
+  paid: boolean | null;
+  incurred_on: string | null; // YYYY-MM-DD
+  category: string | null;
+  note: string | null;
+}
+
 export interface Spot {
   id: string;
   name: string;
@@ -155,5 +200,6 @@ export interface TripPayload {
   route: RoutePoint[];
   legs: LegFeature[];
   budget: BudgetItem[];
+  expenses: Expense[];
   spots: Spot[];
 }

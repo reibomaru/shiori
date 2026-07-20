@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { FaReceipt, FaPlus, FaPen, FaTrash, FaLink } from "react-icons/fa6";
-import type { BudgetItem, Expense } from "../types";
-import { yen } from "../itemMeta";
+import type { Expense } from "../types";
 import { money } from "../lib/money";
 import { api, expenseImageUrl } from "../api";
 import EditToggle from "./EditToggle";
@@ -111,14 +110,10 @@ function ExpenseRow({
  */
 export default function Expenses({
   expenses,
-  budget,
-  partySize,
   edit,
   reload,
 }: {
   expenses: Expense[];
-  budget: BudgetItem[];
-  partySize: number;
   edit: boolean;
   reload: () => void;
 }) {
@@ -129,10 +124,6 @@ export default function Expenses({
   const [deleting, setDeleting] = useState(false);
 
   const byCurrency = useMemo(() => aggregate(expenses), [expenses]);
-  const budgetTotalJpy = budget.reduce((s, b) => s + b.per_person, 0) * (partySize || 1);
-  const actualJpy = byCurrency.get("JPY")?.total ?? 0;
-  const diffJpy = actualJpy - budgetTotalJpy;
-  const otherCurrencies = [...byCurrency.keys()].filter((c) => c !== "JPY");
 
   const shown = expenses.filter((e) => (filter === "paid" ? e.paid : filter === "unpaid" ? !e.paid : true));
 
@@ -181,32 +172,6 @@ export default function Expenses({
         {[...byCurrency.entries()].map(([cur, agg]) => (
           <Card key={cur} label={`${cur} 未払い`} value={money(agg.unpaid, cur)} tone={agg.unpaid > 0 ? "text-amber-600" : "text-slate-400"} />
         ))}
-      </div>
-
-      {/* 予算比（円のみ。budget は 1人あたり概算×人数） */}
-      <div className="mb-4 rounded-xl bg-cyan-50/60 px-4 py-3 ring-1 ring-cyan-100">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">予算（概算）</div>
-            <div className="text-sm font-bold tabular-nums text-slate-700">{yen(budgetTotalJpy)}</div>
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">実費（円）</div>
-            <div className="text-sm font-bold tabular-nums text-slate-700">{yen(actualJpy)}</div>
-          </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">差分</div>
-            <div className={`text-sm font-bold tabular-nums ${diffJpy > 0 ? "text-rose-600" : "text-emerald-600"}`}>
-              {diffJpy > 0 ? "+" : ""}
-              {yen(diffJpy)}
-            </div>
-          </div>
-        </div>
-        {otherCurrencies.length > 0 && (
-          <p className="mt-2 text-center text-[11px] text-slate-400">
-            ※ {otherCurrencies.join(" / ")} 建ての実費は円の予算比には含めていません
-          </p>
-        )}
       </div>
 
       {/* フィルタ + 追加 */}

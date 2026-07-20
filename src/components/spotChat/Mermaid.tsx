@@ -21,25 +21,32 @@ export default function Mermaid({ chart }: { chart: string }) {
         securityLevel: "strict",
         theme: "neutral",
         fontFamily: "inherit",
+        // 解析エラー時に mermaid が DOM へ「爆弾」エラー図を注入するのを抑止する。
+        // フォールバック表示は自前の error state で行う。
+        suppressErrorRendering: true,
       });
       initialized = true;
     }
 
     let cancelled = false;
-    const id = `mermaid-${idSeq++}`;
-    mermaid
-      .render(id, chart)
-      .then(({ svg }) => {
-        if (cancelled || !ref.current) return;
-        ref.current.innerHTML = svg;
-        setError(null);
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      });
+    // 入力のたびに描画が走らないようデバウンスする（ライブプレビュー対策）。
+    const timer = setTimeout(() => {
+      const id = `mermaid-${idSeq++}`;
+      mermaid
+        .render(id, chart)
+        .then(({ svg }) => {
+          if (cancelled || !ref.current) return;
+          ref.current.innerHTML = svg;
+          setError(null);
+        })
+        .catch((e: unknown) => {
+          if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+        });
+    }, 300);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [chart]);
 

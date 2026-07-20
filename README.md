@@ -1,136 +1,89 @@
-# 🥂 スイス & 南仏 ハネムーン しおり
+# 🗺️ Travel Plans
 
-旅程・予算・移動ルート（地図）を1つにまとめた、新婚旅行のしおりアプリ。
+[![deploy](https://github.com/reibomaru/travel-plans/actions/workflows/deploy.yml/badge.svg)](https://github.com/reibomaru/travel-plans/actions/workflows/deploy.yml)
 
-```
-[Skill] 情報入力/編集  →  [SQLite] 永続化  →  [React] 旅程・地図・予算をプレビュー
-        ▲                                              │
-        └──────── [画面] 微修正 → SQLite保存 ◀─────────┘  →  [PDF出力]
-```
+AI と一緒に旅行計画を作る、セルフホストの旅のしおりアプリ。[`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi/tree/main/packages/coding-agent) を使い、ブラウザで AI に話しかけながら、移動ルート・日ごとの旅程・行きたいスポット・予算・旅のメモを **1つの SQLite** にまとめて編集し、そのまま PDF に出力できる。
 
-## 構成
+## Features
 
-| 層 | 技術 |
-|---|---|
-| 永続化 | **SQLite**（Node 標準 `node:sqlite`／ネイティブビルド不要） |
-| API | **Hono**（`@hono/node-server`） |
-| 入力UX | **Claude Code Skill** `travel-entry` ＋ `scripts/travel.ts` CLI |
-| 表示/編集 | **React + Vite + react-leaflet**（地図は OpenStreetMap・APIキー不要） |
-| 出力 | 印刷CSS（ブラウザの「PDFに保存」） |
+- 🗺️ **地図・移動ルート** — deck.gl 製の地図で、経由地を番号付きピン、区間を線（空路は弧、地上移動は GeoJSON 実経路）で表示。標準/衛星/地形/淡色のベースマップを切り替えられる。
+- 🗓️ **旅程** — 日ごとの予定を、ドラッグ&ドロップのビルダーで追加・編集・並べ替え。
+- 🧭 **スポット候補** — 行きたい場所を一覧・地図で管理。Google の評価（★）・写真や Instagram ギャラリーも表示。
+- 💰 **予算** — 費目ごとの予算を管理。
+- 📝 **メモ** — 旅のメモ。画像の取り込み・情報抽出や、ページ間の関係グラフ（Mermaid）に対応。
+- 🤖 **AI アシスタント** — 自然文の指示から Web を調べてスポットやメモを**提案**（プレビュー承認制）。画像添付にも対応。
+- 🖨️ **PDF 出力** — 操作用 UI を隠した印刷レイアウトで、ブラウザから「PDF に保存」。
 
-## セットアップ
+## Quick Start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 22 以上（標準の `node:sqlite` を使うため）
+- [pnpm](https://pnpm.io/) 9 以上
+
+### 1. Install
 
 ```bash
+git clone https://github.com/reibomaru/travel-plans.git
+cd travel-plans
 pnpm install
-pnpm db:init      # SQLite に初期データ（11日間の旅程）を投入
-pnpm dev          # API(:8080) と Vite(:5173) を同時起動
 ```
 
-ブラウザで http://localhost:5173 を開く。
+### 2. Configure
 
-- **編集モード**: 画面右上のボタン。各予定・予算を直接編集 → 保存で SQLite に反映。
-- **PDF出力**: 「🖨️ PDF出力」→ ブラウザの印刷ダイアログで「PDFに保存」。
-- **地図**: 移動ルートを番号付きピンと点線で表示。
-
-### データを作り直す
+AI アシスタントを使う場合は、環境変数を設定する（使わない場合はスキップ可）。
 
 ```bash
-pnpm db:reset     # 全削除して初期データを再投入
+cp .env.example .env
 ```
 
-## Skill でスポットを登録する
-
-Claude Code で `travel-entry` Skill を使い、ガイドブックを見ながら
-「シヨン城をレマン湖の日に追加して」のように話しかけると、SQLite に登録されます。
-内部的には次の CLI を使います:
+初期データ（サンプルの旅程）を SQLite に投入する。
 
 ```bash
-node scripts/travel.ts summary                    # 現状確認
+pnpm db:init
+```
+
+### 3. Run
+
+```bash
+pnpm dev   # API(:8080) と Vite(:5173) を同時起動
+```
+
+ブラウザで http://localhost:5173 を開く。データを作り直したいときは `pnpm db:reset`。
+
+## Using Skills
+
+Claude Code の [`travel-plan`](.claude/skills/travel-plan/SKILL.md) Skill が、移動ルート / 旅程 / 候補スポット / 予算をまとめて編集する（1つの DB で密結合しているため1スキルに集約）。内部的には次の CLI を使う:
+
+```bash
+node scripts/travel.ts summary                     # まず全体把握
+node scripts/travel.ts route | legs | days | spots | budget
 node scripts/travel.ts add-spot '{"name":"…", "url":"…"}'
 node scripts/travel.ts add-item 7 '{"time":"15:00","type":"spot","title":"…"}'
+node scripts/sql.ts "<SQL>"                          # CLI に無い操作用の逃げ道
 ```
 
-`node scripts/travel.ts` を引数なしで実行するとコマンド一覧が出ます。
+移動区間の実経路は GeoJSON / GPX を取り込める（`set-geojson` / `set-gpx`）ほか、`scripts/osrm-route.ts` で OSRM から補完できる。
 
-## AI アシスタントでスポットを追加・編集する（候補画面のチャット）
+スポット画面（`/spots`）やメモ画面（`/memo`）の **AI アシスタント**タブでは、Skill を使わずブラウザから直接 AI に依頼できる。AI は DB を直接書き換えず、提案カードを確認・修正して「保存」したときに反映される（プレビュー承認制）。
 
-候補画面（`/spots`）の「AI アシスタント」タブで、自然文の指示から AI が
-Web を調べてスポット候補の**追加・更新・削除を提案**します。AI は DB を直接
-書き換えず、提案カードの内容を確認・修正して「保存」を押したときに反映される
-**プレビュー承認制**です。
+## Configuration
 
-```
-ユーザー「ツェルマットでマッターホルンが見える展望スポットを3つ追加して」
-  → AI: web_search → fetch_url → geocode（緯度経度）→ 追加の提案カード ×3
-  → ユーザーが内容を確認/修正して [保存] → 候補一覧・地図に反映
-```
+AI アシスタント（`.env`）で使う環境変数:
 
-- 使用エンジン: **Gemini**（`@earendil-works/pi-coding-agent` 経由）。
-- 補完ツール: `web_search`（websearchapi.ai）/ `fetch_url` / `geocode`（OpenStreetMap Nominatim）。
-- **画像対応（マルチモーダル）**: ガイドブックの写真・地図のスクショ等を添付すると、画像から施設名・場所を読み取って提案します（🖼️ ボタン or 貼り付け）。
-- **セッション**: 会話は左の一覧からいつでも resume できます。会話本体は pi の JSONL（`data/agent-sessions/`）に永続化し、一覧・タイトル・コストなどの索引は SQLite（`chat_sessions` テーブル）に保存します。
-- コスト表示: チャット右上にトークン数と概算 USD を表示。
-- API キーはサーバ側のみで保持（ブラウザには出ません）。
-
-### セットアップ
-
-```bash
-cp .env.example .env          # GEMINI_API_KEY / WEBSEARCH_API_KEY を設定
-```
-
-`GEMINI_API_KEY` は https://aistudio.google.com/apikey 、`WEBSEARCH_API_KEY` は
-https://websearchapi.ai で取得できます。
-
-**A) すべてホストで動かす（開発向け）**
-
-```bash
-pnpm dev   # API(:8080) + Vite(:5173) を前面でまとめて起動
-```
-
-Ctrl+C で 2 つとも停止します。`web_search` は websearchapi.ai を直接呼ぶため、
-Docker は不要です（`WEBSEARCH_API_KEY` が未設定だと web_search だけ無効になります）。
-
-**B) バックエンドを Docker で動かす**
-
-```bash
-docker compose up -d --build   # api(:8080) をコンテナ起動
-pnpm web                        # フロント(Vite:5173) はホストで起動
-```
-
-`docker compose down` で停止。SQLite（`data/travel.db`）とエージェントの
-セッションは `./data` をマウントして永続化します。
-
-`WEBSEARCH_API_KEY` が未設定の場合、`web_search` だけが無効になり、URL を貼る運用
-（`fetch_url`）や地名からの座標取得（`geocode`）は引き続き使えます。
-
-> SearXNG は使わなくなりましたが、設定（`searxng/` と compose の `searxng` サービス）は
-> 残してあります。必要なら `docker compose --profile searxng up searxng` で起動できます。
-
-| 環境変数 | 既定 | 用途 |
+| Variable | Default | Purpose |
 |---|---|---|
-| `GEMINI_API_KEY` | （必須） | Gemini の API キー |
-| `GEMINI_MODEL` | `gemini-3-flash-preview` | 使用モデル |
-| `WEBSEARCH_API_KEY` | （必須） | web_search 用 websearchapi.ai の API キー |
+| `GEMINI_API_KEY` | （必須） | Gemini の API キー（https://aistudio.google.com/apikey） |
+| `GEMINI_MODEL` | `gemini-3-flash-preview` | 使用モデル（複雑な調べ物は `gemini-3-pro-preview`） |
+| `WEBSEARCH_API_KEY` | （任意） | `web_search` 用（https://websearchapi.ai）。未設定だと web_search だけ無効 |
+| `GOOGLE_MAPS_API_KEY` | （任意） | スポットの Google 評価（★）・写真取得用。`spot_place_cache` に30日キャッシュ |
 
-### 都市間ルートを GeoJSON で詳細表示
+## Documentation
 
-鉄道などの地上移動は `legs` テーブルに **GeoJSON（LineString）** を持たせ、地図（Leaflet の
-`<GeoJSON>`）で実際の経路に沿って描画します（空路は破線フォールバック）。内部標準は GeoJSON ですが、
-手持ちの **GPX**（鉄道アプリ・Komoot・Garmin 等からエクスポート）も取り込めます（自動変換）:
+- [`.claude/skills/travel-plan/SKILL.md`](.claude/skills/travel-plan/SKILL.md) — データ編集 Skill と操作レシピ（`recipes/`）
+- [`docs/er-diagram.md`](docs/er-diagram.md) — データモデル（SQLite）
+- [`docs/gcp-deployment-design.md`](docs/gcp-deployment-design.md) — 本番デプロイ設計（Cloud Run / Litestream）
+- スキーマ変更は `db/migrations/` に連番 SQL を追加し、`node db/migrate.ts` で適用（本番は `.github/workflows/deploy.yml` が push 時に自動 migrate → deploy）
+- インフラ（Cloud Run / Artifact Registry / IAM / GCS）は [`infra/terraform`](infra/terraform) で管理
 
-```bash
-node scripts/travel.ts legs                                    # 区間と現在の点数
-node scripts/travel.ts set-geojson 3 ~/Downloads/route.geojson # GeoJSONを取込
-node scripts/travel.ts set-gpx 3 ~/Downloads/route.gpx         # GPXを取込（→GeoJSONに変換）
-```
-
-## ディレクトリ
-
-```
-db/        schema.sql / db.ts(接続) / seed.ts(初期データ)
-server/    index.ts  Hono API
-scripts/   travel.ts CLI（Skill から利用）
-src/       React（App / components / api / types）
-.claude/skills/travel-entry/  情報入力 Skill
-data/      travel.db（SQLite・自動生成）
-```
+構成: **SQLite**（`node:sqlite`）/ **Hono** API / **React 19 + Vite + React Router + Tailwind CSS v4** / **deck.gl**（地図）/ **pi-coding-agent + Gemini**（AI）/ **Docker → Cloud Run + Litestream**（本番）。

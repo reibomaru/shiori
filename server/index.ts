@@ -17,7 +17,13 @@ import * as memoRepo from "../db/memo-repo.ts";
 import * as expensesRepo from "../db/expenses-repo.ts";
 import { getSpotRatings, invalidateSpotCache, previewPlace } from "./places.ts";
 import { registerSpotChatRoute, registerMemoChatRoute } from "./agent/route.ts";
-import { extractGraphFromImages, extractHtmlFromImages, extractReceiptFromImages } from "./agent/extract.ts";
+import {
+  extractGraphFromImages,
+  extractHtmlFromImages,
+  extractReceiptFromImages,
+  extractReceiptFromText,
+} from "./agent/extract.ts";
+import * as gmail from "./gmail.ts";
 import { normalizeImageForWeb } from "./agent/images.ts";
 import { MissingApiKeyError } from "./agent/runner.ts";
 import type { AgentImage } from "./agent/runner.ts";
@@ -606,6 +612,86 @@ app.get("/api/geocode", async (c) => {
     return c.json({ results });
   } catch (e) {
     return c.json({ error: String(e), results: [] }, 502);
+  }
+});
+
+// ---- Gmail 連携（購入完了メール→実費の取り込み）------------
+// 単一 Google アカウントを OAuth（オフライン）で連携し、購入/予約完了メールを
+// 検索→本文抽出して実費フォームに反映する。資格情報未設定なら configured:false を返す。
+let gmailOAuthState: string | null = null; // 単一利用想定の簡易 CSRF 対策
+
+app.get("/api/gmail/status", (c) => c.json(gmail.getStatus(db)));
+
+// 同意画面へリダイレクト（access_type=offline で refresh_token を得る）。
+app.get("/api/gmail/oauth/start", (c) => {
+  if (!gmail.isConfigured()) {
+    return c.json({ error: "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET が未設定です。" }, 400);
+  }
+  const origin = new URL(c.req.url).origin;
+  gmailOAuthState = randomUUID();
+  return c.redirect(gmail.buildAuthUrl(origin, gmailOAuthState));
+});
+
+// 認可コードをトークンに交換し、refresh_token を保存する。完了後ウィンドウを閉じる HTML を返す。
+app.get("/api/gmail/oauth/callback", async (c) => {
+  const code = c.req.query("code");
+  const state = c.req.query("state");
+  const closingPage = (msg: string) =>
+    c.html(
+      `<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;padding:2rem;color:#334155">
+       <p>${msg}</p><script>setTimeout(()=>window.close(),1200)</script></body>`,
+    );
+  if (!code || !state || state !== gmailOAuthState) {
+    return closingPage("連携に失敗しました（不正なリクエスト）。このウィンドウを閉じてください。");
+  }
+  gmailOAuthState = null;
+  const origin = new URL(c.req.url).origin;
+  const tokens = await gmail.exchangeCode(code, origin);
+  if (!tokens.refresh_token) {
+    return closingPage(
+      `連携に失敗しました: ${tokens.error_description || tokens.error || "refresh_token が取得できませんでした"}。このウィンドウを閉じてください。`,
+    );
+  }
+  const email = tokens.access_token ? await gmail.fetchEmail(tokens.access_token) : null;
+  gmail.saveAuth(db, tokens.refresh_token, email);
+  return closingPage(`Gmail 連携が完了しました${email ? `（${email}）` : ""}。このウィンドウを閉じてください。`);
+});
+
+// 連携を解除する。
+app.delete("/api/gmail", (c) => {
+  gmail.clearAuth(db);
+  return c.json({ ok: true });
+});
+
+// 購入/予約完了メールを検索して一覧を返す。
+app.get("/api/gmail/search", async (c) => {
+  const q =
+    c.req.query("q") ||
+    "(予約 OR 確認 OR 領収 OR ご注文 OR receipt OR confirmation OR booking OR itinerary) newer_than:1y";
+  try {
+    return c.json({ messages: await gmail.searchMessages(db, q) });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e), messages: [] }, 400);
+  }
+});
+
+// 指定メールの本文から実費情報を抽出して返す（保存はしない）。
+app.post("/api/gmail/extract", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { messageId?: unknown };
+  if (typeof body.messageId !== "string") return c.json({ error: "messageId が必要です。" }, 400);
+  try {
+    const msg = await gmail.getMessage(db, body.messageId);
+    const extraction = await extractReceiptFromText({ subject: msg.subject, text: msg.text });
+    // 参考リンクとして Gmail の該当メールを開ける URL を付ける。
+    const source_url = `https://mail.google.com/mail/u/0/#all/${body.messageId}`;
+    return c.json({
+      extraction: { ...extraction, source_url },
+      message: { subject: msg.subject, from: msg.from, date: msg.date },
+    });
+  } catch (e) {
+    const warning =
+      e instanceof MissingApiKeyError ? e.message : `メールの取り込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`;
+    return c.json({ warning });
   }
 });
 

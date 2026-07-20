@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { FaPlus, FaPen, FaTrash, FaCheck, FaXmark, FaEye } from "react-icons/fa6";
+import { FaPlus, FaPen, FaTrash, FaCheck, FaXmark } from "react-icons/fa6";
 import type { MemoProposal } from "../../hooks/useMemoChat";
 import type { ProposalStatus } from "../../hooks/useSpotChat";
 import Markdown from "../spotChat/Markdown";
+import DiffView from "../memo/DiffView";
 
 const OP_META = {
   create: { label: "作成の提案", Icon: FaPlus, color: "text-emerald-700", ring: "ring-emerald-200", bg: "bg-emerald-50" },
@@ -49,23 +50,20 @@ export default function MemoProposalCard({
   onDismiss: () => void;
 }) {
   const meta = OP_META[proposal.op];
-  const [draft, setDraft] = useState<Draft>(() => toDraft(proposal));
-  const [editing, setEditing] = useState(false);
-  const set = (k: keyof Draft, v: string) => setDraft((d) => ({ ...d, [k]: v }));
+  const draft = toDraft(proposal);
+  // update 提案の閲覧モード。既定はプレビュー（反映後の見た目）。差分に切り替えられる。
+  const [viewMode, setViewMode] = useState<"diff" | "preview">("preview");
 
   const resolved = status === "saved" || status === "dismissed";
   const isDelete = proposal.op === "delete";
   const body = toBody(draft);
 
-  // update 時に変わったフィールドを列挙。
+  // update 時に変わったフィールドを判定。
   const current = (proposal.current ?? {}) as Record<string, unknown>;
-  const diffs =
-    proposal.op === "update"
-      ? [
-          { key: "title", label: "タイトル", before: norm(current.title), after: norm(body.title) },
-          { key: "body", label: "本文", before: norm(current.body), after: norm(body.body) },
-        ].filter((f) => f.before !== f.after)
-      : [];
+  const titleBefore = norm(current.title);
+  const titleAfter = norm(body.title);
+  const titleChanged = proposal.op === "update" && titleBefore !== titleAfter;
+  const bodyChanged = proposal.op === "update" && norm(current.body) !== norm(body.body);
 
   return (
     <div className={`mt-2 rounded-xl ${meta.bg} p-3 ring-1 ${meta.ring}`}>
@@ -77,13 +75,21 @@ export default function MemoProposalCard({
           )}
         </span>
         <div className="flex items-center gap-2">
-          {!isDelete && (
-            <button
-              onClick={() => setEditing((v) => !v)}
-              className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-200/60"
-            >
-              {editing ? <><FaEye /> プレビュー</> : <><FaPen /> 編集</>}
-            </button>
+          {/* update の閲覧モード切り替え（プレビュー / 差分）。 */}
+          {proposal.op === "update" && (
+            <div className="flex overflow-hidden rounded-md ring-1 ring-slate-200">
+              {(["preview", "diff"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`px-2 py-0.5 text-[11px] font-medium transition ${
+                    viewMode === mode ? "bg-cyan-700 text-white" : "bg-white text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {mode === "diff" ? "差分" : "プレビュー"}
+                </button>
+              ))}
+            </div>
           )}
           {status === "saved" && <span className="text-xs font-semibold text-emerald-600">✓ 反映済み</span>}
           {status === "dismissed" && <span className="text-xs text-slate-400">破棄しました</span>}
@@ -92,27 +98,23 @@ export default function MemoProposalCard({
 
       {isDelete ? (
         <p className="text-sm text-slate-700">「{proposal.current?.title}」を削除します。よろしいですか？</p>
-      ) : editing ? (
+      ) : proposal.op === "update" && viewMode === "diff" ? (
         <div className="space-y-2">
-          <label className="block">
-            <span className="block text-[10px] font-medium text-slate-500">タイトル</span>
-            <input
-              value={draft.title}
-              disabled={resolved}
-              onChange={(e) => set("title", e.target.value)}
-              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-[10px] font-medium text-slate-500">本文（Markdown）</span>
-            <textarea
-              value={draft.body}
-              disabled={resolved}
-              rows={8}
-              onChange={(e) => set("body", e.target.value)}
-              className="mt-0.5 w-full resize-y rounded-md border border-slate-200 bg-white px-2 py-1 font-mono text-xs disabled:bg-slate-100 disabled:text-slate-400"
-            />
-          </label>
+          {/* タイトルは 1 行なのでインラインの before → after で示す。 */}
+          {titleChanged && (
+            <div className="flex flex-wrap items-baseline gap-1 text-xs">
+              <span className="font-medium text-slate-500">タイトル:</span>
+              <span className="text-slate-400 line-through">{shorten(titleBefore) || "（空）"}</span>
+              <span className="text-slate-400">→</span>
+              <span className="font-medium text-cyan-700">{shorten(titleAfter) || "（空）"}</span>
+            </div>
+          )}
+          {/* 本文は git 風の行単位 diff。 */}
+          {bodyChanged ? (
+            <DiffView before={norm(current.body)} after={norm(body.body)} />
+          ) : (
+            !titleChanged && <p className="text-xs text-slate-400">変更点はありません。</p>
+          )}
         </div>
       ) : (
         <div className="space-y-2">
@@ -125,26 +127,6 @@ export default function MemoProposalCard({
               <p className="text-xs text-slate-400">（本文なし）</p>
             )}
           </div>
-          {proposal.op === "update" && (
-            <div className="text-xs">
-              {diffs.length === 0 ? (
-                <p className="text-slate-400">変更点はありません。</p>
-              ) : (
-                <ul className="space-y-1">
-                  {diffs.map((d) => (
-                    <li key={d.key} className="space-y-0.5">
-                      <span className="font-medium text-slate-500">{d.label}:</span>
-                      <div className="flex flex-wrap items-baseline gap-1">
-                        <span className="text-slate-400 line-through">{shorten(d.before) || "（空）"}</span>
-                        <span className="text-slate-400">→</span>
-                        <span className="font-medium text-cyan-700">{shorten(d.after) || "（空）"}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
         </div>
       )}
 

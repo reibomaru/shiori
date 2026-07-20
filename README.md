@@ -77,6 +77,8 @@ AI アシスタント（`.env`）で使う環境変数:
 | `GEMINI_MODEL` | `gemini-3-flash-preview` | 使用モデル（複雑な調べ物は `gemini-3-pro-preview`） |
 | `WEBSEARCH_API_KEY` | （任意） | `web_search` 用（https://websearchapi.ai）。未設定だと web_search だけ無効 |
 | `GOOGLE_MAPS_API_KEY` | （任意） | スポットの Google 評価（★）・写真取得用。`spot_place_cache` に30日キャッシュ |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | （任意） | 費用管理の Gmail 連携（購入/予約完了メール→実費）。Gmail API 有効化 + OAuth クライアント（リダイレクト URI `…/api/gmail/oauth/callback`）が必要。未設定なら連携は無効 |
+| `GMAIL_REDIRECT_URI` | （任意） | OAuth リダイレクト URI を明示指定（未設定時はリクエスト origin から導出） |
 
 ## Documentation
 

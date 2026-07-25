@@ -3,3 +3,10 @@ project_id        = "your-gcp-project-id"
 region            = "asia-northeast1"
 service_name      = "shiori"
 github_repository = "reibomaru/travel-plans"
+
+# 招待制の allowlist（どちらか一方でも一致すればログイン可。両方空だと誰もログインできない）。
+allowed_emails        = ""            # 例: "a@example.com,b@example.com"
+allowed_email_domains = ""            # 例: "example.com"
+
+# OAuth リダイレクト URI 組み立て用のベース URL（任意・空ならリクエストから自動解決）。
+app_base_url = ""                      # 例: "https://shiori.example.com"

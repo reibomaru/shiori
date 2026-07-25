@@ -38,9 +38,30 @@ variable "secret_ids" {
     "GEMINI_API_KEY",
     "WEBSEARCH_API_KEY",
     "GOOGLE_MAPS_API_KEY",
-    "BASIC_AUTH_USER",
-    "BASIC_AUTH_PASS",
+    # 認証（Google SSO）: OAuth クライアント資格情報と JWT Cookie 署名鍵。
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    "SESSION_SECRET",
   ]
+}
+
+# 招待制 allowlist（非シークレット。Cloud Run の環境変数として注入する）。
+variable "allowed_emails" {
+  type        = string
+  description = "ログインを許可するメールアドレス（カンマ区切り）。"
+  default     = ""
+}
+
+variable "allowed_email_domains" {
+  type        = string
+  description = "ログインを許可するメールドメイン（カンマ区切り・@ 不要）。"
+  default     = ""
+}
+
+variable "app_base_url" {
+  type        = string
+  description = "OAuth リダイレクト URI 組み立て用のアプリのベース URL（例 https://example.com）。空ならリクエストから自動解決。"
+  default     = ""
 }
 
 variable "cpu" {

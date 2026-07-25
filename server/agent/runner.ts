@@ -32,9 +32,6 @@ export interface AgentImage {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
-// チャット履歴 JSONL の保存先。本番では GCS FUSE マウント（/data/agent-sessions）を
-// 指すよう AGENT_SESSIONS_DIR で上書きする。未設定ならローカルの data/agent-sessions。
-const SESSION_DIR = process.env.AGENT_SESSIONS_DIR || join(ROOT, "data", "agent-sessions");
 
 const PROVIDER = process.env.GEMINI_PROVIDER ?? "google";
 const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
@@ -127,6 +124,8 @@ export interface RunChatAgentParams {
   resumeSessionFile?: string;
   /** リクエスト用ツール一式 */
   customTools: ToolDefinition[];
+  /** 会話履歴 JSONL の保存先（ユーザーごとに分離: agent-sessions/{userId}）。 */
+  sessionDir: string;
   /** SSE 送出 */
   emit: EmitFn;
   /** 添付画像（base64） */
@@ -145,6 +144,7 @@ export async function runChatAgent({
   systemPrompt,
   resumeSessionFile,
   customTools,
+  sessionDir,
   emit,
   images,
   signal,
@@ -154,7 +154,7 @@ export async function runChatAgent({
     throw new MissingApiKeyError("GEMINI_API_KEY が未設定です。サーバの環境変数に設定してください。");
   }
 
-  mkdirSync(SESSION_DIR, { recursive: true });
+  mkdirSync(sessionDir, { recursive: true });
 
   const authStorage = AuthStorage.create();
   authStorage.setRuntimeApiKey(PROVIDER, apiKey);
@@ -185,7 +185,7 @@ export async function runChatAgent({
 
   const sessionManager = resumeSessionFile
     ? SessionManager.open(resumeSessionFile)
-    : SessionManager.create(ROOT, SESSION_DIR);
+    : SessionManager.create(ROOT, sessionDir);
 
   let session: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
   const onAbort = (): void => void session?.abort();

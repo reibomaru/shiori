@@ -5,13 +5,12 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { basicAuth } from "hono/basic-auth";
 import { HTTPException } from "hono/http-exception";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import type { SQLInputValue } from "node:sqlite";
-import { openDb } from "../db/db.ts";
-import { applyPending, currentVersion, expectedVersion } from "../db/migrate-runner.ts";
+import type { DatabaseSync, SQLInputValue } from "node:sqlite";
+import { registerAuthRoutes, requireAuth } from "./auth.ts";
+import { closeAllUserDbs, getUserDb, getUserSessionDir } from "./storage.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
 import * as memoRepo from "../db/memo-repo.ts";
 import { getSpotRatings, invalidateSpotCache, previewPlace } from "./places.ts";
@@ -40,43 +39,26 @@ function legToFeature(l: LegRow): LegFeature {
   };
 }
 
-const db = openDb();
-
-// ---- スキーマ版の検証 -------------------------------------
-// 本番では未適用のマイグレーションがあれば起動を拒否（複数インスタンスが
-// 各自マイグレートする事故を防ぐ）。開発では利便性のため自動適用する。
-{
-  const cur = currentVersion(db);
-  const exp = expectedVersion();
-  if (cur < exp) {
-    if (process.env.NODE_ENV === "production") {
-      console.error(
-        `✖ 未適用のマイグレーションがあります（現在 v${cur} / 期待 v${exp}）。` +
-          `\n  マイグレーション Job（db/migrate.ts）を実行してから再デプロイしてください。`,
-      );
-      process.exit(1);
-    }
-    console.warn(`… 開発環境: 未適用マイグレーションを自動適用します（v${cur} → v${exp}）`);
-    applyPending(db);
-  }
-}
-
 const app = new Hono();
 const PORT = Number(process.env.PORT || 8080);
 
-// ---- Basic 認証 -------------------------------------------
-// 資格情報（BASIC_AUTH_USER / BASIC_AUTH_PASS）が設定されている場合のみ有効化。
-// ヘルスチェックは Cloud Run のプローブ用に素通しする。
-const BASIC_USER = process.env.BASIC_AUTH_USER;
-const BASIC_PASS = process.env.BASIC_AUTH_PASS;
-if (BASIC_USER && BASIC_PASS) {
-  const auth = basicAuth({ username: BASIC_USER, password: BASIC_PASS });
-  app.use("*", (c, next) => (c.req.path === "/health" ? next() : auth(c, next)));
-}
+// ---- 認証（Google SSO）+ storage 解決 ---------------------
+// /auth/* はログイン導線。/api/* は認証必須にし、認証で解決した userId から
+// そのユーザー専用の DB ハンドル・会話セッション dir を毎リクエスト解決する。
+// ドメインの各ハンドラは c.get("db") を使い、グローバル DB に依存しない。
+// ヘルスチェック・静的配信・/auth/* は認証不要（順序に注意: /api/* にのみ適用）。
+registerAuthRoutes(app);
+app.use("/api/*", requireAuth);
+app.use("/api/*", (c, next) => {
+  const userId = c.get("userId");
+  c.set("db", getUserDb(userId));
+  c.set("sessionDir", getUserSessionDir(userId));
+  return next();
+});
 
 // ---- 共通ヘルパー ------------------------------------------
 /** 許可フィールドだけで UPDATE を組み立てる（部分更新対応） */
-function updateRow(table: string, id: SQLInputValue, body: Record<string, unknown>, allowed: string[]): boolean {
+function updateRow(db: DatabaseSync, table: string, id: SQLInputValue, body: Record<string, unknown>, allowed: string[]): boolean {
   const keys = Object.keys(body).filter((k) => allowed.includes(k));
   if (keys.length === 0) return false;
   const setClause = keys.map((k) => `${k} = ?`).join(", ");
@@ -86,7 +68,7 @@ function updateRow(table: string, id: SQLInputValue, body: Record<string, unknow
 }
 
 app.onError((err, c) => {
-  // HTTPException（Basic 認証の 401 など）は本来の応答をそのまま返す。
+  // HTTPException（認証の 401 など）は本来の応答をそのまま返す。
   if (err instanceof HTTPException) return err.getResponse();
   console.error(err);
   const msg = String(err.message || err);
@@ -106,6 +88,7 @@ app.onError((err, c) => {
 
 // ---- 全データ取得（React の初期ロード） ---------------------
 app.get("/api/trip", (c) => {
+  const db = c.get("db");
   const trip = (db.prepare("SELECT * FROM trip WHERE id = 1").get() as unknown as TripMeta | undefined) || null;
   const days = db.prepare("SELECT * FROM days ORDER BY day_no").all() as unknown as Day[];
   const allItems = db.prepare("SELECT * FROM items ORDER BY day_id, sort_order, time").all() as unknown as Item[];
@@ -120,17 +103,19 @@ app.get("/api/trip", (c) => {
 
 // ---- trip メタ --------------------------------------------
 app.put("/api/trip", async (c) => {
+  const db = c.get("db");
   // trip は id=1 の 1 行だけを持つシングルトン。まだ行が無い DB（本番の初期状態など）では
   // UPDATE が 0 行に当たり SELECT が undefined → c.json(undefined) が空ボディを返し、
   // フロントの res.json() が "Unexpected end of JSON input" で落ちる。先に行を用意する。
   db.prepare("INSERT OR IGNORE INTO trip (id) VALUES (1)").run();
-  updateRow("trip", 1, await c.req.json(), ["title", "subtitle", "start_date", "end_date", "travelers", "party_size", "fx_note", "memo"]);
+  updateRow(db, "trip", 1, await c.req.json(), ["title", "subtitle", "start_date", "end_date", "travelers", "party_size", "fx_note", "memo"]);
   return c.json(db.prepare("SELECT * FROM trip WHERE id = 1").get());
 });
 
 // ---- days -------------------------------------------------
 const DAY_FIELDS = ["day_no", "date", "city", "title"];
 app.post("/api/days", async (c) => {
+  const db = c.get("db");
   const b = await c.req.json();
   const id = b.id ?? randomUUID();
   db.prepare("INSERT INTO days (id, day_no, date, city, title) VALUES (?, ?, ?, ?, ?)")
@@ -138,17 +123,19 @@ app.post("/api/days", async (c) => {
   return c.json(db.prepare("SELECT * FROM days WHERE id = ?").get(id));
 });
 app.put("/api/days/:id", async (c) => {
-  updateRow("days", c.req.param("id"), await c.req.json(), DAY_FIELDS);
+  const db = c.get("db");
+  updateRow(db, "days", c.req.param("id"), await c.req.json(), DAY_FIELDS);
   return c.json(db.prepare("SELECT * FROM days WHERE id = ?").get(c.req.param("id")));
 });
 app.delete("/api/days/:id", (c) => {
-  db.prepare("DELETE FROM days WHERE id = ?").run(c.req.param("id"));
+  c.get("db").prepare("DELETE FROM days WHERE id = ?").run(c.req.param("id"));
   return c.json({ ok: true });
 });
 
 // ---- items ------------------------------------------------
 const ITEM_FIELDS = ["day_id", "sort_order", "time", "type", "title", "note", "url", "url_label", "cost", "spot_id", "leg_id"];
 app.post("/api/items", async (c) => {
+  const db = c.get("db");
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM items WHERE day_id = ?").get(b.day_id) as { m: number }).m;
   const id = b.id ?? randomUUID();
@@ -159,10 +146,12 @@ app.post("/api/items", async (c) => {
   return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(id));
 });
 app.put("/api/items/:id", async (c) => {
-  updateRow("items", c.req.param("id"), await c.req.json(), ITEM_FIELDS);
+  const db = c.get("db");
+  updateRow(db, "items", c.req.param("id"), await c.req.json(), ITEM_FIELDS);
   return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(c.req.param("id")));
 });
 app.delete("/api/items/:id", (c) => {
+  const db = c.get("db");
   const id = c.req.param("id");
   // 移動の予定（leg_id あり）は、紐づく地図の移動ルート（legs）も一緒に削除して連動させる。
   const row = db.prepare("SELECT leg_id FROM items WHERE id = ?").get(id) as { leg_id: string | null } | undefined;
@@ -174,6 +163,7 @@ app.delete("/api/items/:id", (c) => {
 // ---- budget -----------------------------------------------
 const BUDGET_FIELDS = ["sort_order", "category", "per_person", "note"];
 app.post("/api/budget", async (c) => {
+  const db = c.get("db");
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM budget").get() as { m: number }).m;
   const id = b.id ?? randomUUID();
@@ -182,11 +172,12 @@ app.post("/api/budget", async (c) => {
   return c.json(db.prepare("SELECT * FROM budget WHERE id = ?").get(id));
 });
 app.put("/api/budget/:id", async (c) => {
-  updateRow("budget", c.req.param("id"), await c.req.json(), BUDGET_FIELDS);
+  const db = c.get("db");
+  updateRow(db, "budget", c.req.param("id"), await c.req.json(), BUDGET_FIELDS);
   return c.json(db.prepare("SELECT * FROM budget WHERE id = ?").get(c.req.param("id")));
 });
 app.delete("/api/budget/:id", (c) => {
-  db.prepare("DELETE FROM budget WHERE id = ?").run(c.req.param("id"));
+  c.get("db").prepare("DELETE FROM budget WHERE id = ?").run(c.req.param("id"));
   return c.json({ ok: true });
 });
 
@@ -194,6 +185,7 @@ app.delete("/api/budget/:id", (c) => {
 // Google マップの評価（★）を Places API でライブ取得（DB 非永続化）。
 // /api/spots/:id（PUT/DELETE）とはメソッド・パスが異なるため衝突しない。
 app.get("/api/spots/ratings", async (c) => {
+  const db = c.get("db");
   const spots = spotsRepo.listSpots(db);
   return c.json(await getSpotRatings(db, spots));
 });
@@ -201,24 +193,26 @@ app.get("/api/spots/ratings", async (c) => {
 app.get("/api/spots/place-preview", async (c) => {
   return c.json(await previewPlace(c.req.query("q") ?? ""));
 });
-app.get("/api/spots", (c) => c.json(spotsRepo.listSpots(db)));
-app.post("/api/spots", async (c) => c.json(spotsRepo.createSpot(db, await c.req.json())));
+app.get("/api/spots", (c) => c.json(spotsRepo.listSpots(c.get("db"))));
+app.post("/api/spots", async (c) => c.json(spotsRepo.createSpot(c.get("db"), await c.req.json())));
 app.put("/api/spots/:id", async (c) => {
+  const db = c.get("db");
   const id = c.req.param("id");
   const patch = await c.req.json();
   // 名称・都市・国が変わると別の場所になり得るので Places キャッシュを無効化する。
   if (["name", "city", "country"].some((k) => k in patch)) invalidateSpotCache(db, id);
   return c.json(spotsRepo.updateSpot(db, id, patch));
 });
-app.delete("/api/spots/:id", (c) => c.json(spotsRepo.deleteSpot(db, c.req.param("id"))));
+app.delete("/api/spots/:id", (c) => c.json(spotsRepo.deleteSpot(c.get("db"), c.req.param("id"))));
 
-// ---- spots チャット（AI エージェントによる候補編集の提案）----
-registerSpotChatRoute(app, db);
-registerMemoChatRoute(app, db);
+// ---- spots / memo チャット（AI エージェントによる編集提案）----
+// db はハンドラ内で c.get("db")（storage 解決ミドルウェア）から取得する。
+registerSpotChatRoute(app);
+registerMemoChatRoute(app);
 
 // ---- memo pages（複数ページのメモ）--------------------------
-app.get("/api/memo/pages", (c) => c.json(memoRepo.listMemoPages(db)));
-app.post("/api/memo/pages", async (c) => c.json(memoRepo.createMemoPage(db, await c.req.json())));
+app.get("/api/memo/pages", (c) => c.json(memoRepo.listMemoPages(c.get("db"))));
+app.post("/api/memo/pages", async (c) => c.json(memoRepo.createMemoPage(c.get("db"), await c.req.json())));
 app.put("/api/memo/pages/:id", async (c) => {
   const patch = (await c.req.json()) as Record<string, unknown>;
   // html を書き換えるとき（エージェント編集など）は無害化し、平文(text)も再生成して同期する。
@@ -227,9 +221,9 @@ app.put("/api/memo/pages/:id", async (c) => {
     patch.html = clean;
     if (patch.text === undefined) patch.text = htmlToText(clean);
   }
-  return c.json(memoRepo.updateMemoPage(db, c.req.param("id"), patch));
+  return c.json(memoRepo.updateMemoPage(c.get("db"), c.req.param("id"), patch));
 });
-app.delete("/api/memo/pages/:id", (c) => c.json(memoRepo.deleteMemoPage(db, c.req.param("id"))));
+app.delete("/api/memo/pages/:id", (c) => c.json(memoRepo.deleteMemoPage(c.get("db"), c.req.param("id"))));
 
 // アップロード画像を Web 表示可能な形式へ正規化する（HEIC/HEIF → PNG）。
 // ブラウザは HEIC を <img> で表示できず、クライアント変換も不安定なため、
@@ -244,7 +238,7 @@ app.post("/api/image/normalize", async (c) => {
 
 // 取り込んだ元画像の配信（BLOB をそのまま返す）。内容は不変なので長期キャッシュ可。
 app.get("/api/memo/images/:id", (c) => {
-  const img = memoRepo.getMemoImageData(db, c.req.param("id"));
+  const img = memoRepo.getMemoImageData(c.get("db"), c.req.param("id"));
   if (!img) return c.json({ error: "画像が見つかりません。" }, 404);
   return new Response(img.data, {
     headers: { "Content-Type": img.mime_type, "Cache-Control": "private, max-age=31536000, immutable" },
@@ -256,17 +250,18 @@ app.put("/api/memo/images/:id", async (c) => {
   if (typeof body.data !== "string" || typeof body.mimeType !== "string") {
     return c.json({ error: "data（base64）と mimeType が必要です。" }, 400);
   }
-  const meta = memoRepo.replaceMemoImageData(db, c.req.param("id"), { data: body.data, mimeType: body.mimeType });
+  const meta = memoRepo.replaceMemoImageData(c.get("db"), c.req.param("id"), { data: body.data, mimeType: body.mimeType });
   if (!meta) return c.json({ error: "画像が見つかりません。" }, 404);
   return c.json(meta);
 });
 // 元画像 1 枚を削除する。
-app.delete("/api/memo/images/:id", (c) => c.json(memoRepo.deleteMemoImage(db, c.req.param("id"))));
+app.delete("/api/memo/images/:id", (c) => c.json(memoRepo.deleteMemoImage(c.get("db"), c.req.param("id"))));
 
 // 画像（じゃらん等のスクショ）から情報を抽出し、HTML と平文をページに追記する。
 // 元画像は必ず保存し、抽出した HTML は無害化して保存する（表示は iframe(sandbox) 側でも多層防御）。
 // 抽出に失敗しても元画像は残し、warning を添えて 200 で返す。
 app.post("/api/memo/pages/:id/extract", async (c) => {
+  const db = c.get("db");
   const id = c.req.param("id");
   const page = memoRepo.getMemoPage(db, id);
   if (!page) return c.json({ error: "メモページが見つかりません。" }, 404);
@@ -328,6 +323,7 @@ app.post("/api/memo/pages/:id/extract", async (c) => {
 // ---- route ------------------------------------------------
 const ROUTE_FIELDS = ["order_index", "name", "lat", "lng", "hub", "leg_type", "note"];
 app.post("/api/route", async (c) => {
+  const db = c.get("db");
   const b = await c.req.json();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) AS m FROM route").get() as { m: number }).m;
   const id = b.id ?? randomUUID();
@@ -336,17 +332,19 @@ app.post("/api/route", async (c) => {
   return c.json(db.prepare("SELECT * FROM route WHERE id = ?").get(id));
 });
 app.put("/api/route/:id", async (c) => {
-  updateRow("route", c.req.param("id"), await c.req.json(), ROUTE_FIELDS);
+  const db = c.get("db");
+  updateRow(db, "route", c.req.param("id"), await c.req.json(), ROUTE_FIELDS);
   return c.json(db.prepare("SELECT * FROM route WHERE id = ?").get(c.req.param("id")));
 });
 app.delete("/api/route/:id", (c) => {
-  db.prepare("DELETE FROM route WHERE id = ?").run(c.req.param("id"));
+  c.get("db").prepare("DELETE FROM route WHERE id = ?").run(c.req.param("id"));
   return c.json({ ok: true });
 });
 
 // ---- legs（都市間の移動・GPX 詳細ルート）------------------
 const LEG_FIELDS = ["order_index", "from_name", "to_name", "mode", "geojson", "note"];
 app.post("/api/legs", async (c) => {
+  const db = c.get("db");
   const b = await c.req.json();
   const geojson = b.geojson == null ? null : typeof b.geojson === "string" ? b.geojson : JSON.stringify(b.geojson);
   const id = b.id ?? randomUUID();
@@ -355,13 +353,14 @@ app.post("/api/legs", async (c) => {
   return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(id) as LegRow));
 });
 app.put("/api/legs/:id", async (c) => {
+  const db = c.get("db");
   const b = await c.req.json();
   if (b.geojson != null && typeof b.geojson !== "string") b.geojson = JSON.stringify(b.geojson);
-  updateRow("legs", c.req.param("id"), b, LEG_FIELDS);
+  updateRow(db, "legs", c.req.param("id"), b, LEG_FIELDS);
   return c.json(legToFeature(db.prepare("SELECT * FROM legs WHERE id = ?").get(c.req.param("id")) as LegRow));
 });
 app.delete("/api/legs/:id", (c) => {
-  db.prepare("DELETE FROM legs WHERE id = ?").run(c.req.param("id"));
+  c.get("db").prepare("DELETE FROM legs WHERE id = ?").run(c.req.param("id"));
   return c.json({ ok: true });
 });
 
@@ -562,7 +561,7 @@ if (existsSync(DIST_DIR)) {
 }
 
 const server = serve({ fetch: app.fetch, port: PORT }, () => {
-  console.log(`🚆 しおり API (Hono): http://localhost:${PORT}  (DB: ${process.env.TRAVEL_DB || "data/travel.db"})`);
+  console.log(`🚆 しおり API (Hono): http://localhost:${PORT}  (per-user DB: ${process.env.TRAVEL_DATA_DIR || "data"}/{userId}/travel.db)`);
 });
 
 // ポート使用中などの起動エラーをクリーンに扱う
@@ -582,7 +581,7 @@ function shutdown(signal: string): void {
   closing = true;
   console.log(`\n${signal} を受信。サーバーを停止します…`);
   server.close(() => {
-    try { db.close(); } catch { /* noop */ }
+    try { closeAllUserDbs(); } catch { /* noop */ }
     console.log("✓ 正常に停止しました。");
     process.exit(0);
   });

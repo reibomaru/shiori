@@ -20,11 +20,15 @@ const SCHEMA_PATH = join(__dirname, "schema.sql");
  * スキーマ変更の反映（version > baseline）は起動時には行わない。
  * サーバーは起動時に版を検証し、本番で未適用があればフェイルファストする
  * （適用は db/migrate.ts / マイグレーション Job で行う）。
+ *
+ * @param dbPath 開く DB ファイルのパス。未指定なら DB_PATH（TRAVEL_DB）。
+ *   ユーザーごとに DB を分ける storage 分離では、呼び出し側が
+ *   `data/{userId}/travel.db` を渡す（server/storage.ts）。
  */
-export function openDb() {
-  // TRAVEL_DB が絶対パス（例: /data/travel.db）でも動くよう親ディレクトリを作る。
-  mkdirSync(dirname(DB_PATH), { recursive: true });
-  const db = new DatabaseSync(DB_PATH);
+export function openDb(dbPath: string = DB_PATH) {
+  // 絶対パス（例: /data/{sub}/travel.db）でも動くよう親ディレクトリを作る。
+  mkdirSync(dirname(dbPath), { recursive: true });
+  const db = new DatabaseSync(dbPath);
   db.exec("PRAGMA foreign_keys = ON;");
   // Litestream は WAL モードの DB を要求する（本番のレプリケーション前提）。
   // WAL 設定は DB ファイルに永続化され、dev/CLI でも無害。

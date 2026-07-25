@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import { TripProvider } from "./store";
+import { AuthGate } from "./components/AuthGate";
 import Layout from "./components/Layout";
 import ItineraryPage from "./pages/ItineraryPage";
 import BudgetPage from "./pages/BudgetPage";
@@ -16,6 +17,7 @@ const MapPage = lazy(() => import("./pages/MapPage"));
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
+      <AuthGate>
       <TripProvider>
         <Routes>
           <Route element={<Layout />}>
@@ -37,6 +39,7 @@ createRoot(document.getElementById("root")!).render(
           </Route>
         </Routes>
       </TripProvider>
+      </AuthGate>
     </BrowserRouter>
   </StrictMode>
 );

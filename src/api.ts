@@ -54,12 +54,24 @@ export interface OsrmRoute {
   waypoints?: string[]; // 通過する町名（逆ジオコード）
 }
 
+/** ログイン中のユーザー情報（/auth/me）。 */
+export interface Me {
+  email: string;
+  name: string;
+}
+
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: "same-origin", // 認証セッション Cookie を送る
   });
+  // セッション切れ（未認証）はリロードして認証ゲート（ログイン画面）に戻す。
+  if (res.status === 401) {
+    window.location.reload();
+    throw new Error("unauthenticated");
+  }
   if (!res.ok) throw new Error(`${method} ${url} -> ${res.status}`);
   // 空ボディ（Content-Length: 0 や 204）を res.json() に渡すと
   // "Unexpected end of JSON input" で落ちるため、テキストを見てから解釈する。
@@ -68,6 +80,16 @@ async function http<T>(url: string, method: string, body?: unknown): Promise<T> 
 }
 
 export const api = {
+  // ---- 認証 ----
+  // 現在のユーザーを取得。未ログインは null（認証ゲートがログイン画面を出す）。
+  me: async (): Promise<Me | null> => {
+    const res = await fetch("/auth/me", { credentials: "same-origin" });
+    if (res.status === 401) return null;
+    if (!res.ok) throw new Error(`/auth/me -> ${res.status}`);
+    return (await res.json()) as Me;
+  },
+  logout: () => fetch("/auth/logout", { method: "POST", credentials: "same-origin" }),
+
   getTrip: () => http<TripPayload>("/api/trip", "GET"),
 
   updateTrip: (patch: Record<string, unknown>) => http("/api/trip", "PUT", patch),

@@ -37,3 +37,23 @@ output "state_bucket" {
 output "sessions_bucket" {
   value = google_storage_bucket.sessions.name
 }
+
+output "dns_name_servers" {
+  description = "ドメインレジストラの NS に設定する Cloud DNS の name servers。"
+  value       = google_dns_managed_zone.app.name_servers
+}
+
+output "lb_ipv4" {
+  description = "外部 HTTPS LB の IPv4 固定 IP（apex の A レコードが指す先）。"
+  value       = google_compute_global_address.lb_ipv4.address
+}
+
+output "lb_ipv6" {
+  description = "外部 HTTPS LB の IPv6 固定 IP（apex の AAAA レコードが指す先）。"
+  value       = google_compute_global_address.lb_ipv6.address
+}
+
+output "app_domain" {
+  description = "公開ドメイン（証明書 ACTIVE 後にアクセス可能）。"
+  value       = "https://${var.domain}"
+}

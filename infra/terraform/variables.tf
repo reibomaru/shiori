@@ -58,6 +58,18 @@ variable "app_base_url" {
   default = "https://shiori-1014849882013.asia-northeast1.run.app"
 }
 
+variable "domain" {
+  type        = string
+  description = "アプリを公開するカスタムドメイン（apex）。Cloud DNS マネージドゾーンと managed SSL 証明書に使う。"
+  default     = "booklet-ai.com"
+}
+
+variable "dns_zone_name" {
+  type        = string
+  description = "Cloud DNS マネージドゾーンのリソース名（GCP 内部の識別子。ドメイン名とは別）。"
+  default     = "booklet-ai"
+}
+
 variable "cpu" {
   type        = string
   description = "Cloud Run サービスの CPU。Litestream 常駐のため CPU 常時割当（cpu_idle=false）で使う。"

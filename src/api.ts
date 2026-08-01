@@ -64,20 +64,46 @@ export interface Me {
   role: Role;
 }
 
-/** 管理者画面で扱う users 台帳の 1 行。 */
-export interface AdminUser {
-  sub: string;
-  email: string;
+/** プロジェクト（テナント）の一覧行。 */
+export interface Project {
+  id: string;
   name: string;
-  allowed: boolean;
-  role: Role;
-  updatedAt?: string;
+  ownerSub: string;
+  ownerEmail: string;
+  memberEmails: string[];
+}
+
+/** プロジェクトのメンバー情報。 */
+export interface ProjectMembers {
+  ownerEmail: string;
+  members: string[];
+}
+
+// アクティブプロジェクト（URL の /p/{id} から ProjectProvider が設定する）。
+// ドメイン API リクエストに X-Project-Id ヘッダとして付与する。
+let activeProjectId: string | null = null;
+export function setActiveProject(id: string | null): void {
+  activeProjectId = id;
+}
+export function getActiveProject(): string | null {
+  return activeProjectId;
+}
+/** SSE など fetch を直接呼ぶ箇所で使う X-Project-Id ヘッダ。 */
+export function projectHeader(): Record<string, string> {
+  return activeProjectId ? { "X-Project-Id": activeProjectId } : {};
 }
 
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body) headers["Content-Type"] = "application/json";
+  // ドメイン API（/api/trip 等）は対象プロジェクトをヘッダで指定する。
+  // プロジェクト管理 API（/api/projects*）はヘッダ不要（付いても無害）。
+  if (activeProjectId && url.startsWith("/api/") && !url.startsWith("/api/projects")) {
+    headers["X-Project-Id"] = activeProjectId;
+  }
   const res = await fetch(url, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
     credentials: "same-origin", // 認証セッション Cookie を送る
   });
@@ -104,10 +130,15 @@ export const api = {
   },
   logout: () => fetch("/auth/logout", { method: "POST", credentials: "same-origin" }),
 
-  // ---- 管理者（admin ロールのみ）----
-  listUsers: () => http<AdminUser[]>("/api/admin/users", "GET"),
-  updateUser: (sub: string, patch: { allowed?: boolean; role?: Role }) =>
-    http<AdminUser>(`/api/admin/users/${encodeURIComponent(sub)}`, "PATCH", patch),
+  // ---- プロジェクト（テナント）----
+  listProjects: () => http<Project[]>("/api/projects", "GET"),
+  createProject: (name: string) => http<Project>("/api/projects", "POST", { name }),
+  renameProject: (id: string, name: string) => http<Project>(`/api/projects/${id}`, "PATCH", { name }),
+  deleteProject: (id: string) => http(`/api/projects/${id}`, "DELETE"),
+  getMembers: (id: string) => http<ProjectMembers>(`/api/projects/${id}/members`, "GET"),
+  addMember: (id: string, email: string) => http<ProjectMembers>(`/api/projects/${id}/members`, "POST", { email }),
+  removeMember: (id: string, email: string) =>
+    http<ProjectMembers>(`/api/projects/${id}/members/${encodeURIComponent(email)}`, "DELETE"),
 
   getTrip: () => http<TripPayload>("/api/trip", "GET"),
 

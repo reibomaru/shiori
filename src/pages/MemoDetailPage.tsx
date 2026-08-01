@@ -18,7 +18,8 @@ const OPEN_KEY = "memoChatOpen"; // AI 編集パネルの表示状態（オプ�
 
 /** メモの詳細・編集ページ（/memo/:id）。AI 編集パネルを既定で右側に表示する。 */
 export default function MemoDetailPage() {
-  const { id = "" } = useParams();
+  const { id = "", projectId = "" } = useParams();
+  const memoBase = `/p/${projectId}/memo`;
   const { pages, loading, error, update, remove, reload } = useMemoPages();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -90,7 +91,7 @@ export default function MemoDetailPage() {
         <div className="mx-auto max-w-3xl">
           <div className="mb-4 flex items-center justify-between gap-2">
             <Link
-              to="/memo"
+              to={memoBase}
               className="no-print flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
             >
               <FaChevronLeft className="text-xs" /> メモ一覧
@@ -125,7 +126,7 @@ export default function MemoDetailPage() {
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
               <p className="text-sm text-slate-400">メモが見つかりませんでした。</p>
               <Link
-                to="/memo"
+                to={memoBase}
                 className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-200"
               >
                 <FaChevronLeft className="text-xs" /> 一覧へ戻る
@@ -185,7 +186,7 @@ export default function MemoDetailPage() {
           setDeleting(true);
           try {
             await remove(page.id);
-            navigate("/memo");
+            navigate(memoBase);
           } finally {
             setDeleting(false);
           }

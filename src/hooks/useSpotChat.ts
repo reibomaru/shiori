@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { Spot } from "../types";
-import { api, type ChatSessionSummary } from "../api";
+import { api, projectHeader, type ChatSessionSummary } from "../api";
 import { uuid } from "../uuid";
 
 export type ProposalOp = "create" | "update" | "delete";
@@ -178,7 +178,8 @@ export function useSpotChat() {
       try {
         const res = await fetch("/api/spots/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...projectHeader() },
+          credentials: "same-origin",
           body: JSON.stringify({
             sessionId: sessionIdRef.current,
             message,

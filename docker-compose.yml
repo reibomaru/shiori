@@ -25,6 +25,22 @@ services:
       - ./data:/app/data
     restart: unless-stopped
 
+  # ---- Firestore エミュレータ（ローカルでチーム編集/プロジェクト検証用）----
+  # 起動（これだけ）: docker compose up -d firestore-emulator
+  # アプリは `pnpm dev`（ホスト）で動かし、.env に次を設定する:
+  #   FIRESTORE_EMULATOR_HOST=localhost:8085
+  #   FIRESTORE_PROJECT_ID=demo        # 任意の文字列で可
+  # 実際の Google ログイン（別 Google アカウント×2）で共同編集を検証できる。
+  # データは揮発（コンテナ停止で消える）。ADC 認証は不要。
+  firestore-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: shiori-firestore-emulator
+    # コンテナ内は 0.0.0.0 で待受（localhost だとホストから届かない）。
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8085
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+
   # ---- （未使用）SearXNG の設定だけ残置。web_search は websearchapi.ai に移行済み ----
   # profiles を付けているので通常の `docker compose up` では起動しない。
   # 起動したい場合は `docker compose --profile searxng up searxng`。

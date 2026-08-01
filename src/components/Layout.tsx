@@ -60,7 +60,7 @@ export default function Layout() {
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="mesh-light flex min-h-screen">
       {/* ===== モバイル用トップバー（md 未満のみ・ハンバーガー） ===== */}
       <header className="tech-mesh no-print fixed inset-x-0 top-0 z-[550] flex h-14 items-center gap-3 border-b border-cyan-400/10 px-4 text-white md:hidden">
         <button

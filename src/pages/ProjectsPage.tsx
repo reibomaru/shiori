@@ -58,7 +58,7 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="mesh-light min-h-screen">
       <header className="tech-mesh flex items-center justify-between border-b border-cyan-400/10 px-6 py-4 text-white">
         <div className="flex items-center gap-2.5">
           <Logo size={26} className="text-cyan-300" />

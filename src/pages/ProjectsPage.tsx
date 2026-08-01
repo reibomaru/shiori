@@ -59,7 +59,7 @@ export default function ProjectsPage() {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="flex items-center justify-between border-b border-cyan-400/10 bg-gradient-to-r from-slate-950 to-slate-900 px-6 py-4 text-white">
+      <header className="tech-mesh flex items-center justify-between border-b border-cyan-400/10 px-6 py-4 text-white">
         <div className="flex items-center gap-2.5">
           <Logo size={26} className="text-cyan-300" />
           <h1 className="brand-wordmark font-mono-tech text-xl font-bold lowercase tracking-wide">shiori</h1>

@@ -20,7 +20,7 @@ export function useAuth(): AuthCtx {
 /** ログイン画面（未認証時に表示）。 */
 function LoginScreen() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white">
+    <div className="tech-mesh flex min-h-screen items-center justify-center p-6 text-white">
       <div className="w-full max-w-sm rounded-2xl bg-white/5 p-8 text-center shadow-xl ring-1 ring-inset ring-cyan-400/15 backdrop-blur">
         <div className="mb-4 flex items-center justify-center gap-2.5">
           <Logo size={40} className="text-cyan-300" />

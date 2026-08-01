@@ -62,7 +62,7 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen bg-slate-100">
       {/* ===== モバイル用トップバー（md 未満のみ・ハンバーガー） ===== */}
-      <header className="no-print fixed inset-x-0 top-0 z-[550] flex h-14 items-center gap-3 border-b border-cyan-400/10 bg-gradient-to-r from-slate-950 to-slate-900 px-4 text-white md:hidden">
+      <header className="tech-mesh no-print fixed inset-x-0 top-0 z-[550] flex h-14 items-center gap-3 border-b border-cyan-400/10 px-4 text-white md:hidden">
         <button
           onClick={() => setMobileOpen(true)}
           aria-label="メニューを開く"
@@ -103,7 +103,7 @@ export default function Layout() {
       {/* ===== 左サイドメニュー（印刷時は非表示） =====
           モバイル: 左からのドロワー（fixed + translate）。デスクトップ: 静的に横並び（navOpen で折りたたみ）。 */}
       <aside
-        className={`no-print fixed inset-y-0 left-0 z-[570] flex w-72 max-w-[80vw] flex-col overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white transition-transform duration-200 md:sticky md:top-0 md:z-[500] md:h-screen md:max-w-none md:translate-x-0 md:border-r md:border-cyan-400/10 md:transition-all ${
+        className={`tech-mesh no-print fixed inset-y-0 left-0 z-[570] flex w-72 max-w-[80vw] flex-col overflow-hidden text-white transition-transform duration-200 md:sticky md:top-0 md:z-[500] md:h-screen md:max-w-none md:translate-x-0 md:border-r md:border-cyan-400/10 md:transition-all ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${navOpen ? "md:flex md:w-60" : "md:hidden md:w-0"}`}
       >

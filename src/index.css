@@ -39,6 +39,31 @@ body {
   color: transparent;
 }
 
+/* テッキーなダーク面（サイドバー・ヘッダー・ログイン）の背景。
+   docs/logo-concepts.html と同じ語彙で、薄いグリッドメッシュ + シアン/パープルの
+   微光を重ねる。線は控えめ（薄め）にして主張しすぎないようにする。 */
+.tech-mesh {
+  background-color: var(--base);
+  background-image:
+    radial-gradient(
+      680px 340px at 100% -10%,
+      rgba(160, 107, 255, 0.1),
+      transparent 60%
+    ),
+    radial-gradient(
+      680px 340px at 0% 0%,
+      rgba(34, 211, 238, 0.08),
+      transparent 55%
+    ),
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    28px 28px,
+    28px 28px;
+}
+
 /* deck.gl の canvas を角丸内に収める */
 #deckgl-overlay {
   border-radius: 0;

@@ -6,7 +6,16 @@ import { useId } from "react";
  * 確定した旅程だけをグラデーションの経路として浮かび上がらせる意匠。
  * 薄い部分は currentColor を継承するので、置き場所の文字色に馴染む。
  */
-export function Logo({ size = 28, className }: { size?: number; className?: string }) {
+export function Logo({
+  size = 28,
+  className,
+  animated = true,
+}: {
+  size?: number;
+  className?: string;
+  /** 確定経路に沿ってデータが流れる破線アニメーション（HTML の GRAPH_05 と同じ挙動）。 */
+  animated?: boolean;
+}) {
   const id = useId();
   return (
     <svg
@@ -36,14 +45,25 @@ export function Logo({ size = 28, className }: { size?: number; className?: stri
         <circle cx="11" cy="23" r="1.3" />
         <circle cx="19" cy="25" r="1.3" />
       </g>
-      {/* 確定した旅程（ハイライト経路） */}
+      {/* 確定した旅程（ハイライト経路）。animated 時は破線が経路に沿って流れる。 */}
       <path
         d="M7 14 L14 10 L21 15 L26 22"
         stroke={`url(#${id})`}
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
+        strokeDasharray={animated ? "3 5" : undefined}
+      >
+        {animated && (
+          <animate
+            attributeName="stroke-dashoffset"
+            from="0"
+            to="-16"
+            dur="1.4s"
+            repeatCount="indefinite"
+          />
+        )}
+      </path>
       <g fill={`url(#${id})`}>
         <circle cx="7" cy="14" r="2" />
         <circle cx="14" cy="10" r="2" />

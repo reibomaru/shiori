@@ -62,7 +62,15 @@ export interface Me {
   email: string;
   name: string;
   role: Role;
+  /** 本人が設定した表示名（未設定は null）。UI 表示は displayName ?? name。 */
+  displayName?: string | null;
+  /** アバター表示用 URL（アップロード or Google 写真、無ければ null）。 */
+  avatarUrl?: string | null;
 }
+
+/** 表示に使う名前を返す（displayName 優先、無ければ name、最後に email）。 */
+export const displayNameOf = (u: { displayName?: string | null; name?: string; email: string }) =>
+  u.displayName || u.name || u.email;
 
 /** プロジェクト（テナント）の一覧行。 */
 export interface Project {
@@ -129,6 +137,10 @@ export const api = {
     return (await res.json()) as Me;
   },
   logout: () => fetch("/auth/logout", { method: "POST", credentials: "same-origin" }),
+  // 自分のプロフィール（表示名・アバター）を更新。avatar は data URL、null で削除、
+  // undefined は据え置き。更新後の Me を返す。
+  updateProfile: (patch: { displayName?: string | null; avatar?: string | null }) =>
+    http<Me>("/api/profile", "PATCH", patch),
 
   // ---- プロジェクト（テナント）----
   listProjects: () => http<Project[]>("/api/projects", "GET"),

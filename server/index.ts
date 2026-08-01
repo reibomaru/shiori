@@ -24,6 +24,7 @@ import {
   renameProject,
   requireProjectMember,
 } from "./projects.ts";
+import { updateOwnProfile, avatarUrlOf } from "./users.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
 import * as memoRepo from "../db/memo-repo.ts";
 import { getSpotRatings, invalidateSpotCache, previewPlace } from "./places.ts";
@@ -134,6 +135,56 @@ app.delete("/api/projects/:id/members/:email", async (c) => {
   invalidateProjectCache(project!.id);
   const updated = await getProject(project!.id);
   return c.json({ ownerEmail: updated!.ownerEmail, members: updated!.memberEmails });
+});
+
+// ---- 自分のプロフィール（表示名・アバター）--------------------
+// プロジェクトに依存しないユーザー本人の設定なので、プロジェクトスコープの
+// 前（X-Project-Id 不要）に置く。avatar はクライアントで正方形リサイズ済みの
+// data URL を受け取り、Firestore の users ドキュメントへ保存する（1MB 制限内）。
+const AVATAR_MAX_LEN = 400_000; // data URL の最大長（~300KB）
+app.patch("/api/profile", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { displayName?: unknown; avatar?: unknown };
+  const patch: { displayName?: string | null; avatar?: string | null } = {};
+
+  if (body.displayName !== undefined) {
+    if (body.displayName === null) {
+      patch.displayName = null;
+    } else if (typeof body.displayName === "string") {
+      const t = body.displayName.trim();
+      if (t.length > 60) return c.json({ error: "表示名は60文字以内にしてください。" }, 400);
+      patch.displayName = t; // 空文字は台帳側で「未設定（削除）」として扱う
+    } else {
+      return c.json({ error: "displayName が不正です。" }, 400);
+    }
+  }
+
+  if (body.avatar !== undefined) {
+    if (body.avatar === null) {
+      patch.avatar = null;
+    } else if (typeof body.avatar === "string") {
+      if (!/^data:image\/(png|jpeg|webp|gif);base64,/.test(body.avatar)) {
+        return c.json({ error: "アバター画像の形式が不正です。" }, 400);
+      }
+      if (body.avatar.length > AVATAR_MAX_LEN) {
+        return c.json({ error: "アバター画像が大きすぎます。別の画像でお試しください。" }, 400);
+      }
+      patch.avatar = body.avatar;
+    } else {
+      return c.json({ error: "avatar が不正です。" }, 400);
+    }
+  }
+
+  if (Object.keys(patch).length === 0) return c.json({ error: "変更内容がありません。" }, 400);
+
+  const rec = await updateOwnProfile(c.get("userId"), patch);
+  if (!rec) return c.json({ error: "ユーザーが見つかりません。" }, 404);
+  return c.json({
+    email: c.get("userEmail"),
+    name: c.get("userName"),
+    role: c.get("userRole"),
+    displayName: rec.displayName ?? null,
+    avatarUrl: avatarUrlOf(rec),
+  });
 });
 
 // ---- 以降のドメインルートはプロジェクトスコープ（X-Project-Id 必須）------

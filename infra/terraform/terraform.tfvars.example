@@ -4,9 +4,9 @@ region            = "asia-northeast1"
 service_name      = "shiori"
 github_repository = "reibomaru/travel-plans"
 
-# 招待制の allowlist（どちらか一方でも一致すればログイン可。両方空だと誰もログインできない）。
-allowed_emails        = ""            # 例: "a@example.com,b@example.com"
-allowed_email_domains = ""            # 例: "example.com"
-
 # OAuth リダイレクト URI 組み立て用のベース URL（任意・空ならリクエストから自動解決）。
 app_base_url = ""                      # 例: "https://shiori.example.com"
+
+# 利用許可は Firestore の users コレクション（allowed フラグ）で管理する。
+# 初回ログインで allowed=false のドキュメントが自動作成され、承認は GCP コンソール等で
+# 該当ドキュメントを allowed=true にする（環境変数の allowlist は廃止）。

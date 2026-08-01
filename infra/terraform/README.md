@@ -11,6 +11,7 @@ Cloud Run + Litestream + GCS + Secret Manager + Workload Identity Federation 一
 - Cloud Run **Job**（`shiori-migrate`）: マイグレーション実行用。
 - **Artifact Registry**（Docker リポジトリ）。
 - **GCS バケット** 2 つ: `*-state`（Litestream レプリカ + backups）、`*-sessions`（AI チャット履歴 JSONL, FUSE マウント）。
+- **Firestore**（`(default)`, Native）: `users` 台帳（利用許可フラグ）。実行 SA に `roles/datastore.user`。
 - **Secret Manager**: `GEMINI_API_KEY` / `WEBSEARCH_API_KEY` / `GOOGLE_MAPS_API_KEY` / `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `SESSION_SECRET`（入れ物のみ。値は手動投入）。
 - **IAM**: 実行 SA、デプロイ SA、GitHub Actions 用 Workload Identity 連携。
 
@@ -61,8 +62,9 @@ openssl rand -hex 32 | gcloud secrets versions add SESSION_SECRET --data-file=-
 
 > **OAuth クライアント**: GCP コンソール「API とサービス → 認証情報」で OAuth 2.0 クライアント（Web）を作成し、
 > 承認済みリダイレクト URI に `<本番の origin>/auth/google` を登録する。
-> **招待制 allowlist**: `terraform.tfvars` の `allowed_emails` / `allowed_email_domains` で許可先を指定する
-> （両方空だと誰もログインできない安全側の既定）。
+> **利用許可（招待制）**: Firestore の `users` コレクション（doc id = Google `sub`）の `allowed` フラグで管理する。
+> 初回ログインで `allowed=false` のドキュメントが自動作成されるので、承認するユーザーは
+> GCP コンソール（Firestore）/ gcloud で `allowed=true` に更新する。
 
 ### 5. GitHub Actions 用の Variables を設定
 

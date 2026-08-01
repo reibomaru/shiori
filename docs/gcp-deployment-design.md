@@ -6,8 +6,11 @@
 > **更新（マルチユーザー化 / #64 基盤フェーズ）**
 > 本ドキュメントの初版はシングルテナント（共有 DB・Basic 認証）前提だが、
 > [#64](https://github.com/reibomaru/travel-plans/issues/64) の基盤フェーズで以下へ移行した:
-> - **認証**: Basic 認証 → **Google SSO（OIDC）+ 署名付き JWT Cookie**（招待制 allowlist）。`server/auth.ts`。
+> - **認証**: Basic 認証 → **Google SSO（OIDC）+ 署名付き JWT Cookie**。`server/auth.ts`。
 >   Secret は `BASIC_AUTH_*` を廃し `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `SESSION_SECRET` を追加。
+> - **利用許可（招待制）**: 環境変数 allowlist をやめ、**Firestore の `users` 台帳（`allowed` フラグ）**で管理（`server/users.ts`）。
+>   初回ログインで `allowed=false` を JIT 登録し、承認は該当ドキュメントを `allowed=true` にする（初期は直接編集）。
+>   利用可否は**ログイン時のみ**判定し、`requireAuth`（毎リクエスト）は JWT 検証のみでステートレスを保つ。
 > - **storage 分離**: 共有 `data/travel.db` → **ユーザー（Google `sub`）ごとに `data/{sub}/travel.db` と
 >   `agent-sessions/{sub}/`** に物理分離（`server/storage.ts` の per-user DB レジストリ）。新規/既存 DB は
 >   open 時に `applyPending` で最新版へ追従（Cloud Run `max=1` の単一ライタ前提で安全）。

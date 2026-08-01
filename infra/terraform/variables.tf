@@ -45,18 +45,8 @@ variable "secret_ids" {
   ]
 }
 
-# 招待制 allowlist（非シークレット。Cloud Run の環境変数として注入する）。
-variable "allowed_emails" {
-  type        = string
-  description = "ログインを許可するメールアドレス（カンマ区切り）。"
-  default     = ""
-}
-
-variable "allowed_email_domains" {
-  type        = string
-  description = "ログインを許可するメールドメイン（カンマ区切り・@ 不要）。"
-  default     = ""
-}
+# 利用許可は Firestore の users コレクション（allowed フラグ）で管理する。
+# 承認は初期は GCP コンソール / gcloud で該当ドキュメントを allowed=true にする。
 
 variable "app_base_url" {
   type        = string

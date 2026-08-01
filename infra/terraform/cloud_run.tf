@@ -17,10 +17,10 @@ locals {
     NODE_ENV           = "production"
     LITESTREAM_BUCKET  = google_storage_bucket.state.name
     LITESTREAM_PATH    = local.litestream_prefix
-    # 認証（Google SSO・招待制）。
-    ALLOWED_EMAILS        = var.allowed_emails
-    ALLOWED_EMAIL_DOMAINS = var.allowed_email_domains
+    # 認証（Google SSO）。利用可否は Firestore の users 台帳で判定する。
     APP_BASE_URL          = var.app_base_url
+    FIRESTORE_PROJECT_ID  = var.project_id
+    FIRESTORE_DATABASE_ID = google_firestore_database.users.name
   }
 }
 

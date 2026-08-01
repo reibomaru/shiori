@@ -17,6 +17,7 @@ import type { Context, Hono, MiddlewareHandler } from "hono";
 import { googleAuth } from "@hono/oauth-providers/google";
 import { sign, verify } from "hono/jwt";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { upsertUserOnLogin } from "./users.ts";
 
 const SESSION_COOKIE = "session";
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -31,28 +32,13 @@ interface SessionClaims {
   exp: number;
 }
 
-/** カンマ区切り env を小文字トリム済み配列にする。 */
-function parseList(v: string | undefined): string[] {
-  return (v || "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-const ALLOWED_EMAILS = parseList(process.env.ALLOWED_EMAILS);
-const ALLOWED_EMAIL_DOMAINS = parseList(process.env.ALLOWED_EMAIL_DOMAINS);
-
-/**
- * allowlist 判定（招待制）。許可メール完全一致 or 許可ドメイン一致で true。
- * 両方未設定なら deny-all（誰も入れない安全側）。
- */
-export function isEmailAllowed(email: string): boolean {
-  const e = (email || "").trim().toLowerCase();
-  if (!e) return false;
-  if (ALLOWED_EMAILS.length === 0 && ALLOWED_EMAIL_DOMAINS.length === 0) return false;
-  if (ALLOWED_EMAILS.includes(e)) return true;
-  const domain = e.split("@")[1] ?? "";
-  return domain !== "" && ALLOWED_EMAIL_DOMAINS.includes(domain);
+/** 承認待ちユーザーに見せる HTML（利用申請は受理済み・承認待ちである旨）。 */
+function pendingHtml(email: string): string {
+  return `<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;max-width:32rem;margin:4rem auto;line-height:1.7;color:#334155">
+    <h2>利用申請を受け付けました</h2>
+    <p>アカウント（<b>${email}</b>）の利用申請を受け付けました。<br>管理者の承認後にご利用いただけます。</p>
+    <p>承認されたら、もう一度ログインしてください。</p>
+    <p><a href="/">トップへ戻る</a></p></body>`;
 }
 
 /** JWT を署名して session Cookie にセットする。 */
@@ -96,11 +82,6 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
 export function registerAuthRoutes(app: Hono): void {
   if (!SESSION_SECRET) {
     console.warn("⚠ SESSION_SECRET が未設定です。ログインは機能しません（Cookie 署名鍵が無い）。");
-  }
-  if (ALLOWED_EMAILS.length === 0 && ALLOWED_EMAIL_DOMAINS.length === 0) {
-    console.warn(
-      "⚠ ALLOWED_EMAILS / ALLOWED_EMAIL_DOMAINS が未設定です。招待制のため、このままでは誰もログインできません。",
-    );
   }
 
   // ---- 現在のユーザー（フロントの認証ゲート用）----
@@ -152,14 +133,17 @@ export function registerAuthRoutes(app: Hono): void {
       if (!gUser || !email || !sub) {
         return c.text("Google 認証に失敗しました。もう一度お試しください。", 401);
       }
-      if (!isEmailAllowed(email)) {
-        return c.html(
-          `<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;max-width:32rem;margin:4rem auto;line-height:1.7;color:#334155">
-           <h2>ログインできませんでした</h2>
-           <p>このアカウント（<b>${email}</b>）はまだ許可されていません。<br>管理者に招待を依頼してください。</p>
-           <p><a href="/">トップへ戻る</a></p></body>`,
-          403,
-        );
+      // 台帳へ JIT 登録し、利用可否は「ログイン時のみ」ここで判定する。
+      // 新規ユーザーは allowed=false（承認待ち）で作られ、セッションは発行しない。
+      let user;
+      try {
+        user = await upsertUserOnLogin(String(sub), email, gUser.name || email);
+      } catch (e) {
+        console.error("Firestore users への登録に失敗しました:", e);
+        return c.text("ログイン処理でエラーが発生しました。時間をおいて再度お試しください。", 500);
+      }
+      if (!user.allowed) {
+        return c.html(pendingHtml(email), 403);
       }
       await issueSession(c, { sub: String(sub), email, name: gUser.name || email });
       return c.redirect("/");

@@ -29,7 +29,9 @@ resource "google_cloud_run_v2_service" "app" {
   name                = var.service_name
   location            = var.region
   deletion_protection = false
-  ingress             = "INGRESS_TRAFFIC_ALL"
+  # 外部 HTTPS LB（Serverless NEG）と内部トラフィックのみ許可し、
+  # *.run.app への直アクセスは塞ぐ。公開は booklet-ai.com（LB）経由に限定する。
+  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   template {
     service_account = google_service_account.runtime.email
@@ -110,8 +112,9 @@ resource "google_cloud_run_v2_service" "app" {
   ]
 }
 
-# ログイン導線（/auth/*）とアプリ層の認証（Google SSO・/api/* は認証必須）で守るため、
-# Cloud Run 自体は未認証呼び出しを許可（公開）。
+# 未認証呼び出しを許可（公開）。ただし ingress を LB 限定にしているため、
+# 実際に到達できるのは外部 HTTPS LB 経由のみ（*.run.app 直アクセスは ingress で遮断）。
+# ログイン導線（/auth/*）とアプリ層の認証（Google SSO・/api/* は認証必須）で守る。
 resource "google_cloud_run_v2_service_iam_member" "public" {
   name     = google_cloud_run_v2_service.app.name
   location = google_cloud_run_v2_service.app.location

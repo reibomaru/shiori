@@ -54,8 +54,8 @@ variable "secret_ids" {
 variable "app_base_url" {
   type        = string
   description = "OAuth リダイレクト URI 組み立て用のアプリのベース URL。<app_base_url>/auth/google が Google に送られるので、承認済みリダイレクト URI と一致させる。空ならリクエストから自動解決（Cloud Run では http/host のズレで mismatch になりやすいので明示推奨）。"
-  # 本番 Cloud Run のオリジン。カスタムドメインに載せ替えたらここを更新する。
-  default = "https://shiori-1014849882013.asia-northeast1.run.app"
+  # 公開はカスタムドメイン（外部 HTTPS LB）経由。run.app は ingress で遮断済み。
+  default = "https://booklet-ai.com"
 }
 
 variable "domain" {

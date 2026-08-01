@@ -177,7 +177,7 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
         url.searchParams.set("limit", "1");
         const res = await fetch(url, {
           signal: signal ?? undefined,
-          headers: { "User-Agent": "honeymoon-shiori/1.0 (travel-plans spot agent)" },
+          headers: { "User-Agent": "shiori/1.0 (shiori spot agent)" },
         });
         if (!res.ok) return text(`ジオコーディング失敗: HTTP ${res.status}`);
         const arr = await res.json();
@@ -204,7 +204,7 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
     async execute(_id, p, signal) {
       // 注意: ブラウザ風 UA だと Google は 200 のインタースティシャルを返し redirect しない。
       // 非ブラウザ UA（下記）だとサーバー側 30x で最終 URL が得られる。
-      const ua = "honeymoon-shiori/1.0 (travel-plans spot agent)";
+      const ua = "shiori/1.0 (shiori spot agent)";
       // fetch の redirect:"manual" は Location を隠す（opaqueredirect）ため、
       // redirect:"follow" で辿って最終 URL（res.url）を使う。本文は不要なので破棄する。
       let url = p.url;
@@ -273,7 +273,7 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
         // 非ブラウザ UA。Google 等はブラウザ風 UA だと 30x を返さずインタースティシャルになるため。
         const res = await fetch(p.url, {
           signal: signal ?? undefined,
-          headers: { "User-Agent": "honeymoon-shiori/1.0 (travel-plans spot agent)" },
+          headers: { "User-Agent": "shiori/1.0 (shiori spot agent)" },
           redirect: "follow", // 302 等は最後まで辿り、res.url に最終 URL が入る
         });
         // 着地先が元URLと違う（=リダイレクトされた）なら、その最終URLを明示する

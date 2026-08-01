@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>shiori — ロゴ案 (node graph)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f1a; --panel: #111726; --panel-2: #0e1420; --line: #1e2942;
+    --muted: #8a97b4; --text: #e7ecf7;
+    --cyan: #22d3ee; --blue: #4f7cff; --violet: #a06bff; --lime: #9be34a; --pink: #ff5d8f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Ubuntu", ui-sans-serif, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(900px 500px at 80% -10%, rgba(160,107,255,.14), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, rgba(34,211,238,.12), transparent 55%),
+      var(--bg);
+    -webkit-font-smoothing: antialiased; min-height: 100vh;
+  }
+  .mono { font-family: "Ubuntu Mono", ui-monospace, "SF Mono", Menlo, monospace; }
+  header { padding: 60px 24px 28px; text-align: center; }
+  header .kicker { font-size: 12px; letter-spacing: .34em; color: var(--cyan); text-transform: uppercase; }
+  header h1 { margin: 12px 0 8px; font-size: 30px; letter-spacing: -.01em; }
+  header p { margin: 0 auto; max-width: 640px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .grid {
+    max-width: 1160px; margin: 0 auto; padding: 28px 24px 90px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 20px;
+  }
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+    display: flex; flex-direction: column; position: relative;
+    transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .card:hover { transform: translateY(-3px); border-color: #2c3c66; box-shadow: 0 18px 40px rgba(0,0,0,.5); }
+  .stage {
+    height: 210px; display: grid; place-items: center; position: relative;
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 26px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 26px 100%,
+      var(--panel-2);
+  }
+  .stage::after {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(62% 62% at 50% 45%, transparent 42%, rgba(11,15,26,.85) 100%);
+    pointer-events: none;
+  }
+  .stage svg { position: relative; z-index: 1; }
+  .meta { padding: 16px 18px 20px; }
+  .meta .no { font-size: 11px; letter-spacing: .16em; color: var(--muted); }
+  .meta h2 { margin: 6px 0 6px; font-size: 16px; }
+  .meta p { margin: 0; font-size: 13px; line-height: 1.65; color: var(--muted); }
+  .tags { display:flex; gap:6px; margin-top:12px; flex-wrap: wrap; }
+  .tag { font-size: 11px; padding: 3px 8px; border:1px solid var(--line); border-radius: 999px; color: var(--muted); }
+  footer { text-align:center; padding: 0 24px 70px; color: var(--muted); font-size: 13px; }
+  .dash { stroke-dasharray: 4 8; animation: flow 1.4s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -24; } }
+  .dash-s { stroke-dasharray: 3 7; animation: flow2 2s linear infinite; }
+  @keyframes flow2 { to { stroke-dashoffset: -40; } }
+  .pulse { animation: pulse 1.8s ease-in-out infinite; transform-origin: center; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  .spin { transform-origin: 100px 90px; animation: spin 14s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .travel { animation: travel 3.2s ease-in-out infinite; }
+  @keyframes travel { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">shiori · node-graph studies</div>
+  <h1 class="mono">graph( shiori )</h1>
+  <p>点＝スポット、線＝移動。ノードグラフの一貫した語彙で、モノグラム／ハブ／標高／軌道など8バリエーション。</p>
+</header>
+
+<div class="grid">
+
+  <!-- 1. refined route DAG -->
+  <div class="card">
+    <div class="stage">
+      <svg width="290" height="150" viewBox="0 0 290 150">
+        <defs><linearGradient id="a1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a06bff"/></linearGradient></defs>
+        <path class="dash" d="M34 104 L96 58 L156 88 L214 44 L260 78" fill="none" stroke="url(#a1)" stroke-width="2.5" stroke-linecap="round"/>
+        <g fill="#0b0f1a" stroke="url(#a1)" stroke-width="2.5">
+          <circle cx="34" cy="104" r="8"/><circle cx="96" cy="58" r="8"/><circle cx="156" cy="88" r="8"/><circle cx="214" cy="44" r="8"/><circle cx="260" cy="78" r="8"/>
+        </g>
+        <circle cx="34" cy="104" r="3.5" fill="#22d3ee"/><circle cx="260" cy="78" r="3.5" fill="#a06bff"/>
+        <text x="145" y="138" text-anchor="middle" class="mono" font-size="17" fill="#8a97b4" letter-spacing="4">shiori</text>
+      </svg>
+    </div>
+    <div class="meta">
+      <div class="no mono">GRAPH_01</div>
+      <h2>ルートDAG（原案の洗練版）</h2>
+      <p>始点＝シアン、終点＝バイオレットで方向を明示。5ノードで旅程の起伏を表現。最も汎用。</p>
+      <div class="tags"><span class="tag">route</span><span class="tag">directed</span><span class="tag">animated</span></div>
+    </div>
+  </div>
+
+  <!-- 2. constellation S monogram -->
+  <div class="card">
+    <div class="stage">
+      <svg width="180" height="180" viewBox="0 0 180 180">
+        <defs><linearGradient id="a2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f7cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+        <!-- S-shaped node path -->
+        <path class="dash-s" d="M126 52 L86 46 L58 66 L86 90 L120 104 L92 128 L54 122"
+              fill="none" stroke="url(#a2)" stroke-width="2.5" stroke-linecap="round"/>
+        <g fill="#0b0f1a" stroke="url(#a2)" stroke-width="2.5">
+          <circle cx="126" cy="52" r="7"/><circle cx="86" cy="46" r="7"/><circle cx="58" cy="66" r="7"/>
+          <circle cx="86" cy="90" r="7"/><circle cx="120" cy="104" r="7"/><circle cx="92" cy="128" r="7"/><circle cx="54" cy="122" r="7"/>
+        </g>
+        <circle class="pulse" cx="86" cy="90" r="3.5" fill="#22d3ee"/>
+      </svg>
+    </div>
+    <div class="meta">
+      <div class="no mono">GRAPH_02</div>
+      <h2>コンステレーション「S」</h2>
+      <p>ノードとエッジで頭文字 S を星座のように描くモノグラム。単体アプリアイコンとして成立。</p>
+      <div class="tags"><span class="tag">monogram</span><span class="tag">app-icon</span><span class="tag">constellation</span></div>
+    </div>
+  </div>
+
+  <!-- 3. hub & spoke -->
+  <div class="card">
+    <div class="stage">
+      <svg width="220" height="170" viewBox="0 0 220 170">
+        <defs><radialGradient id="a3" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#a06bff"/><stop offset="1" stop-color="#4f7cff"/></radialGradient></defs>
+        <g stroke="#2c3c66" stroke-width="2">
+          <line x1="110" y1="80" x2="48" y2="44"/><line x1="110" y1="80" x2="176" y2="40"/>
+          <line x1="110" y1="80" x2="40" y2="108"/><line x1="110" y1="80" x2="182" y2="112"/>
+          <line x1="110" y1="80" x2="110" y2="30"/><line x1="110" y1="80" x2="86" y2="126"/>
+        </g>
+        <g fill="#0b0f1a" stroke="#22d3ee" stroke-width="2.5">
+          <circle cx="48" cy="44" r="6"/><circle cx="176" cy="40" r="6"/><circle cx="40" cy="108" r="6"/>
+          <circle cx="182" cy="112" r="6"/><circle cx="110" cy="30" r="6"/><circle cx="86" cy="126" r="6"/>
+        </g>
+        <circle cx="110" cy="80" r="13" fill="url(#a3)"/>
+        <rect x="105" y="72" width="10" height="16" rx="1.5" fill="#0b0f1a"/>
+        <path d="M105 88 v5 l5 -3 5 3 v-5 z" fill="#0b0f1a"/>
+        <text x="110" y="158" text-anchor="middle" class="mono" font-size="15" fill="#8a97b4" letter-spacing="5">shiori</text>
+      </svg>
+    </div>
+    <div class="meta">
+      <div class="no mono">GRAPH_03</div>
+      <h2>ハブ&スポーク（拠点型）</h2>
+      <p>中心ハブ（栞スリット入り）から候補スポットへ放射。「拠点から巡る」旅の計画を象徴。</p>
+      <div class="tags"><span class="tag">hub</span><span class="tag">radial</span><span class="tag">planning</span></div>
+    </div>
+  </div>
+
+  <!-- 4. elevation profile graph (alps) -->
+  <div class="card">
+    <div class="stage">
+      <svg width="290" height="150" viewBox="0 0 290 150">
+        <defs>
+          <linearGradient id="a4" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9be34a"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+          <linearGradient id="a4f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".25"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient>
+        </defs>
+        <path d="M28 110 L74 60 L112 84 L156 34 L206 74 L262 50 L262 118 L28 118 Z" fill="url(#a4f)"/>
+        <path class="dash" d="M28 110 L74 60 L112 84 L156 34 L206 74 L262 50" fill="none" stroke="url(#a4)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <g fill="#0b0f1a" stroke="url(#a4)" stroke-width="2.5">
+          <circle cx="74" cy="60" r="6"/><circle cx="156" cy="34" r="7"/><circle cx="262" cy="50" r="6"/>
+        </g>
+        <circle cx="156" cy="34" r="3" fill="#9be34a"/>
+        <text x="145" y="140" text-anchor="middle" class="mono" font-size="16" fill="#8a97b4" letter-spacing="4">shiori</text>
+      </svg>
+    </div>
+    <div class="meta">
+      <div class="no mono">GRAPH_04</div>
+      <h2>標高プロファイル・グラフ</h2>
+      <p>ノードを山の稜線に沿わせた高低グラフ。アルプス旅らしさと、データ可視化の質感を両立。</p>
+      <div class="tags"><span class="tag">elevation</span><span class="tag">alps</span><span class="tag">chart</span></div>
+    </div>
+  </div>
+
+  <!-- 5. force cluster + highlighted path -->
+  <div class="card">
+    <div class="stage">
+      <svg width="260" height="170" viewBox="0 0 260 170">
+        <defs><linearGradient id="a5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a06bff"/></linearGradient></defs>
+        <g stroke="#233152" stroke-width="1.5">
+          <line x1="60" y1="52" x2="118" y2="44"/><line x1="118" y1="44" x2="176" y2="70"/>
+          <line x1="60" y1="52" x2="86" y2="104"/><line x1="86" y1="104" x2="150" y2="120"/>
+          <line x1="176" y1="70" x2="150" y2="120"/><line x1="118" y1="44" x2="86" y2="104"/>
+          <line x1="150" y1="120" x2="206" y2="96"/><line x1="176" y1="70" x2="206" y2="96"/>
+        </g>
+        <!-- highlighted route -->
+        <path class="dash" d="M60 52 L118 44 L176 70 L206 96" fill="none" stroke="url(#a5)" stroke-width="3" stroke-linecap="round"/>
+        <g fill="#0e1420" stroke="#2c3c66" stroke-width="1.5">
+          <circle cx="86" cy="104" r="5"/><circle cx="150" cy="120" r="5"/>
+        </g>
+        <g fill="#0b0f1a" stroke="url(#a5)" stroke-width="2.5">
+          <circle cx="60" cy="52" r="7"/><circle cx="118" cy="44" r="7"/><circle cx="176" cy="70" r="7"/><circle cx="206" cy="96" r="7"/>
+        </g>
+        <text x="130" y="158" text-anchor="middle" class="mono" font-size="15" fill="#8a97b4" letter-spacing="5">shiori</text>
+      </svg>
+    </div>
+    <div class="meta">
+      <div class="no mono">GRAPH_05</div>
+      <h2>フォースクラスタ + 経路ハイライト</h2>
+      <p>候補全体のネットワークから、選んだ旅程だけを発光ラインで抽出。「候補→確定」の体験を表現。</p>
+      <div class="tags"><span class="tag">cluster</span><span class="tag">highlight</span><span class="tag">graph</span></div>
+    </div>
+  </div>
+
+  <!-- 6. orbital ring -->
+  <div class="card">
+    <div class="stage">
+      <svg width="200" height="180" viewBox="0 0 200 180">
+        <defs><linearGradient id="a6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f7cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+        <circle cx="100" cy="90" r="52" fill="none" stroke="#233152" stroke-width="1.5"/>
+        <g class="spin">
+          <polygon points="100,38 145,64 145,116 100,142 55,116 55,64" fill="none" stroke="url(#a6)" stroke-width="2" opacity=".5"/>
+          <g fill="#0b0f1a" stroke="url(#a6)" stroke-width="2.5">
+            <circle cx="100" cy="38" r="6"/><circle cx="145" cy="64" r="6"/><circle cx="145" cy="116" r="6"/>
+            <circle cx="100" cy="142" r="6"/><circle cx="55" cy="116" r="6"/><circle cx="55" cy="64" r="6"/>
+          </g>
+        </g>
+        <circle cx="100" cy="90" r="11" fill="url(#a6)"/>
+        <rect x="96" y="83" width="8" height="14" rx="1.5" fill="#0b0f1a"/>
+        <path d="M96 97 v4 l4 -2.5 4 2.5 v-4 z" fill="#0b0f1a"/>
+      </svg>
+    </div>
+    <div class="meta">
+      <div class="no mono">GRAPH_06</div>
+      <h2>軌道リング（周遊）</h2>
+      <p>中心の栞コアを、ノードがゆっくり周回。周遊ルート＝ぐるっと巡る旅を回転で表現するアイコン。</p>
+      <div class="tags"><span class="tag">orbit</span><span class="tag">loop</span><span class="tag">animated</span></div>
+    </div>
+  </div>
+
+  <!-- 7. isometric mesh -->
+  <div class="card">
+    <div class="stage">
+      <svg width="240" height="170" viewBox="0 0 240 170">
+        <defs><linearGradient id="a7" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a06bff"/></linearGradient></defs>
+        <g stroke="#2c3c66" stroke-width="1.5">
+          <line x1="70" y1="52" x2="150" y2="40"/><line x1="150" y1="40" x2="196" y2="78"/>
+          <line x1="70" y1="52" x2="52" y2="108"/><line x1="52" y1="108" x2="128" y2="120"/>
+          <line x1="196" y1="78" x2="128" y2="120"/><line x1="150" y1="40" x2="128" y2="120"/>
+        </g>
+        <!-- raised route with vertical stems (iso depth) -->
+        <g stroke="#1a2440" stroke-width="1.5"><line x1="70" y1="52" x2="70" y2="70"/><line x1="150" y1="40" x2="150" y2="58"/><line x1="196" y1="78" x2="196" y2="96"/><line x1="128" y1="120" x2="128" y2="138"/></g>
+        <path class="dash" d="M70 52 L150 40 L196 78 L128 120" fill="none" stroke="url(#a7)" stroke-width="2.5" stroke-linecap="round"/>
+        <g fill="#0b0f1a" stroke="url(#a7)" stroke-width="2.5">
+          <circle cx="70" cy="52" r="6.5"/><circle cx="150" cy="40" r="6.5"/><circle cx="196" cy="78" r="6.5"/><circle cx="128" cy="120" r="6.5"/>
+        </g>
+        <text x="120" y="158" text-anchor="middle" class="mono" font-size="15" fill="#8a97b4" letter-spacing="5">shiori</text>
+      </svg>
+    </div>
+    <div class="meta">
+      <div class="no mono">GRAPH_07</div>
+      <h2>アイソメトリック・メッシュ</h2>
+      <p>ノードに立ち上げ（stem）を付けて奥行きを演出。3D的で、地図レイヤーの重なりを想起させる。</p>
+      <div class="tags"><span class="tag">isometric</span><span class="tag">depth</span><span class="tag">mesh</span></div>
+    </div>
+  </div>
+
+  <!-- 8. timeline DAG (days) -->
+  <div class="card">
+    <div class="stage">
+      <svg width="290" height="160" viewBox="0 0 290 160">
+        <defs><linearGradient id="a8" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9be34a"/><stop offset="1" stop-color="#a06bff"/></linearGradient></defs>
+        <path class="dash" d="M34 84 H92" fill="none" stroke="url(#a8)" stroke-width="2.5"/>
+        <path class="dash" d="M92 84 H150" fill="none" stroke="url(#a8)" stroke-width="2.5"/>
+        <path class="dash" d="M150 84 L206 56" fill="none" stroke="url(#a8)" stroke-width="2.5"/>
+        <path class="dash" d="M150 84 L206 112" fill="none" stroke="url(#a8)" stroke-width="2.5" opacity=".55"/>
+        <path class="dash" d="M206 56 L258 84" fill="none" stroke="url(#a8)" stroke-width="2.5"/>
+        <g fill="#0b0f1a" stroke="url(#a8)" stroke-width="2.5">
+          <circle cx="34" cy="84" r="8"/><circle cx="92" cy="84" r="8"/><circle cx="150" cy="84" r="8"/>
+          <circle cx="206" cy="56" r="8"/><circle cx="206" cy="112" r="8"/><circle cx="258" cy="84" r="8"/>
+        </g>
+        <g class="mono" font-size="10" fill="#8a97b4" text-anchor="middle">
+          <text x="34" y="112">D1</text><text x="92" y="112">D2</text><text x="150" y="112">D3</text><text x="258" y="112">D5</text>
+        </g>
+        <text x="150" y="146" text-anchor="middle" class="mono" font-size="16" fill="#e7ecf7" letter-spacing="4">shiori</text>
+      </svg>
+    </div>
+    <div class="meta">
+      <div class="no mono">GRAPH_08</div>
+      <h2>タイムラインDAG（Day分岐）</h2>
+      <p>Day1→Day5 を左→右に並べ、選択肢を分岐で表現。日程エディタというプロダクト機能を直接ロゴ化。</p>
+      <div class="tags"><span class="tag">timeline</span><span class="tag">days</span><span class="tag">branch</span></div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="mono">
+  // 好みの GRAPH 番号を教えてください → favicon / app-icon / header の本実装へ
+</footer>
+</body>
+</html>

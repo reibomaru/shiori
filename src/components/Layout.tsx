@@ -20,6 +20,7 @@ import { useAuth } from "./AuthGate";
 import { useProject } from "../project";
 import { Logo } from "./Logo";
 import { Avatar } from "./Avatar";
+import { Tooltip } from "./Tooltip";
 import ProfileDialog from "./ProfileDialog";
 import { displayNameOf } from "../api";
 import { yen } from "../itemMeta";
@@ -190,14 +191,15 @@ export default function Layout() {
               <Avatar src={me.avatarUrl} name={me.displayName ?? me.name} email={me.email} size={28} />
               <span className="min-w-0 flex-1 truncate text-xs text-cyan-50/90">{displayNameOf(me)}</span>
             </button>
-            <button
-              onClick={() => void logout()}
-              aria-label="ログアウト"
-              title="ログアウト"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <FaArrowRightFromBracket size={14} />
-            </button>
+            <Tooltip label="ログアウト" side="top">
+              <button
+                onClick={() => void logout()}
+                aria-label="ログアウト"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <FaArrowRightFromBracket size={14} />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </aside>

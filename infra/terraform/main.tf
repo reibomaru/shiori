@@ -19,6 +19,8 @@ resource "google_project_service" "services" {
     "sts.googleapis.com",
     "storage.googleapis.com",
     "firestore.googleapis.com", # users 台帳（利用許可フラグ）
+    "compute.googleapis.com",   # 外部 HTTPS LB（serverless NEG・managed cert）
+    "dns.googleapis.com",       # Cloud DNS マネージドゾーン
   ])
   service            = each.value
   disable_on_destroy = false

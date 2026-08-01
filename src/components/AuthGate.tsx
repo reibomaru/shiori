@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { FaGoogle } from "react-icons/fa6";
 import { api, type Me } from "../api";
+import { Logo } from "./Logo";
 
 interface AuthCtx {
   me: Me;
@@ -21,7 +22,11 @@ function LoginScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-cyan-800 to-blue-900 p-6 text-white">
       <div className="w-full max-w-sm rounded-2xl bg-white/10 p-8 text-center shadow-xl backdrop-blur">
-        <h1 className="mb-2 text-2xl font-bold">旅のしおり</h1>
+        <div className="mb-4 flex items-center justify-center gap-2.5 text-white">
+          <Logo size={40} />
+          <span className="text-3xl font-bold lowercase tracking-wide">shiori</span>
+        </div>
+        <h1 className="mb-2 text-lg font-semibold">旅のしおり</h1>
         <p className="mb-8 text-sm text-white/80">Google アカウントでログインして、あなたの旅程を作成しましょう。</p>
         {/* トップレベル遷移で OAuth を開始する（fetch ではない）。 */}
         <a

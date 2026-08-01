@@ -2,10 +2,15 @@
 //  ユーザー台帳 + Firestore クライアント。
 //
 //  認証（Google SSO）で解決した Google `sub` をキーに、ユーザーの
-//  プロフィール（email/name とロール、表示名・アバター）を Firestore の
-//  users コレクションで管理する。ログインはオープン（誰でも可）で、アクセス
-//  境界はプロジェクトメンバーシップ（server/projects.ts）が担う。role は
-//  将来のプラットフォーム管理用に保持する（現状は未使用）。
+//  プロフィール（email/name とロール、表示名・アバター）と利用許可（allowed）を
+//  Firestore の users コレクションで管理する。ログインは許可制: 新規ユーザーは
+//  allowed=false（承認待ち）で登録され、承認（allowed=true）されるまでアプリを
+//  使えない。承認済みユーザーの中で、どのプロジェクトを見られるかはプロジェクト
+//  メンバーシップ（server/projects.ts）が担う。role は将来のプラットフォーム
+//  管理用に保持する（現状は未使用）。
+//
+//  承認は Firestore の該当ドキュメントを allowed=true にする
+//  （初期は GCP コンソール / gcloud で直接編集）。
 //
 //  プロフィール（displayName / avatar）は本人が随時編集でき、/auth/me が
 //  毎回読み出して反映する（セッション JWT は再発行しない）。
@@ -26,6 +31,8 @@ export interface UserRecord {
   sub: string;
   email: string;
   name: string;
+  /** アプリの利用許可（承認制）。新規は false、承認で true。 */
+  allowed: boolean;
   role: Role;
   /** 本人が設定した表示名（未設定なら name を使う）。 */
   displayName?: string;
@@ -46,6 +53,7 @@ function toUserRecord(id: string, x: Record<string, unknown>): UserRecord {
     sub: id,
     email: typeof x.email === "string" ? x.email : "",
     name: typeof x.name === "string" ? x.name : "",
+    allowed: x.allowed === true,
     role: toRole(x.role),
     displayName: typeof x.displayName === "string" ? x.displayName : undefined,
     picture: typeof x.picture === "string" ? x.picture : undefined,
@@ -72,10 +80,10 @@ export function firestore(): Firestore {
 }
 
 /**
- * ログイン時に users を JIT upsert し、ロールを返す。
- * - 新規: role=user で作成。
- * - 既存: email / name / picture / updatedAt を更新し、既存の role を返す。
- * オープンログインなので利用可否ゲートは無い（アクセス境界はプロジェクト側）。
+ * ログイン時に users を JIT upsert し、利用許可とロールを返す。
+ * - 新規: allowed=false（承認待ち）/ role=user で作成。
+ * - 既存: email / name / picture / updatedAt を更新し、既存の allowed / role を返す。
+ * 利用可否は「ログイン時のみ」判定する（server/auth.ts のコールバック）。
  */
 export async function upsertUserOnLogin(
   sub: string,
@@ -89,7 +97,7 @@ export async function upsertUserOnLogin(
   const pic = picture ? { picture } : {};
 
   if (!snap.exists) {
-    const doc = { sub, email, name, role: "user", createdAt: now, updatedAt: now, ...pic };
+    const doc = { sub, email, name, allowed: false, role: "user", createdAt: now, updatedAt: now, ...pic };
     await ref.set(doc);
     return toUserRecord(sub, doc);
   }

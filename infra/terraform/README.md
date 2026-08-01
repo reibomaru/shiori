@@ -62,10 +62,11 @@ openssl rand -hex 32 | gcloud secrets versions add SESSION_SECRET --data-file=-
 
 > **OAuth クライアント**: GCP コンソール「API とサービス → 認証情報」で OAuth 2.0 クライアント（Web）を作成し、
 > 承認済みリダイレクト URI に `<本番の origin>/auth/google` を登録する。
-> **アクセス境界（オープンログイン + プロジェクト招待）**: ログインは Google アカウントなら誰でも可。
-> データはプロジェクト単位（`data/{projectId}/travel.db`）に分離され、参加は**メール招待**（Firestore
-> `projects.memberEmails`）。ログインユーザーは自分がメンバーのプロジェクトのみ閲覧・編集できる。
-> Firestore の `users`（プロフィール）/ `projects`（名前・オーナー・メンバー）で管理する。
+> **アクセス境界（許可制ログイン + プロジェクト招待）**: ログインは**許可制**。新規ユーザーは Firestore
+> `users` に `allowed=false`（承認待ち）で登録され、`allowed=true`（初期は GCP コンソール / gcloud で直接編集）
+> にするまでアプリを使えない。承認済みユーザーの中で、データはプロジェクト単位
+> （`data/{projectId}/travel.db`）に分離され、参加は**メール招待**（Firestore `projects.memberEmails`）。
+> 各ユーザーは自分がメンバーのプロジェクトのみ閲覧・編集できる。
 
 ### 5. GitHub Actions 用の Variables を設定
 

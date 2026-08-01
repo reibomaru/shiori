@@ -25,6 +25,20 @@ const SESSIONS_ROOT = process.env.AGENT_SESSIONS_DIR || join(ROOT, "data", "agen
 // 同時に開いておく DB 接続の上限（超えたら最も古いものから close）。
 const MAX_OPEN_DBS = Number(process.env.MAX_OPEN_DBS || 50);
 
+// 旧シングルテナント DB（Litestream 管理下の TRAVEL_DB）を、この Google `sub` の
+// ユーザーの DB として引き継ぐ（既存データの移行 + 既存 Litestream で永続化）。
+// per-user DB の永続化が入るまでの暫定措置。未設定なら通常どおり per-user パス。
+const LEGACY_DB_USER_SUB = process.env.LEGACY_DB_USER_SUB || "";
+const LEGACY_DB_PATH = process.env.TRAVEL_DB || "";
+
+/** 指定ユーザーの DB ファイルパスを解決する（legacy 指定なら旧 DB を返す）。 */
+function resolveUserDbPath(id: string): string {
+  if (LEGACY_DB_USER_SUB && LEGACY_DB_PATH && id === LEGACY_DB_USER_SUB) {
+    return LEGACY_DB_PATH;
+  }
+  return join(resolveRoot(DATA_ROOT), id, "travel.db");
+}
+
 /** userId として許可する文字。Google `sub` は数字列なので十分。 */
 const VALID_USER_ID = /^[A-Za-z0-9_-]+$/;
 
@@ -62,7 +76,7 @@ export function getUserDb(userId: string): DatabaseSync {
     return cached;
   }
 
-  const path = join(resolveRoot(DATA_ROOT), id, "travel.db");
+  const path = resolveUserDbPath(id);
   const db = openDb(path); // 親ディレクトリ作成 + schema.sql + baseline 記録
   applyPending(db); // 0004 以降の未適用マイグレーションを適用（新規/既存とも最新化）
   dbCache.set(id, db);

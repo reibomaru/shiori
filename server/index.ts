@@ -391,7 +391,7 @@ async function reverseGeocode(lon: number, lat: number) {
     const base = (process.env.PHOTON_URL || "https://photon.komoot.io").replace(/\/$/, "");
     const lang = process.env.PHOTON_LANG || "en";
     const res = await fetch(`${base}/reverse?lon=${lon}&lat=${lat}&lang=${lang}`, {
-      headers: { "User-Agent": "honeymoon-shiori/1.0" },
+      headers: { "User-Agent": "shiori/1.0" },
     });
     if (!res.ok) return null;
     const d: any = await res.json();
@@ -419,7 +419,7 @@ app.get("/api/osrm", async (c) => {
   // steps=true で各ステップの道路名を取得し、候補を区別できる「主な経路」を作る。
   // 経由地を固定すると alternatives が減る（候補が 1 本になりうる）点は許容。
   const url = `${base}/route/v1/${profile}/${coordStr}?alternatives=3&overview=full&geometries=geojson&steps=true`;
-  const res = await fetch(url, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
+  const res = await fetch(url, { headers: { "User-Agent": "shiori/1.0" } });
   if (!res.ok) return c.json({ error: `OSRM ${res.status}` }, 502);
   const data: any = await res.json();
   if (data.code && data.code !== "Ok") return c.json({ error: data.code, routes: [] });
@@ -477,7 +477,7 @@ async function geocodePhoton(
     params.set("lon", bias.lon);
   }
   for (const t of tags) params.append("osm_tag", t);
-  const res = await fetch(`${base}/api/?${params}`, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
+  const res = await fetch(`${base}/api/?${params}`, { headers: { "User-Agent": "shiori/1.0" } });
   if (!res.ok) throw new Error(`geocode ${res.status}`);
   const data: any = await res.json();
   return (data.features || [])
@@ -521,7 +521,7 @@ async function geocodeNominatim(
       params.set("bounded", "0");
     }
   }
-  const res = await fetch(`${base}/search?${params}`, { headers: { "User-Agent": "honeymoon-shiori/1.0" } });
+  const res = await fetch(`${base}/search?${params}`, { headers: { "User-Agent": "shiori/1.0" } });
   if (!res.ok) throw new Error(`geocode ${res.status}`);
   const data: any = await res.json();
   // OSM タグ（例: aeroway:aerodrome）指定時は class/type で絞り込む。

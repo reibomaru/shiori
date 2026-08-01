@@ -18,7 +18,7 @@ variable "service_name" {
 variable "github_repository" {
   type        = string
   description = "GitHub Actions からの Workload Identity 連携を許可するリポジトリ（owner/repo）。"
-  default     = "reibomaru/travel-plans"
+  default     = "reibomaru/shiori"
 }
 
 variable "placeholder_image" {

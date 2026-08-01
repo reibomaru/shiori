@@ -18,6 +18,7 @@ import {
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
 import { useAuth } from "./AuthGate";
+import { Logo } from "./Logo";
 import { yen } from "../itemMeta";
 import type { Day, TripMeta } from "../types";
 
@@ -71,6 +72,7 @@ export default function Layout() {
         >
           <FaBars size={18} />
         </button>
+        <Logo size={22} className="shrink-0" />
         <h1 className="min-w-0 flex-1 truncate text-sm font-bold">{data?.trip?.title ?? "しおり"}</h1>
         <button
           onClick={() => window.print()}
@@ -118,7 +120,10 @@ export default function Layout() {
           >
             <TbLayoutSidebarLeftCollapse size={20} />
           </button>
-          <p className="text-[10px] uppercase tracking-widest text-cyan-200/70">open-expedia</p>
+          <div className="flex items-center gap-2 text-white">
+            <Logo size={24} />
+            <span className="text-sm font-semibold lowercase tracking-wide">shiori</span>
+          </div>
           <h1 className="mt-1 text-base font-bold leading-snug">{data?.trip?.title ?? "しおり"}</h1>
           {data?.trip && (
             <dl className="mt-3 space-y-1.5 text-xs text-cyan-50/80">

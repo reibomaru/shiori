@@ -17,7 +17,7 @@ import type { Context, Hono, MiddlewareHandler } from "hono";
 import { googleAuth } from "@hono/oauth-providers/google";
 import { sign, verify } from "hono/jwt";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { upsertUserOnLogin } from "./users.ts";
+import { upsertUserOnLogin, type Role } from "./users.ts";
 
 const SESSION_COOKIE = "session";
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -29,6 +29,7 @@ interface SessionClaims {
   sub: string;
   email: string;
   name: string;
+  role: Role;
   exp: number;
 }
 
@@ -42,9 +43,13 @@ function pendingHtml(email: string): string {
 }
 
 /** JWT を署名して session Cookie にセットする。 */
-async function issueSession(c: Context, user: { sub: string; email: string; name: string }): Promise<void> {
+async function issueSession(c: Context, user: { sub: string; email: string; name: string; role: Role }): Promise<void> {
   const exp = Math.floor(Date.now() / 1000) + SESSION_TTL_SEC;
-  const token = await sign({ sub: user.sub, email: user.email, name: user.name, exp }, SESSION_SECRET, "HS256");
+  const token = await sign(
+    { sub: user.sub, email: user.email, name: user.name, role: user.role, exp },
+    SESSION_SECRET,
+    "HS256",
+  );
   setCookie(c, SESSION_COOKIE, token, {
     httpOnly: true,
     secure: IS_PROD,
@@ -75,6 +80,16 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
   c.set("userId", String(s.sub));
   c.set("userEmail", s.email ?? "");
   c.set("userName", s.name ?? "");
+  c.set("userRole", s.role === "admin" ? "admin" : "user");
+  return next();
+};
+
+/**
+ * 管理者必須ミドルウェア（/api/admin/* に適用）。requireAuth の後段で使う。
+ * ロールはログイン時に確定した JWT 由来（判定はログイン時のみの方針）。
+ */
+export const requireAdmin: MiddlewareHandler = async (c, next) => {
+  if (c.get("userRole") !== "admin") return c.json({ error: "forbidden" }, 403);
   return next();
 };
 
@@ -88,7 +103,7 @@ export function registerAuthRoutes(app: Hono): void {
   app.get("/auth/me", async (c) => {
     const s = await getSession(c);
     if (!s) return c.json({ error: "unauthenticated" }, 401);
-    return c.json({ email: s.email, name: s.name });
+    return c.json({ email: s.email, name: s.name, role: s.role === "admin" ? "admin" : "user" });
   });
 
   // ---- ログアウト（Cookie 破棄）----
@@ -102,10 +117,12 @@ export function registerAuthRoutes(app: Hono): void {
   if (!IS_PROD && process.env.DEV_LOGIN_SUB) {
     app.get("/auth/dev-login", async (c) => {
       const sub = process.env.DEV_LOGIN_SUB as string;
+      // 管理者画面もオフラインで検証できるよう既定は admin（DEV_LOGIN_ROLE=user で切替）。
       await issueSession(c, {
         sub,
         email: process.env.DEV_LOGIN_EMAIL || `${sub}@example.com`,
         name: process.env.DEV_LOGIN_NAME || "Dev User",
+        role: process.env.DEV_LOGIN_ROLE === "user" ? "user" : "admin",
       });
       return c.redirect("/");
     });
@@ -145,7 +162,7 @@ export function registerAuthRoutes(app: Hono): void {
       if (!user.allowed) {
         return c.html(pendingHtml(email), 403);
       }
-      await issueSession(c, { sub: String(sub), email, name: gUser.name || email });
+      await issueSession(c, { sub: String(sub), email, name: gUser.name || email, role: user.role });
       return c.redirect("/");
     });
   } else {

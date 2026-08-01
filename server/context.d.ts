@@ -12,6 +12,8 @@ declare module "hono" {
     userEmail: string;
     /** 表示用の名前。 */
     userName: string;
+    /** ログイン時に確定したロール（admin/user）。JWT 由来。 */
+    userRole: "admin" | "user";
     /** このリクエストのユーザーの DB ハンドル（data/{userId}/travel.db）。 */
     db: DatabaseSync;
     /** このリクエストのユーザーの会話セッション dir（agent-sessions/{userId}）。 */

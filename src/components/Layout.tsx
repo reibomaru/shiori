@@ -13,6 +13,7 @@ import {
   FaBars,
   FaCircleUser,
   FaArrowRightFromBracket,
+  FaUserShield,
 } from "react-icons/fa6";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
@@ -40,6 +41,8 @@ export default function Layout() {
   const { data, error } = useTrip();
   const { me, logout } = useAuth();
   const { pathname } = useLocation();
+  // 管理者のみ「管理」メニューを出す。
+  const navItems = me.role === "admin" ? [...NAV, { to: "/admin", label: "管理", Icon: FaUserShield }] : NAV;
   // 地図・候補・旅程（ビルダー）・メモ詳細（AI 編集パネル併設）は全画面（余白なし）。
   // メモ一覧(/memo)は従来どおり中央寄せ。詳細(/memo/:id)のみ全画面にする。
   const fullBleed =
@@ -136,7 +139,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {NAV.map(({ to, label, Icon }) => (
+          {navItems.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}

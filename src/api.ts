@@ -54,10 +54,24 @@ export interface OsrmRoute {
   waypoints?: string[]; // 通過する町名（逆ジオコード）
 }
 
+/** ユーザーのロール。 */
+export type Role = "admin" | "user";
+
 /** ログイン中のユーザー情報（/auth/me）。 */
 export interface Me {
   email: string;
   name: string;
+  role: Role;
+}
+
+/** 管理者画面で扱う users 台帳の 1 行。 */
+export interface AdminUser {
+  sub: string;
+  email: string;
+  name: string;
+  allowed: boolean;
+  role: Role;
+  updatedAt?: string;
 }
 
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
@@ -89,6 +103,11 @@ export const api = {
     return (await res.json()) as Me;
   },
   logout: () => fetch("/auth/logout", { method: "POST", credentials: "same-origin" }),
+
+  // ---- 管理者（admin ロールのみ）----
+  listUsers: () => http<AdminUser[]>("/api/admin/users", "GET"),
+  updateUser: (sub: string, patch: { allowed?: boolean; role?: Role }) =>
+    http<AdminUser>(`/api/admin/users/${encodeURIComponent(sub)}`, "PATCH", patch),
 
   getTrip: () => http<TripPayload>("/api/trip", "GET"),
 

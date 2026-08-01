@@ -62,9 +62,12 @@ openssl rand -hex 32 | gcloud secrets versions add SESSION_SECRET --data-file=-
 
 > **OAuth クライアント**: GCP コンソール「API とサービス → 認証情報」で OAuth 2.0 クライアント（Web）を作成し、
 > 承認済みリダイレクト URI に `<本番の origin>/auth/google` を登録する。
-> **利用許可（招待制）**: Firestore の `users` コレクション（doc id = Google `sub`）の `allowed` フラグで管理する。
-> 初回ログインで `allowed=false` のドキュメントが自動作成されるので、承認するユーザーは
-> GCP コンソール（Firestore）/ gcloud で `allowed=true` に更新する。
+> **利用許可 / ロール（招待制）**: Firestore の `users` コレクション（doc id = Google `sub`）で管理する。
+> 初回ログインで `{ allowed:false, role:"user" }` のドキュメントが自動作成される。承認は `allowed=true`、
+> 管理者にするには `role="admin"` にする。
+> **最初の管理者**は Firestore コンソール / gcloud で自分のドキュメントを `role="admin"` + `allowed=true` に
+> seed する（以降は管理者画面 `/admin` から他ユーザーの許可・ロールを変更できる）。変更は対象ユーザーの
+> 次回ログインで反映される。
 
 ### 5. GitHub Actions 用の Variables を設定
 

@@ -18,12 +18,22 @@ import { Firestore } from "@google-cloud/firestore";
 
 const COLLECTION = process.env.FIRESTORE_USERS_COLLECTION || "users";
 
+/** ユーザーのロール。admin は管理者画面で他ユーザーを操作できる。 */
+export type Role = "admin" | "user";
+
 /** users ドキュメント（KV 的な 1 レコード）。 */
 export interface UserRecord {
   sub: string;
   email: string;
   name: string;
   allowed: boolean;
+  role: Role;
+  updatedAt?: string;
+}
+
+/** 不明値を安全に Role へ丸める（既定 user）。 */
+function toRole(v: unknown): Role {
+  return v === "admin" ? "admin" : "user";
 }
 
 let _fs: Firestore | null = null;
@@ -39,9 +49,10 @@ function fs(): Firestore {
 }
 
 /**
- * 初回ログイン時に users を JIT 登録し、その利用許可状態を返す。
- * - 新規: allowed=false（承認待ち）で作成する。
- * - 既存: email / name / updatedAt を更新し、既存の allowed をそのまま返す。
+ * 初回ログイン時に users を JIT 登録し、その利用許可状態とロールを返す。
+ * - 新規: allowed=false（承認待ち）/ role=user で作成する。
+ * - 既存: email / name / updatedAt を更新し、既存の allowed / role をそのまま返す。
+ *   （allowed / role は管理者画面 or 直接編集でのみ変わる）
  */
 export async function upsertUserOnLogin(sub: string, email: string, name: string): Promise<UserRecord> {
   const ref = fs().collection(COLLECTION).doc(sub);
@@ -49,11 +60,54 @@ export async function upsertUserOnLogin(sub: string, email: string, name: string
   const now = new Date().toISOString();
 
   if (!snap.exists) {
-    await ref.set({ sub, email, name, allowed: false, createdAt: now, updatedAt: now });
-    return { sub, email, name, allowed: false };
+    await ref.set({ sub, email, name, allowed: false, role: "user", createdAt: now, updatedAt: now });
+    return { sub, email, name, allowed: false, role: "user" };
   }
 
   const data = snap.data() ?? {};
   await ref.set({ email, name, updatedAt: now }, { merge: true });
-  return { sub, email, name, allowed: data.allowed === true };
+  return { sub, email, name, allowed: data.allowed === true, role: toRole(data.role) };
+}
+
+/** 全ユーザーを一覧する（管理者画面用・更新の新しい順）。 */
+export async function listUsers(): Promise<UserRecord[]> {
+  const snap = await fs().collection(COLLECTION).get();
+  return snap.docs
+    .map((d): UserRecord => {
+      const x = d.data();
+      return {
+        sub: d.id,
+        email: typeof x.email === "string" ? x.email : "",
+        name: typeof x.name === "string" ? x.name : "",
+        allowed: x.allowed === true,
+        role: toRole(x.role),
+        updatedAt: typeof x.updatedAt === "string" ? x.updatedAt : undefined,
+      };
+    })
+    .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+}
+
+/** 管理者操作: 指定ユーザーの allowed / role を更新する（存在必須）。 */
+export async function setUserFlags(
+  sub: string,
+  patch: { allowed?: boolean; role?: Role },
+): Promise<UserRecord | null> {
+  const ref = fs().collection(COLLECTION).doc(sub);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+
+  const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  if (typeof patch.allowed === "boolean") update.allowed = patch.allowed;
+  if (patch.role === "admin" || patch.role === "user") update.role = patch.role;
+  await ref.set(update, { merge: true });
+
+  const x = { ...(snap.data() ?? {}), ...update };
+  return {
+    sub,
+    email: typeof x.email === "string" ? x.email : "",
+    name: typeof x.name === "string" ? x.name : "",
+    allowed: x.allowed === true,
+    role: toRole(x.role),
+    updatedAt: typeof x.updatedAt === "string" ? x.updatedAt : undefined,
+  };
 }

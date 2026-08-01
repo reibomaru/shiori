@@ -9,8 +9,9 @@ import { HTTPException } from "hono/http-exception";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
-import { registerAuthRoutes, requireAuth } from "./auth.ts";
+import { registerAuthRoutes, requireAdmin, requireAuth } from "./auth.ts";
 import { closeAllUserDbs, getUserDb, getUserSessionDir } from "./storage.ts";
+import { listUsers, setUserFlags } from "./users.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
 import * as memoRepo from "../db/memo-repo.ts";
 import { getSpotRatings, invalidateSpotCache, previewPlace } from "./places.ts";
@@ -54,6 +55,25 @@ app.use("/api/*", (c, next) => {
   c.set("db", getUserDb(userId));
   c.set("sessionDir", getUserSessionDir(userId));
   return next();
+});
+
+// ---- 管理者 API（/api/admin/*・admin ロール必須）--------------
+// ユーザー台帳（Firestore）の一覧と、他ユーザーの利用許可・ロールの変更。
+// 変更は対象ユーザーの次回ログインで反映される（判定はログイン時のみ）。
+app.use("/api/admin/*", requireAdmin);
+app.get("/api/admin/users", async (c) => c.json(await listUsers()));
+app.patch("/api/admin/users/:sub", async (c) => {
+  const sub = c.req.param("sub");
+  // 自分自身の権限変更は不可（誤操作による admin 全滅・自己ロックを防ぐ）。
+  if (sub === c.get("userId")) return c.json({ error: "自分自身の権限は変更できません。" }, 400);
+  const body = (await c.req.json().catch(() => ({}))) as { allowed?: unknown; role?: unknown };
+  const patch: { allowed?: boolean; role?: "admin" | "user" } = {};
+  if (typeof body.allowed === "boolean") patch.allowed = body.allowed;
+  if (body.role === "admin" || body.role === "user") patch.role = body.role;
+  if (Object.keys(patch).length === 0) return c.json({ error: "allowed か role を指定してください。" }, 400);
+  const updated = await setUserFlags(sub, patch);
+  if (!updated) return c.json({ error: "ユーザーが見つかりません。" }, 404);
+  return c.json(updated);
 });
 
 // ---- 共通ヘルパー ------------------------------------------

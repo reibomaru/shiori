@@ -9,6 +9,7 @@ import ProfileDialog from "../components/ProfileDialog";
 import MembersDialog from "../components/MembersDialog";
 import RenameProjectDialog from "../components/RenameProjectDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { Logo } from "../components/Logo";
 
 /**
  * プロジェクト一覧・作成画面（ログイン後のトップ `/`）。
@@ -63,14 +64,17 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="flex items-center justify-between bg-gradient-to-r from-cyan-800 to-blue-900 px-6 py-4 text-white">
-        <h1 className="text-lg font-bold">旅のしおり</h1>
+    <div className="mesh-light min-h-screen">
+      <header className="tech-mesh flex items-center justify-between border-b border-cyan-400/10 px-6 py-4 text-white">
+        <div className="flex items-center gap-2.5">
+          <Logo size={26} className="text-cyan-300" />
+          <h1 className="brand-wordmark font-mono-tech text-xl font-bold lowercase tracking-wide">shiori</h1>
+        </div>
         <div className="flex items-center gap-1 text-sm">
           <button
             onClick={() => setProfileOpen(true)}
             title="プロフィールを編集"
-            className="flex items-center gap-2 rounded-lg px-2 py-1 text-cyan-50/90 transition-colors hover:bg-white/10"
+            className="flex items-center gap-2 rounded-lg px-2 py-1 text-slate-300 transition-colors hover:bg-white/10"
           >
             <Avatar src={me.avatarUrl} name={me.displayName ?? me.name} email={me.email} size={26} />
             <span className="max-w-[12rem] truncate">{displayNameOf(me)}</span>
@@ -79,7 +83,7 @@ export default function ProjectsPage() {
             <button
               onClick={() => void logout()}
               aria-label="ログアウト"
-              className="ml-1 flex h-8 w-8 items-center justify-center rounded-md text-cyan-100/80 hover:bg-white/10 hover:text-white"
+              className="ml-1 flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-white/10 hover:text-white"
             >
               <FaArrowRightFromBracket size={14} />
             </button>
@@ -105,7 +109,7 @@ export default function ProjectsPage() {
           <button
             onClick={create}
             disabled={creating || !name.trim()}
-            className="flex items-center gap-2 rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cyan-500 disabled:opacity-50"
           >
             <FaPlus /> 作成
           </button>

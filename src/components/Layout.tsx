@@ -12,7 +12,6 @@ import {
   FaYenSign,
   FaBars,
   FaArrowRightFromBracket,
-  FaFolderOpen,
 } from "react-icons/fa6";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
@@ -75,7 +74,7 @@ export default function Layout() {
           <FaBars size={18} />
         </button>
         <Logo size={24} className="shrink-0 text-cyan-300" />
-        <h1 className="min-w-0 flex-1 truncate text-sm font-bold">{data?.trip?.title ?? "しおり"}</h1>
+        <h1 className="min-w-0 flex-1 truncate text-sm font-bold">{data?.trip?.title || project?.name || "しおり"}</h1>
         <button
           onClick={() => window.print()}
           aria-label="PDF出力"
@@ -122,11 +121,16 @@ export default function Layout() {
           >
             <TbLayoutSidebarLeftCollapse size={20} />
           </button>
-          <div className="flex items-center gap-2.5">
+          {/* ロゴ＝プロジェクト一覧へ戻る動線 */}
+          <NavLink
+            to="/"
+            title="プロジェクト一覧へ"
+            className="inline-flex items-center gap-2.5 rounded-lg transition-opacity hover:opacity-80"
+          >
             <Logo size={30} className="text-cyan-300" />
             <span className="brand-wordmark font-mono-tech text-lg font-bold lowercase tracking-wide">shiori</span>
-          </div>
-          <h1 className="mt-1 text-base font-bold leading-snug text-slate-100">{data?.trip?.title ?? "しおり"}</h1>
+          </NavLink>
+          <h1 className="mt-1 text-base font-bold leading-snug text-slate-100">{data?.trip?.title || project?.name || "しおり"}</h1>
           {data?.trip && (
             <dl className="mt-3 space-y-1.5 text-xs text-slate-400">
               <div className="flex items-center gap-2">
@@ -146,16 +150,6 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {/* プロジェクト切替（一覧へ戻って選び直す） */}
-          <NavLink
-            to="/"
-            className="mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-white"
-            title={project?.name ?? undefined}
-          >
-            <FaFolderOpen className="text-base" />
-            <span className="min-w-0 flex-1 truncate">{project?.name ?? "プロジェクト"}</span>
-            <span className="shrink-0 font-mono-tech text-[10px] uppercase tracking-wide text-cyan-300/70">切替</span>
-          </NavLink>
           {navItems.map(({ to, label, Icon }) => (
             <NavLink
               key={to}

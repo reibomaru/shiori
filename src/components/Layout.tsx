@@ -11,7 +11,6 @@ import {
   FaUserGroup,
   FaYenSign,
   FaBars,
-  FaCircleUser,
   FaArrowRightFromBracket,
   FaFolderOpen,
 } from "react-icons/fa6";
@@ -20,6 +19,10 @@ import { useTrip } from "../store";
 import { useAuth } from "./AuthGate";
 import { useProject } from "../project";
 import { Logo } from "./Logo";
+import { Avatar } from "./Avatar";
+import { Tooltip } from "./Tooltip";
+import ProfileDialog from "./ProfileDialog";
+import { displayNameOf } from "../api";
 import { yen } from "../itemMeta";
 import type { Day, TripMeta } from "../types";
 
@@ -53,6 +56,7 @@ export default function Layout() {
   // mobileOpen: モバイル（md 未満）でのドロワー開閉。
   const [navOpen, setNavOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // ページ遷移したらモバイルのドロワーは閉じる。
   useEffect(() => {
@@ -177,23 +181,30 @@ export default function Layout() {
             PDF出力
           </button>
 
-          {/* ログイン中のユーザー + ログアウト */}
-          <div className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2">
-            <FaCircleUser className="shrink-0 text-lg text-cyan-100/80" />
-            <span className="min-w-0 flex-1 truncate text-xs text-cyan-50/90" title={me.email}>
-              {me.name || me.email}
-            </span>
+          {/* ログイン中のユーザー（クリックでプロフィール編集）+ ログアウト */}
+          <div className="flex items-center gap-1 rounded-lg bg-white/5 px-1.5 py-1.5">
             <button
-              onClick={() => void logout()}
-              aria-label="ログアウト"
-              title="ログアウト"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
+              onClick={() => setProfileOpen(true)}
+              title="プロフィールを編集"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left transition-colors hover:bg-white/10"
             >
-              <FaArrowRightFromBracket size={14} />
+              <Avatar src={me.avatarUrl} name={me.displayName ?? me.name} email={me.email} size={28} />
+              <span className="min-w-0 flex-1 truncate text-xs text-cyan-50/90">{displayNameOf(me)}</span>
             </button>
+            <Tooltip label="ログアウト" side="top">
+              <button
+                onClick={() => void logout()}
+                aria-label="ログアウト"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <FaArrowRightFromBracket size={14} />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </aside>
+
+      <ProfileDialog open={profileOpen} onClose={() => setProfileOpen(false)} />
 
       {/* ===== メイン（ページ） =====
           モバイルは固定トップバー（h-14）分だけ下げ、余白も控えめにする。 */}

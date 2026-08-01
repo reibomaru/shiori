@@ -17,7 +17,7 @@ import type { Context, Hono, MiddlewareHandler } from "hono";
 import { googleAuth } from "@hono/oauth-providers/google";
 import { sign, verify } from "hono/jwt";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { upsertUserOnLogin, type Role } from "./users.ts";
+import { upsertUserOnLogin, getUserProfile, avatarUrlOf, type Role } from "./users.ts";
 
 const SESSION_COOKIE = "session";
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -91,10 +91,30 @@ export function registerAuthRoutes(app: Hono): void {
   }
 
   // ---- 現在のユーザー（フロントの認証ゲート用）----
+  // 表示名・アバターは Firestore のプロフィールを毎回読み出して反映する
+  // （本人が編集しても JWT を再発行せずに済ませるため）。台帳が読めない場合も
+  // 認証情報（JWT クレーム）だけで最低限のログイン状態を返す。
   app.get("/auth/me", async (c) => {
     const s = await getSession(c);
     if (!s) return c.json({ error: "unauthenticated" }, 401);
-    return c.json({ email: s.email, name: s.name, role: s.role === "admin" ? "admin" : "user" });
+    let displayName: string | null = null;
+    let avatarUrl: string | null = null;
+    try {
+      const rec = await getUserProfile(s.sub);
+      if (rec) {
+        displayName = rec.displayName ?? null;
+        avatarUrl = avatarUrlOf(rec);
+      }
+    } catch (e) {
+      console.error("プロフィールの取得に失敗しました:", e);
+    }
+    return c.json({
+      email: s.email,
+      name: s.name,
+      role: s.role === "admin" ? "admin" : "user",
+      displayName,
+      avatarUrl,
+    });
   });
 
   // ---- ログアウト（Cookie 破棄）----
@@ -146,7 +166,8 @@ export function registerAuthRoutes(app: Hono): void {
       // 承認済みユーザーの中で、どのプロジェクトを見られるかはメンバーシップ側で担保。
       let user;
       try {
-        user = await upsertUserOnLogin(String(sub), email, gUser.name || email);
+        const picture = (gUser as { picture?: string }).picture;
+        user = await upsertUserOnLogin(String(sub), email, gUser.name || email, picture);
       } catch (e) {
         console.error("Firestore users への登録に失敗しました:", e);
         return c.text("ログイン処理でエラーが発生しました。時間をおいて再度お試しください。", 500);

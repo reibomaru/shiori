@@ -33,13 +33,109 @@ interface SessionClaims {
   exp: number;
 }
 
+/** HTML 埋め込み前のエスケープ（メール等のユーザー由来文字列用）。 */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** shiori ロゴ（ノードグラフ）の静的 SVG。React 版 Logo と同じ意匠。 */
+const LOGO_SVG = `<svg width="34" height="34" viewBox="0 0 32 32" fill="none" role="img" aria-label="shiori" style="color:#22d3ee">
+  <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a06bff"/></linearGradient></defs>
+  <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.35"><line x1="7" y1="14" x2="11" y2="23"/><line x1="11" y1="23" x2="19" y2="25"/><line x1="14" y1="10" x2="11" y2="23"/><line x1="21" y1="15" x2="19" y2="25"/><line x1="19" y1="25" x2="26" y2="22"/></g>
+  <g fill="currentColor" opacity="0.45"><circle cx="11" cy="23" r="1.3"/><circle cx="19" cy="25" r="1.3"/></g>
+  <path d="M7 14 L14 10 L21 15 L26 22" stroke="url(#lg)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="url(#lg)"><circle cx="7" cy="14" r="2"/><circle cx="14" cy="10" r="2"/><circle cx="21" cy="15" r="2"/><circle cx="26" cy="22" r="2"/></g>
+</svg>`;
+
+/**
+ * 認証系の素の HTML ページ（React 外）を、アプリのテッキーテーマで描画する共通シェル。
+ * フロントの Tailwind に依存しないよう、テーマ（Ubuntu フォント / メッシュ背景 /
+ * shiori ワードマーク）は inline で完結させる。
+ */
+function authPage(opts: { heading: string; bodyHtml: string }): string {
+  return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${escapeHtml(opts.heading)} · shiori</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&family=Ubuntu+Mono:wght@400;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; padding: 24px;
+    display: grid; place-items: center;
+    font-family: "Ubuntu", "Noto Sans JP", system-ui, -apple-system, "Hiragino Sans", sans-serif;
+    color: #e2e8f0;
+    background-color: #0b1120;
+    background-image:
+      radial-gradient(680px 340px at 100% -10%, rgba(160,107,255,.10), transparent 60%),
+      radial-gradient(680px 340px at 0% 0%, rgba(34,211,238,.08), transparent 55%),
+      linear-gradient(rgba(148,163,184,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,.05) 1px, transparent 1px);
+    background-size: auto, auto, 28px 28px, 28px 28px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .card {
+    width: 100%; max-width: 30rem; padding: 32px; border-radius: 16px;
+    background: rgba(255,255,255,.05); line-height: 1.8;
+    box-shadow: inset 0 0 0 1px rgba(34,211,238,.15), 0 18px 40px rgba(0,0,0,.4);
+    backdrop-filter: blur(6px);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .wordmark {
+    font-family: "Ubuntu Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 28px; font-weight: 700; letter-spacing: .04em;
+    background-image: linear-gradient(120deg, #22d3ee, #a06bff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h1 { font-size: 20px; margin: 0 0 14px; color: #f1f5f9; }
+  p { margin: 0 0 12px; font-size: 14px; color: #cbd5e1; }
+  b { color: #f1f5f9; font-weight: 600; }
+  a.btn {
+    display: inline-block; margin-top: 10px; padding: 10px 18px; border-radius: 10px;
+    background: #22d3ee; color: #0b1120; font-weight: 600; text-decoration: none;
+    transition: background-color .15s ease;
+  }
+  a.btn:hover { background: #67e8f9; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">${LOGO_SVG}<span class="wordmark">shiori</span></div>
+    <h1>${escapeHtml(opts.heading)}</h1>
+    ${opts.bodyHtml}
+  </div>
+</body>
+</html>`;
+}
+
 /** 承認待ちユーザーに見せる HTML（利用申請は受理済み・承認待ちである旨）。 */
 function pendingHtml(email: string): string {
-  return `<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;max-width:32rem;margin:4rem auto;line-height:1.7;color:#334155">
-    <h2>利用申請を受け付けました</h2>
-    <p>アカウント（<b>${email}</b>）の利用申請を受け付けました。<br>管理者の承認後にご利用いただけます。</p>
+  return authPage({
+    heading: "利用申請を受け付けました",
+    bodyHtml: `
+    <p>アカウント（<b>${escapeHtml(email)}</b>）の利用申請を受け付けました。<br />管理者の承認後にご利用いただけます。</p>
     <p>承認されたら、もう一度ログインしてください。</p>
-    <p><a href="/">トップへ戻る</a></p></body>`;
+    <p><a class="btn" href="/">トップへ戻る</a></p>`,
+  });
+}
+
+/** 認証エラー時に見せる HTML。 */
+function authErrorHtml(message: string): string {
+  return authPage({
+    heading: "ログインできませんでした",
+    bodyHtml: `
+    <p>${escapeHtml(message)}</p>
+    <p><a class="btn" href="/">トップへ戻る</a></p>`,
+  });
 }
 
 /** JWT を署名して session Cookie にセットする。 */
@@ -159,7 +255,7 @@ export function registerAuthRoutes(app: Hono): void {
       const email = gUser?.email;
       const sub = gUser?.id;
       if (!gUser || !email || !sub) {
-        return c.text("Google 認証に失敗しました。もう一度お試しください。", 401);
+        return c.html(authErrorHtml("Google 認証に失敗しました。もう一度お試しください。"), 401);
       }
       // 台帳へ JIT 登録し、利用可否は「ログイン時のみ」ここで判定する（許可制）。
       // 新規ユーザーは allowed=false（承認待ち）で作られ、セッションは発行しない。
@@ -170,7 +266,7 @@ export function registerAuthRoutes(app: Hono): void {
         user = await upsertUserOnLogin(String(sub), email, gUser.name || email, picture);
       } catch (e) {
         console.error("Firestore users への登録に失敗しました:", e);
-        return c.text("ログイン処理でエラーが発生しました。時間をおいて再度お試しください。", 500);
+        return c.html(authErrorHtml("ログイン処理でエラーが発生しました。時間をおいて再度お試しください。"), 500);
       }
       if (!user.allowed) {
         return c.html(pendingHtml(email), 403);

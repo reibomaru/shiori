@@ -243,11 +243,11 @@ export default function Spots({
         </div>
       </div>
       <p className="mb-3 text-xs text-slate-400">
-        ガイドブックを見ながら Skill で登録した候補。カードをクリックすると詳細と Instagram を表示します。
+        ガイドブックを見ながらチャットで登録した候補。カードをクリックすると詳細と Instagram を表示します。
       </p>
       {spots.length === 0 ? (
         <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-sm text-slate-400">
-          まだ候補がありません。Skill から登録してみましょう。
+          まだ候補がありません。チャットから登録してみましょう。
         </p>
       ) : view === "card" ? (
         <ul className="flex flex-wrap gap-3">

@@ -11,7 +11,7 @@ Cloud Run + Litestream + GCS + Secret Manager + Workload Identity Federation 一
 - Cloud Run **Job**（`shiori-migrate`）: マイグレーション実行用。
 - **Artifact Registry**（Docker リポジトリ）。
 - **GCS バケット** 2 つ: `*-state`（Litestream レプリカ + backups）、`*-sessions`（AI チャット履歴 JSONL, FUSE マウント）。
-- **Firestore**（`(default)`, Native）: `users` 台帳（利用許可フラグ）。実行 SA に `roles/datastore.user`。
+- **Firestore**（`(default)`, Native）: `users`（プロフィール）と `projects`（プロジェクト・メンバー）の台帳。実行 SA に `roles/datastore.user`。
 - **Secret Manager**: `GEMINI_API_KEY` / `WEBSEARCH_API_KEY` / `GOOGLE_MAPS_API_KEY` / `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `SESSION_SECRET`（入れ物のみ。値は手動投入）。
 - **IAM**: 実行 SA、デプロイ SA、GitHub Actions 用 Workload Identity 連携。
 
@@ -62,12 +62,10 @@ openssl rand -hex 32 | gcloud secrets versions add SESSION_SECRET --data-file=-
 
 > **OAuth クライアント**: GCP コンソール「API とサービス → 認証情報」で OAuth 2.0 クライアント（Web）を作成し、
 > 承認済みリダイレクト URI に `<本番の origin>/auth/google` を登録する。
-> **利用許可 / ロール（招待制）**: Firestore の `users` コレクション（doc id = Google `sub`）で管理する。
-> 初回ログインで `{ allowed:false, role:"user" }` のドキュメントが自動作成される。承認は `allowed=true`、
-> 管理者にするには `role="admin"` にする。
-> **最初の管理者**は Firestore コンソール / gcloud で自分のドキュメントを `role="admin"` + `allowed=true` に
-> seed する（以降は管理者画面 `/admin` から他ユーザーの許可・ロールを変更できる）。変更は対象ユーザーの
-> 次回ログインで反映される。
+> **アクセス境界（オープンログイン + プロジェクト招待）**: ログインは Google アカウントなら誰でも可。
+> データはプロジェクト単位（`data/{projectId}/travel.db`）に分離され、参加は**メール招待**（Firestore
+> `projects.memberEmails`）。ログインユーザーは自分がメンバーのプロジェクトのみ閲覧・編集できる。
+> Firestore の `users`（プロフィール）/ `projects`（名前・オーナー・メンバー）で管理する。
 
 ### 5. GitHub Actions 用の Variables を設定
 

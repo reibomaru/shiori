@@ -63,8 +63,9 @@ variable "app_base_url" {
 # （既存データの移行 + 既存 Litestream で永続化される）。空なら無効。
 variable "legacy_db_user_sub" {
   type        = string
-  description = "旧 DB を引き継ぐユーザーの Google sub（例 112799101353272746400）。空なら無効。"
-  default     = ""
+  description = "旧 DB を引き継ぐユーザーの Google sub。空なら無効。"
+  # reibomaru@gmail.com（旧新婚旅行データの持ち主）に旧 /data/travel.db を引き継ぐ。
+  default = "112799101353272746400"
 }
 
 variable "cpu" {

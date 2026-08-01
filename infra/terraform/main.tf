@@ -18,6 +18,7 @@ resource "google_project_service" "services" {
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
     "storage.googleapis.com",
+    "firestore.googleapis.com", # users 台帳（利用許可フラグ）
   ])
   service            = each.value
   disable_on_destroy = false

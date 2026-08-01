@@ -11,9 +11,13 @@ import {
   FaUserGroup,
   FaYenSign,
   FaBars,
+  FaCircleUser,
+  FaArrowRightFromBracket,
+  FaUserShield,
 } from "react-icons/fa6";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
+import { useAuth } from "./AuthGate";
 import { yen } from "../itemMeta";
 import type { Day, TripMeta } from "../types";
 
@@ -35,7 +39,10 @@ const NAV = [
 
 export default function Layout() {
   const { data, error } = useTrip();
+  const { me, logout } = useAuth();
   const { pathname } = useLocation();
+  // 管理者のみ「管理」メニューを出す。
+  const navItems = me.role === "admin" ? [...NAV, { to: "/admin", label: "管理", Icon: FaUserShield }] : NAV;
   // 地図・候補・旅程（ビルダー）・メモ詳細（AI 編集パネル併設）は全画面（余白なし）。
   // メモ一覧(/memo)は従来どおり中央寄せ。詳細(/memo/:id)のみ全画面にする。
   const fullBleed =
@@ -132,7 +139,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {NAV.map(({ to, label, Icon }) => (
+          {navItems.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -156,6 +163,22 @@ export default function Layout() {
             <FaPrint />
             PDF出力
           </button>
+
+          {/* ログイン中のユーザー + ログアウト */}
+          <div className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2">
+            <FaCircleUser className="shrink-0 text-lg text-cyan-100/80" />
+            <span className="min-w-0 flex-1 truncate text-xs text-cyan-50/90" title={me.email}>
+              {me.name || me.email}
+            </span>
+            <button
+              onClick={() => void logout()}
+              aria-label="ログアウト"
+              title="ログアウト"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <FaArrowRightFromBracket size={14} />
+            </button>
+          </div>
         </div>
       </aside>
 

@@ -7,11 +7,12 @@ Cloud Run + Litestream + GCS + Secret Manager + Workload Identity Federation 一
 
 ## 作成されるリソース
 
-- Cloud Run **Service**（`shiori`）: フロント静的配信 + Hono API + Litestream 常駐。min=max=1、CPU 常時割当、公開（認証はアプリ層の Basic 認証）。
+- Cloud Run **Service**（`shiori`）: フロント静的配信 + Hono API + Litestream 常駐。min=max=1、CPU 常時割当、公開（認証はアプリ層の Google SSO・招待制。`/api/*` は認証必須）。
 - Cloud Run **Job**（`shiori-migrate`）: マイグレーション実行用。
 - **Artifact Registry**（Docker リポジトリ）。
 - **GCS バケット** 2 つ: `*-state`（Litestream レプリカ + backups）、`*-sessions`（AI チャット履歴 JSONL, FUSE マウント）。
-- **Secret Manager**: `GEMINI_API_KEY` / `WEBSEARCH_API_KEY` / `GOOGLE_MAPS_API_KEY` / `BASIC_AUTH_USER` / `BASIC_AUTH_PASS`（入れ物のみ。値は手動投入）。
+- **Firestore**（`(default)`, Native）: `users` 台帳（利用許可フラグ）。実行 SA に `roles/datastore.user`。
+- **Secret Manager**: `GEMINI_API_KEY` / `WEBSEARCH_API_KEY` / `GOOGLE_MAPS_API_KEY` / `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `SESSION_SECRET`（入れ物のみ。値は手動投入）。
 - **IAM**: 実行 SA、デプロイ SA、GitHub Actions 用 Workload Identity 連携。
 
 ## 手順
@@ -49,12 +50,24 @@ terraform apply
 ### 4. シークレットの値を投入
 
 ```bash
-printf '%s' "$GEMINI_API_KEY"     | gcloud secrets versions add GEMINI_API_KEY --data-file=-
-printf '%s' "$WEBSEARCH_API_KEY"  | gcloud secrets versions add WEBSEARCH_API_KEY --data-file=-
-printf '%s' "$GOOGLE_MAPS_API_KEY"| gcloud secrets versions add GOOGLE_MAPS_API_KEY --data-file=-
-printf '%s' "shiori"              | gcloud secrets versions add BASIC_AUTH_USER --data-file=-
-printf '%s' "<好きなパスワード>"    | gcloud secrets versions add BASIC_AUTH_PASS --data-file=-
+printf '%s' "$GEMINI_API_KEY"      | gcloud secrets versions add GEMINI_API_KEY --data-file=-
+printf '%s' "$WEBSEARCH_API_KEY"   | gcloud secrets versions add WEBSEARCH_API_KEY --data-file=-
+printf '%s' "$GOOGLE_MAPS_API_KEY" | gcloud secrets versions add GOOGLE_MAPS_API_KEY --data-file=-
+# 認証（Google SSO）。OAuth クライアント（Web）を GCP コンソールで作成して取得する。
+printf '%s' "$GOOGLE_OAUTH_CLIENT_ID"     | gcloud secrets versions add GOOGLE_OAUTH_CLIENT_ID --data-file=-
+printf '%s' "$GOOGLE_OAUTH_CLIENT_SECRET" | gcloud secrets versions add GOOGLE_OAUTH_CLIENT_SECRET --data-file=-
+# JWT Cookie の署名鍵（十分に長いランダム文字列。例 openssl rand -hex 32）。
+openssl rand -hex 32 | gcloud secrets versions add SESSION_SECRET --data-file=-
 ```
+
+> **OAuth クライアント**: GCP コンソール「API とサービス → 認証情報」で OAuth 2.0 クライアント（Web）を作成し、
+> 承認済みリダイレクト URI に `<本番の origin>/auth/google` を登録する。
+> **利用許可 / ロール（招待制）**: Firestore の `users` コレクション（doc id = Google `sub`）で管理する。
+> 初回ログインで `{ allowed:false, role:"user" }` のドキュメントが自動作成される。承認は `allowed=true`、
+> 管理者にするには `role="admin"` にする。
+> **最初の管理者**は Firestore コンソール / gcloud で自分のドキュメントを `role="admin"` + `allowed=true` に
+> seed する（以降は管理者画面 `/admin` から他ユーザーの許可・ロールを変更できる）。変更は対象ユーザーの
+> 次回ログインで反映される。
 
 ### 5. GitHub Actions 用の Variables を設定
 

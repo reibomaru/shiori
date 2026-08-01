@@ -38,9 +38,20 @@ variable "secret_ids" {
     "GEMINI_API_KEY",
     "WEBSEARCH_API_KEY",
     "GOOGLE_MAPS_API_KEY",
-    "BASIC_AUTH_USER",
-    "BASIC_AUTH_PASS",
+    # 認証（Google SSO）: OAuth クライアント資格情報と JWT Cookie 署名鍵。
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    "SESSION_SECRET",
   ]
+}
+
+# 利用許可は Firestore の users コレクション（allowed フラグ）で管理する。
+# 承認は初期は GCP コンソール / gcloud で該当ドキュメントを allowed=true にする。
+
+variable "app_base_url" {
+  type        = string
+  description = "OAuth リダイレクト URI 組み立て用のアプリのベース URL（例 https://example.com）。空ならリクエストから自動解決。"
+  default     = ""
 }
 
 variable "cpu" {

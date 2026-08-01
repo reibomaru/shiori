@@ -9,11 +9,18 @@
 locals {
   # Service / Job で共通のアプリ環境変数（シークレット以外）。
   common_env = {
-    TRAVEL_DB          = "${local.data_mount_path}/travel.db"
+    # 単一ライタ用の Litestream/migrate Job が参照する DB パス（後続の per-DB 対応まで残置）。
+    TRAVEL_DB = "${local.data_mount_path}/travel.db"
+    # ユーザーごと storage 分離: data/{userId}/travel.db と agent-sessions/{userId}/ に分離する。
+    TRAVEL_DATA_DIR    = local.data_mount_path
     AGENT_SESSIONS_DIR = "${local.data_mount_path}/${local.sessions_subdir}"
     NODE_ENV           = "production"
     LITESTREAM_BUCKET  = google_storage_bucket.state.name
     LITESTREAM_PATH    = local.litestream_prefix
+    # 認証（Google SSO）。利用可否は Firestore の users 台帳で判定する。
+    APP_BASE_URL          = var.app_base_url
+    FIRESTORE_PROJECT_ID  = var.project_id
+    FIRESTORE_DATABASE_ID = google_firestore_database.users.name
   }
 }
 
@@ -103,7 +110,8 @@ resource "google_cloud_run_v2_service" "app" {
   ]
 }
 
-# アプリ層の Basic 認証で守るため、Cloud Run 自体は未認証呼び出しを許可（公開）。
+# ログイン導線（/auth/*）とアプリ層の認証（Google SSO・/api/* は認証必須）で守るため、
+# Cloud Run 自体は未認証呼び出しを許可（公開）。
 resource "google_cloud_run_v2_service_iam_member" "public" {
   name     = google_cloud_run_v2_service.app.name
   location = google_cloud_run_v2_service.app.location

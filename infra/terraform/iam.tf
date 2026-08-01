@@ -16,6 +16,13 @@ resource "google_storage_bucket_iam_member" "runtime_bucket" {
   member   = "serviceAccount:${google_service_account.runtime.email}"
 }
 
+# 実行 SA は users 台帳（Firestore）を読み書きする（ログイン時の JIT 登録・利用可否判定）。
+resource "google_project_iam_member" "runtime_firestore" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.runtime.email}"
+}
+
 # ---- GitHub Actions デプロイ用 SA --------------------------
 resource "google_service_account" "deployer" {
   account_id   = "${var.service_name}-deployer"
@@ -25,7 +32,7 @@ resource "google_service_account" "deployer" {
 # デプロイに必要なロール。
 resource "google_project_iam_member" "deployer" {
   for_each = toset([
-    "roles/run.admin",              # サービス/ジョブのデプロイ・更新・実行
+    "roles/run.admin",               # サービス/ジョブのデプロイ・更新・実行
     "roles/artifactregistry.writer", # イメージ push
   ])
   project = var.project_id

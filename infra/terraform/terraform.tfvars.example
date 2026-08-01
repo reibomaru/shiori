@@ -3,3 +3,10 @@ project_id        = "your-gcp-project-id"
 region            = "asia-northeast1"
 service_name      = "shiori"
 github_repository = "reibomaru/travel-plans"
+
+# OAuth リダイレクト URI 組み立て用のベース URL（任意・空ならリクエストから自動解決）。
+app_base_url = ""                      # 例: "https://shiori.example.com"
+
+# 利用許可は Firestore の users コレクション（allowed フラグ）で管理する。
+# 初回ログインで allowed=false のドキュメントが自動作成され、承認は GCP コンソール等で
+# 該当ドキュメントを allowed=true にする（環境変数の allowlist は廃止）。

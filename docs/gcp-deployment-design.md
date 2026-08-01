@@ -3,6 +3,25 @@
 しおりアプリ（React + Hono + SQLite）を GCP にデプロイするための設計。
 ホスティングは **Cloud Run**、アクセス制御は **Basic 認証**（アプリ層）を採用する。
 
+> **更新（マルチユーザー化 / #64 基盤フェーズ）**
+> 本ドキュメントの初版はシングルテナント（共有 DB・Basic 認証）前提だが、
+> [#64](https://github.com/reibomaru/travel-plans/issues/64) の基盤フェーズで以下へ移行した:
+> - **認証**: Basic 認証 → **Google SSO（OIDC）+ 署名付き JWT Cookie**。`server/auth.ts`。
+>   Secret は `BASIC_AUTH_*` を廃し `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `SESSION_SECRET` を追加。
+> - **利用許可 / ロール（招待制）**: 環境変数 allowlist をやめ、**Firestore の `users` 台帳（`allowed` / `role`）**で管理（`server/users.ts`）。
+>   初回ログインで `{allowed:false, role:"user"}` を JIT 登録。承認は `allowed=true`、管理者は `role="admin"`。
+>   最初の管理者は Firestore で直接 seed し、以降は管理者画面 `/admin`（`requireAdmin`）で他ユーザーの許可・ロールを変更する。
+>   利用可否・ロールは**ログイン時のみ**判定し（JWT に内包）、`requireAuth`（毎リクエスト）は JWT 検証のみでステートレスを保つ。
+> - **storage 分離**: 共有 `data/travel.db` → **ユーザー（Google `sub`）ごとに `data/{sub}/travel.db` と
+>   `agent-sessions/{sub}/`** に物理分離（`server/storage.ts` の per-user DB レジストリ）。新規/既存 DB は
+>   open 時に `applyPending` で最新版へ追従（Cloud Run `max=1` の単一ライタ前提で安全）。
+> - **未対応（後続 Issue・要対応）**: 本フェーズでは**アプリ層と Terraform/env のみ**を更新した。以下は未実装:
+>   1. **per-DB Litestream レプリケーション**（現状 `litestream.yml` は単一 `travel.db` 前提）。
+>      → これが入るまで、per-user DB の GCS への継続レプリケーションは効かない。永続化は要検討。
+>   2. **migrate Job の全 DB ループ適用**（現状 Job は単一 `travel.db` を対象）。
+>      アプリ側は open 時 `applyPending` で追従するため実害は小さいが、Job 経路は後続で整理する。
+> 以降の「Basic 認証」節は初版の記録として残す。
+
 ## 1. 現状のアーキテクチャ
 
 - **フロント**: React 19 + Vite + Tailwind 4 + deck.gl の SPA。`vite build` で静的 `dist/` を生成。

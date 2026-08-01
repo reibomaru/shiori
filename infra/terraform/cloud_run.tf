@@ -21,8 +21,6 @@ locals {
     APP_BASE_URL          = var.app_base_url
     FIRESTORE_PROJECT_ID  = var.project_id
     FIRESTORE_DATABASE_ID = google_firestore_database.users.name
-    # 旧シングルテナント DB を引き継ぐユーザー（空なら無効）。
-    LEGACY_DB_USER_SUB = var.legacy_db_user_sub
   }
 }
 

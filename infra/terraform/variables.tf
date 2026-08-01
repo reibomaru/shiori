@@ -58,16 +58,6 @@ variable "app_base_url" {
   default = "https://shiori-1014849882013.asia-northeast1.run.app"
 }
 
-# 旧シングルテナント DB（TRAVEL_DB / Litestream 管理下）を引き継ぐユーザーの Google sub。
-# 設定するとその sub のユーザーは data/{sub}/travel.db ではなく旧 DB を開く
-# （既存データの移行 + 既存 Litestream で永続化される）。空なら無効。
-variable "legacy_db_user_sub" {
-  type        = string
-  description = "旧 DB を引き継ぐユーザーの Google sub。空なら無効。"
-  # reibomaru@gmail.com（旧新婚旅行データの持ち主）に旧 /data/travel.db を引き継ぐ。
-  default = "112799101353272746400"
-}
-
 variable "cpu" {
   type        = string
   description = "Cloud Run サービスの CPU。Litestream 常駐のため CPU 常時割当（cpu_idle=false）で使う。"

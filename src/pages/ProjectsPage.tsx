@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaPlus, FaMapLocationDot, FaUsers, FaTrash, FaArrowRightFromBracket, FaCircleUser } from "react-icons/fa6";
-import { api, type Project } from "../api";
+import { FaPlus, FaMapLocationDot, FaUsers, FaTrash, FaPen, FaArrowRightFromBracket } from "react-icons/fa6";
+import { api, displayNameOf, type Project } from "../api";
 import { useAuth } from "../components/AuthGate";
+import { Avatar } from "../components/Avatar";
+import { Tooltip } from "../components/Tooltip";
+import ProfileDialog from "../components/ProfileDialog";
 import MembersDialog from "../components/MembersDialog";
+import RenameProjectDialog from "../components/RenameProjectDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { Logo } from "../components/Logo";
 
@@ -19,8 +23,10 @@ export default function ProjectsPage() {
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [membersOf, setMembersOf] = useState<Project | null>(null);
+  const [renameTarget, setRenameTarget] = useState<Project | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,19 +70,24 @@ export default function ProjectsPage() {
           <Logo size={26} className="text-cyan-300" />
           <h1 className="brand-wordmark font-mono-tech text-xl font-bold lowercase tracking-wide">shiori</h1>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <FaCircleUser className="text-slate-400" />
-          <span className="max-w-[12rem] truncate text-slate-300" title={me.email}>
-            {me.name || me.email}
-          </span>
+        <div className="flex items-center gap-1 text-sm">
           <button
-            onClick={() => void logout()}
-            aria-label="ログアウト"
-            title="ログアウト"
-            className="ml-1 flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-white/10 hover:text-white"
+            onClick={() => setProfileOpen(true)}
+            title="プロフィールを編集"
+            className="flex items-center gap-2 rounded-lg px-2 py-1 text-slate-300 transition-colors hover:bg-white/10"
           >
-            <FaArrowRightFromBracket size={14} />
+            <Avatar src={me.avatarUrl} name={me.displayName ?? me.name} email={me.email} size={26} />
+            <span className="max-w-[12rem] truncate">{displayNameOf(me)}</span>
           </button>
+          <Tooltip label="ログアウト" side="bottom">
+            <button
+              onClick={() => void logout()}
+              aria-label="ログアウト"
+              className="ml-1 flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-white/10 hover:text-white"
+            >
+              <FaArrowRightFromBracket size={14} />
+            </button>
+          </Tooltip>
         </div>
       </header>
 
@@ -88,7 +99,10 @@ export default function ProjectsPage() {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && create()}
+            // 日本語変換確定の Enter では作成しない（変換中は isComposing=true）。
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) create();
+            }}
             placeholder="新しいプロジェクト名（例: 台湾旅行 2026）"
             className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-cyan-500 focus:outline-none"
           />
@@ -133,6 +147,15 @@ export default function ProjectsPage() {
                   </button>
                   {owner && (
                     <button
+                      onClick={() => setRenameTarget(p)}
+                      title="名前を変更"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                    >
+                      <FaPen size={13} />
+                    </button>
+                  )}
+                  {owner && (
+                    <button
                       onClick={() => setDeleteTarget(p)}
                       title="削除"
                       className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
@@ -147,7 +170,15 @@ export default function ProjectsPage() {
         )}
       </main>
 
+      <ProfileDialog open={profileOpen} onClose={() => setProfileOpen(false)} />
       {membersOf && <MembersDialog project={membersOf} onClose={() => setMembersOf(null)} />}
+      {renameTarget && (
+        <RenameProjectDialog
+          project={renameTarget}
+          onClose={() => setRenameTarget(null)}
+          onRenamed={(updated) => setProjects((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))}
+        />
+      )}
       <ConfirmDialog
         open={deleteTarget !== null}
         title="プロジェクトを削除しますか？"

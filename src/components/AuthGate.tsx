@@ -6,6 +6,8 @@ import { Logo } from "./Logo";
 interface AuthCtx {
   me: Me;
   logout: () => Promise<void>;
+  /** プロフィール更新後などに、現在のユーザー情報を差し替える（サイドバー等へ即時反映）。 */
+  applyMe: (me: Me) => void;
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -71,5 +73,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     window.location.reload();
   };
 
-  return <Ctx.Provider value={{ me: state.me, logout }}>{children}</Ctx.Provider>;
+  const applyMe = (me: Me) => setState((s) => ({ ...s, me }));
+
+  return <Ctx.Provider value={{ me: state.me, logout, applyMe }}>{children}</Ctx.Provider>;
 }

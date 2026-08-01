@@ -33,6 +33,15 @@ interface SessionClaims {
   exp: number;
 }
 
+/** 承認待ちユーザーに見せる HTML（利用申請は受理済み・承認待ちである旨）。 */
+function pendingHtml(email: string): string {
+  return `<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;max-width:32rem;margin:4rem auto;line-height:1.7;color:#334155">
+    <h2>利用申請を受け付けました</h2>
+    <p>アカウント（<b>${email}</b>）の利用申請を受け付けました。<br>管理者の承認後にご利用いただけます。</p>
+    <p>承認されたら、もう一度ログインしてください。</p>
+    <p><a href="/">トップへ戻る</a></p></body>`;
+}
+
 /** JWT を署名して session Cookie にセットする。 */
 async function issueSession(c: Context, user: { sub: string; email: string; name: string; role: Role }): Promise<void> {
   const exp = Math.floor(Date.now() / 1000) + SESSION_TTL_SEC;
@@ -132,14 +141,18 @@ export function registerAuthRoutes(app: Hono): void {
       if (!gUser || !email || !sub) {
         return c.text("Google 認証に失敗しました。もう一度お試しください。", 401);
       }
-      // 台帳へ JIT 登録（オープンログイン: 利用可否ゲートは無い）。
-      // アクセス境界はプロジェクトメンバーシップ側で担保する。
+      // 台帳へ JIT 登録し、利用可否は「ログイン時のみ」ここで判定する（許可制）。
+      // 新規ユーザーは allowed=false（承認待ち）で作られ、セッションは発行しない。
+      // 承認済みユーザーの中で、どのプロジェクトを見られるかはメンバーシップ側で担保。
       let user;
       try {
         user = await upsertUserOnLogin(String(sub), email, gUser.name || email);
       } catch (e) {
         console.error("Firestore users への登録に失敗しました:", e);
         return c.text("ログイン処理でエラーが発生しました。時間をおいて再度お試しください。", 500);
+      }
+      if (!user.allowed) {
+        return c.html(pendingHtml(email), 403);
       }
       await issueSession(c, { sub: String(sub), email, name: gUser.name || email, role: user.role });
       return c.redirect("/");

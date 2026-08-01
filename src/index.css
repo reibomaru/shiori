@@ -76,6 +76,17 @@ body {
     28px 28px;
 }
 
+/* 半透明パネル（地図オーバーレイ等）向け。地色は既存の bg-* に任せ、
+   グリッド線だけを重ねるので下の地図が透けたまま方眼の質感を足せる。 */
+.mesh-overlay {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+  background-size:
+    28px 28px,
+    28px 28px;
+}
+
 /* deck.gl の canvas を角丸内に収める */
 #deckgl-overlay {
   border-radius: 0;
@@ -114,6 +125,9 @@ body {
   /* 印刷は白背景前提。薄いメッシュもオフにする。 */
   .mesh-light {
     background: #fff !important;
+  }
+  .mesh-overlay {
+    background-image: none !important;
   }
   .no-print {
     display: none !important;

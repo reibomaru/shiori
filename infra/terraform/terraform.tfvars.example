@@ -1,12 +1,14 @@
-# このファイルを terraform.tfvars にコピーして値を設定する。
-project_id        = "your-gcp-project-id"
-region            = "asia-northeast1"
-service_name      = "shiori"
-github_repository = "reibomaru/travel-plans"
+# このファイルを terraform.tfvars にコピーして使う（任意）。
+#
+# 本 repo は単一プロジェクト前提で、非秘匿の設定値は variables.tf の default に
+# 入れてあるため、通常 terraform.tfvars は不要（`terraform apply` だけで動く）。
+# 別プロジェクト・別ドメインに向けるときだけ、以下を上書きする。
+#
+# project_id        = "shinbun-489215"                                   # 既定あり
+# region            = "asia-northeast1"                                  # 既定あり
+# service_name      = "shiori"                                           # 既定あり
+# github_repository = "reibomaru/travel-plans"                           # 既定あり
+# app_base_url      = "https://shiori-1014849882013.asia-northeast1.run.app"  # 既定あり（OAuth redirect_uri 用）
 
-# OAuth リダイレクト URI 組み立て用のベース URL（任意・空ならリクエストから自動解決）。
-app_base_url = ""                      # 例: "https://shiori.example.com"
-
-# 利用許可は Firestore の users コレクション（allowed フラグ）で管理する。
-# 初回ログインで allowed=false のドキュメントが自動作成され、承認は GCP コンソール等で
-# 該当ドキュメントを allowed=true にする（環境変数の allowlist は廃止）。
+# 秘匿値（SESSION_SECRET / GOOGLE_OAUTH_* など）は tfvars ではなく Secret Manager に
+# 手動投入する（README 参照）。利用許可・ロールは Firestore の users コレクションで管理する。

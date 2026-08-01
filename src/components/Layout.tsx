@@ -13,11 +13,12 @@ import {
   FaBars,
   FaCircleUser,
   FaArrowRightFromBracket,
-  FaUserShield,
+  FaFolderOpen,
 } from "react-icons/fa6";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
 import { useAuth } from "./AuthGate";
+import { useProject } from "../project";
 import { Logo } from "./Logo";
 import { yen } from "../itemMeta";
 import type { Day, TripMeta } from "../types";
@@ -41,16 +42,13 @@ const NAV = [
 export default function Layout() {
   const { data, error } = useTrip();
   const { me, logout } = useAuth();
+  const { projectId, project } = useProject();
   const { pathname } = useLocation();
-  // 管理者のみ「管理」メニューを出す。
-  const navItems = me.role === "admin" ? [...NAV, { to: "/admin", label: "管理", Icon: FaUserShield }] : NAV;
+  // ナビの遷移先はプロジェクト配下（/p/{projectId}/...）。
+  const navItems = NAV;
   // 地図・候補・旅程（ビルダー）・メモ詳細（AI 編集パネル併設）は全画面（余白なし）。
   // メモ一覧(/memo)は従来どおり中央寄せ。詳細(/memo/:id)のみ全画面にする。
-  const fullBleed =
-    pathname.startsWith("/map") ||
-    pathname.startsWith("/spots") ||
-    pathname.startsWith("/itinerary") ||
-    pathname.startsWith("/memo/");
+  const fullBleed = /\/(map|spots|itinerary)$/.test(pathname) || /\/memo\/[^/]+$/.test(pathname);
   // navOpen: デスクトップ（md+）でのサイドバー折りたたみ。
   // mobileOpen: モバイル（md 未満）でのドロワー開閉。
   const [navOpen, setNavOpen] = useState(true);
@@ -144,10 +142,20 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
+          {/* プロジェクト切替（一覧へ戻って選び直す） */}
+          <NavLink
+            to="/"
+            className="mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-cyan-100/70 transition hover:bg-white/10 hover:text-white"
+            title={project?.name ?? undefined}
+          >
+            <FaFolderOpen className="text-base" />
+            <span className="min-w-0 flex-1 truncate">{project?.name ?? "プロジェクト"}</span>
+            <span className="shrink-0 text-[10px] uppercase tracking-wide text-cyan-200/60">切替</span>
+          </NavLink>
           {navItems.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
-              to={to}
+              to={`/p/${projectId}${to}`}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                   isActive ? "bg-white/15 text-white shadow-sm" : "text-cyan-50/80 hover:bg-white/10"

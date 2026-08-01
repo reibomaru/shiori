@@ -9,9 +9,21 @@ import { HTTPException } from "hono/http-exception";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
-import { registerAuthRoutes, requireAdmin, requireAuth } from "./auth.ts";
-import { closeAllUserDbs, getUserDb, getUserSessionDir } from "./storage.ts";
-import { listUsers, setUserFlags } from "./users.ts";
+import { registerAuthRoutes, requireAuth } from "./auth.ts";
+import { closeAllProjectDbs, deleteProjectStorage, getProjectDb } from "./storage.ts";
+import {
+  addMember,
+  createProject,
+  deleteProjectDoc,
+  getProject,
+  invalidateProjectCache,
+  isMember,
+  isOwner,
+  listProjectsForEmail,
+  removeMember,
+  renameProject,
+  requireProjectMember,
+} from "./projects.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
 import * as memoRepo from "../db/memo-repo.ts";
 import { getSpotRatings, invalidateSpotCache, previewPlace } from "./places.ts";
@@ -43,38 +55,89 @@ function legToFeature(l: LegRow): LegFeature {
 const app = new Hono();
 const PORT = Number(process.env.PORT || 8080);
 
-// ---- 認証（Google SSO）+ storage 解決 ---------------------
-// /auth/* はログイン導線。/api/* は認証必須にし、認証で解決した userId から
-// そのユーザー専用の DB ハンドル・会話セッション dir を毎リクエスト解決する。
-// ドメインの各ハンドラは c.get("db") を使い、グローバル DB に依存しない。
-// ヘルスチェック・静的配信・/auth/* は認証不要（順序に注意: /api/* にのみ適用）。
+// ---- 認証（Google SSO）+ プロジェクト解決 -----------------
+// /auth/* はログイン導線。/api/* は認証必須。プロジェクト管理ルート
+// （/api/projects*）は認証のみ、ドメインルートは X-Project-Id で対象
+// プロジェクトを解決し、メンバー確認の上で db / sessionDir をセットする。
+// 順序が重要: requireAuth → プロジェクト管理ルート登録 → projectScope 登録
+// → ドメインルート登録（Hono は登録後のルートにのみ middleware を適用）。
 registerAuthRoutes(app);
 app.use("/api/*", requireAuth);
-app.use("/api/*", (c, next) => {
-  const userId = c.get("userId");
-  c.set("db", getUserDb(userId));
-  c.set("sessionDir", getUserSessionDir(userId));
-  return next();
+
+// ---- プロジェクト管理 API（メンバーが操作・一部 owner 限定）--------
+app.get("/api/projects", async (c) => c.json(await listProjectsForEmail(c.get("userEmail"))));
+
+app.post("/api/projects", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { name?: unknown };
+  const name = typeof body.name === "string" ? body.name : "";
+  const project = await createProject(name, c.get("userId"), c.get("userEmail"));
+  await getProjectDb(project.id); // 空 DB を初期化（schema 適用）
+  return c.json(project);
 });
 
-// ---- 管理者 API（/api/admin/*・admin ロール必須）--------------
-// ユーザー台帳（Firestore）の一覧と、他ユーザーの利用許可・ロールの変更。
-// 変更は対象ユーザーの次回ログインで反映される（判定はログイン時のみ）。
-app.use("/api/admin/*", requireAdmin);
-app.get("/api/admin/users", async (c) => c.json(await listUsers()));
-app.patch("/api/admin/users/:sub", async (c) => {
-  const sub = c.req.param("sub");
-  // 自分自身の権限変更は不可（誤操作による admin 全滅・自己ロックを防ぐ）。
-  if (sub === c.get("userId")) return c.json({ error: "自分自身の権限は変更できません。" }, 400);
-  const body = (await c.req.json().catch(() => ({}))) as { allowed?: unknown; role?: unknown };
-  const patch: { allowed?: boolean; role?: "admin" | "user" } = {};
-  if (typeof body.allowed === "boolean") patch.allowed = body.allowed;
-  if (body.role === "admin" || body.role === "user") patch.role = body.role;
-  if (Object.keys(patch).length === 0) return c.json({ error: "allowed か role を指定してください。" }, 400);
-  const updated = await setUserFlags(sub, patch);
-  if (!updated) return c.json({ error: "ユーザーが見つかりません。" }, 404);
-  return c.json(updated);
+// 以降の :id ルートは「メンバーであること」を確認する共通ヘルパーを使う。
+async function loadOwnedOrMember(c: import("hono").Context, requireOwner: boolean) {
+  const id = c.req.param("id");
+  if (!id) return { error: c.json({ error: "プロジェクト ID が必要です。" }, 400) };
+  const project = await getProject(id);
+  if (!project) return { error: c.json({ error: "プロジェクトが見つかりません。" }, 404) };
+  if (!isMember(project, c.get("userEmail"))) return { error: c.json({ error: "アクセス権がありません。" }, 403) };
+  if (requireOwner && !isOwner(project, c.get("userId"))) return { error: c.json({ error: "オーナーのみ操作できます。" }, 403) };
+  return { project };
+}
+
+app.patch("/api/projects/:id", async (c) => {
+  const { project, error } = await loadOwnedOrMember(c, true);
+  if (error) return error;
+  const body = (await c.req.json().catch(() => ({}))) as { name?: unknown };
+  if (typeof body.name !== "string" || !body.name.trim()) return c.json({ error: "name が必要です。" }, 400);
+  await renameProject(project!.id, body.name);
+  invalidateProjectCache(project!.id);
+  return c.json({ ...project!, name: body.name.trim() });
 });
+
+app.delete("/api/projects/:id", async (c) => {
+  const { project, error } = await loadOwnedOrMember(c, true);
+  if (error) return error;
+  await deleteProjectDoc(project!.id);
+  await deleteProjectStorage(project!.id);
+  invalidateProjectCache(project!.id);
+  return c.json({ ok: true });
+});
+
+app.get("/api/projects/:id/members", async (c) => {
+  const { project, error } = await loadOwnedOrMember(c, false);
+  if (error) return error;
+  return c.json({ ownerEmail: project!.ownerEmail, members: project!.memberEmails });
+});
+
+app.post("/api/projects/:id/members", async (c) => {
+  const { project, error } = await loadOwnedOrMember(c, true);
+  if (error) return error;
+  const body = (await c.req.json().catch(() => ({}))) as { email?: unknown };
+  const email = typeof body.email === "string" ? body.email.trim() : "";
+  if (!email || !email.includes("@")) return c.json({ error: "有効なメールアドレスが必要です。" }, 400);
+  await addMember(project!.id, email);
+  invalidateProjectCache(project!.id);
+  const updated = await getProject(project!.id);
+  return c.json({ ownerEmail: updated!.ownerEmail, members: updated!.memberEmails });
+});
+
+app.delete("/api/projects/:id/members/:email", async (c) => {
+  const { project, error } = await loadOwnedOrMember(c, true);
+  if (error) return error;
+  try {
+    await removeMember(project!.id, decodeURIComponent(c.req.param("email")));
+  } catch (e) {
+    return c.json({ error: e instanceof Error && /owner/.test(e.message) ? "オーナーは削除できません。" : "削除に失敗しました。" }, 400);
+  }
+  invalidateProjectCache(project!.id);
+  const updated = await getProject(project!.id);
+  return c.json({ ownerEmail: updated!.ownerEmail, members: updated!.memberEmails });
+});
+
+// ---- 以降のドメインルートはプロジェクトスコープ（X-Project-Id 必須）------
+app.use("/api/*", requireProjectMember);
 
 // ---- 共通ヘルパー ------------------------------------------
 /** 許可フィールドだけで UPDATE を組み立てる（部分更新対応） */
@@ -581,7 +644,7 @@ if (existsSync(DIST_DIR)) {
 }
 
 const server = serve({ fetch: app.fetch, port: PORT }, () => {
-  console.log(`🚆 しおり API (Hono): http://localhost:${PORT}  (per-user DB: ${process.env.TRAVEL_DATA_DIR || "data"}/{userId}/travel.db)`);
+  console.log(`🚆 しおり API (Hono): http://localhost:${PORT}  (per-project DB: ${process.env.TRAVEL_DATA_DIR || "data"}/{projectId}/travel.db)`);
 });
 
 // ポート使用中などの起動エラーをクリーンに扱う
@@ -600,13 +663,14 @@ function shutdown(signal: string): void {
   if (closing) return;
   closing = true;
   console.log(`\n${signal} を受信。サーバーを停止します…`);
-  server.close(() => {
-    try { closeAllUserDbs(); } catch { /* noop */ }
+  server.close(async () => {
+    // 全プロジェクトの Litestream を最終同期して停止 → DB を閉じる。
+    try { await closeAllProjectDbs(); } catch { /* noop */ }
     console.log("✓ 正常に停止しました。");
     process.exit(0);
   });
-  // 接続が残っても一定時間で強制終了（ポートを確実に解放）
-  setTimeout(() => process.exit(0), 3000).unref();
+  // 接続や最終同期が長引いても一定時間で強制終了（ポートを確実に解放）。
+  setTimeout(() => process.exit(0), 15000).unref();
 }
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));

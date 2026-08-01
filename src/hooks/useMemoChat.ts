@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { MemoPage } from "../types";
-import { api, type ChatSessionSummary } from "../api";
+import { api, projectHeader, type ChatSessionSummary } from "../api";
 import { uuid } from "../uuid";
 import type { AttachedImage, ProposalOp, ProposalStatus, ToolChip, Usage } from "./useSpotChat";
 
@@ -151,7 +151,8 @@ export function useMemoChat() {
       try {
         const res = await fetch("/api/memo/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...projectHeader() },
+          credentials: "same-origin",
           body: JSON.stringify({
             sessionId: sessionIdRef.current,
             message,

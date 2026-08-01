@@ -62,7 +62,7 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen bg-slate-100">
       {/* ===== モバイル用トップバー（md 未満のみ・ハンバーガー） ===== */}
-      <header className="no-print fixed inset-x-0 top-0 z-[550] flex h-14 items-center gap-3 bg-gradient-to-r from-cyan-800 to-blue-900 px-4 text-white md:hidden">
+      <header className="no-print fixed inset-x-0 top-0 z-[550] flex h-14 items-center gap-3 border-b border-cyan-400/10 bg-gradient-to-r from-slate-950 to-slate-900 px-4 text-white md:hidden">
         <button
           onClick={() => setMobileOpen(true)}
           aria-label="メニューを開く"
@@ -70,7 +70,7 @@ export default function Layout() {
         >
           <FaBars size={18} />
         </button>
-        <Logo size={24} className="shrink-0" />
+        <Logo size={24} className="shrink-0 text-cyan-300" />
         <h1 className="min-w-0 flex-1 truncate text-sm font-bold">{data?.trip?.title ?? "しおり"}</h1>
         <button
           onClick={() => window.print()}
@@ -86,7 +86,7 @@ export default function Layout() {
         <button
           onClick={() => setNavOpen(true)}
           aria-label="メニューを開く"
-          className="no-print fixed left-0 top-1/2 z-[600] hidden -translate-y-1/2 items-center rounded-r-lg bg-cyan-800 py-3 pl-1.5 pr-2 text-white shadow-lg transition-colors hover:bg-cyan-700 md:flex"
+          className="no-print fixed left-0 top-1/2 z-[600] hidden -translate-y-1/2 items-center rounded-r-lg bg-slate-900 py-3 pl-1.5 pr-2 text-cyan-300 shadow-lg ring-1 ring-cyan-400/20 transition-colors hover:bg-slate-800 md:flex"
         >
           <TbLayoutSidebarLeftExpand size={20} />
         </button>
@@ -103,7 +103,7 @@ export default function Layout() {
       {/* ===== 左サイドメニュー（印刷時は非表示） =====
           モバイル: 左からのドロワー（fixed + translate）。デスクトップ: 静的に横並び（navOpen で折りたたみ）。 */}
       <aside
-        className={`no-print fixed inset-y-0 left-0 z-[570] flex w-72 max-w-[80vw] flex-col overflow-hidden bg-gradient-to-b from-cyan-800 via-sky-800 to-blue-900 text-white transition-transform duration-200 md:sticky md:top-0 md:z-[500] md:h-screen md:max-w-none md:translate-x-0 md:transition-all ${
+        className={`no-print fixed inset-y-0 left-0 z-[570] flex w-72 max-w-[80vw] flex-col overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white transition-transform duration-200 md:sticky md:top-0 md:z-[500] md:h-screen md:max-w-none md:translate-x-0 md:border-r md:border-cyan-400/10 md:transition-all ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${navOpen ? "md:flex md:w-60" : "md:hidden md:w-0"}`}
       >
@@ -114,17 +114,17 @@ export default function Layout() {
               setMobileOpen(false);
             }}
             aria-label="メニューを閉じる"
-            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
+            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
           >
             <TbLayoutSidebarLeftCollapse size={20} />
           </button>
-          <div className="flex items-center gap-2.5 text-white">
-            <Logo size={30} />
-            <span className="text-base font-semibold lowercase tracking-wide">shiori</span>
+          <div className="flex items-center gap-2.5">
+            <Logo size={30} className="text-cyan-300" />
+            <span className="brand-wordmark font-mono-tech text-lg font-bold lowercase tracking-wide">shiori</span>
           </div>
-          <h1 className="mt-1 text-base font-bold leading-snug">{data?.trip?.title ?? "しおり"}</h1>
+          <h1 className="mt-1 text-base font-bold leading-snug text-slate-100">{data?.trip?.title ?? "しおり"}</h1>
           {data?.trip && (
-            <dl className="mt-3 space-y-1.5 text-xs text-cyan-50/80">
+            <dl className="mt-3 space-y-1.5 text-xs text-slate-400">
               <div className="flex items-center gap-2">
                 <FaRegCalendar className="shrink-0 opacity-70" />
                 <span>{tripPeriod(data.days, data.trip)}</span>
@@ -145,12 +145,12 @@ export default function Layout() {
           {/* プロジェクト切替（一覧へ戻って選び直す） */}
           <NavLink
             to="/"
-            className="mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-cyan-100/70 transition hover:bg-white/10 hover:text-white"
+            className="mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-white"
             title={project?.name ?? undefined}
           >
             <FaFolderOpen className="text-base" />
             <span className="min-w-0 flex-1 truncate">{project?.name ?? "プロジェクト"}</span>
-            <span className="shrink-0 text-[10px] uppercase tracking-wide text-cyan-200/60">切替</span>
+            <span className="shrink-0 font-mono-tech text-[10px] uppercase tracking-wide text-cyan-300/70">切替</span>
           </NavLink>
           {navItems.map(({ to, label, Icon }) => (
             <NavLink
@@ -158,7 +158,9 @@ export default function Layout() {
               to={`/p/${projectId}${to}`}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                  isActive ? "bg-white/15 text-white shadow-sm" : "text-cyan-50/80 hover:bg-white/10"
+                  isActive
+                    ? "bg-cyan-400/10 text-cyan-300 shadow-sm ring-1 ring-inset ring-cyan-400/20"
+                    : "text-slate-400 hover:bg-white/5 hover:text-white"
                 }`
               }
             >
@@ -171,23 +173,23 @@ export default function Layout() {
         <div className="space-y-2 border-t border-white/10 px-3 py-4">
           <button
             onClick={() => window.print()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-400"
           >
             <FaPrint />
             PDF出力
           </button>
 
           {/* ログイン中のユーザー + ログアウト */}
-          <div className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2">
-            <FaCircleUser className="shrink-0 text-lg text-cyan-100/80" />
-            <span className="min-w-0 flex-1 truncate text-xs text-cyan-50/90" title={me.email}>
+          <div className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 ring-1 ring-inset ring-white/5">
+            <FaCircleUser className="shrink-0 text-lg text-slate-400" />
+            <span className="min-w-0 flex-1 truncate text-xs text-slate-300" title={me.email}>
               {me.name || me.email}
             </span>
             <button
               onClick={() => void logout()}
               aria-label="ログアウト"
               title="ログアウト"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
             >
               <FaArrowRightFromBracket size={14} />
             </button>

@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #1f2937;
-  --alpine: #0e7490; /* スイスの湖・氷河 */
-  --azur: #2563eb; /* コートダジュール */
-  --gold: #d97706; /* 夕暮れ */
+  /* ===== shiori テッキーパレット =====
+     ダークベース + シアン/パープル（ロゴと同調）のネオンアクセント。 */
+  --ink: #0f172a; /* 本文（明るい面用の濃いスレート） */
+  --base: #0b1120; /* ダークベース（サイドバー・ヘッダー） */
+  --base-2: #0e1a2b; /* ベースの陰影 */
+  --accent: #22d3ee; /* シアン（主アクセント／ロゴ左） */
+  --accent-2: #a06bff; /* パープル（副アクセント／ロゴ右） */
+  --accent-neon: #34d399; /* ネオングリーン */
 }
 
 html {
@@ -14,10 +18,25 @@ html {
 body {
   margin: 0;
   color: var(--ink);
-  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
-    system-ui, -apple-system, sans-serif;
-  background: #f1f5f9;
+  /* ラテン文字は Ubuntu、日本語グリフは Noto Sans JP にフォールバック。 */
+  font-family: "Ubuntu", "Noto Sans JP", system-ui, -apple-system,
+    "Hiragino Sans", sans-serif;
+  background: #eef2f6;
   -webkit-font-smoothing: antialiased;
+}
+
+/* テッキーなアクセント用の等幅（ブランド表記・見出しなど）。 */
+.font-mono-tech {
+  font-family: "Ubuntu Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+    monospace;
+}
+
+/* ロゴと揃えたシアン→パープルのグラデーション文字（shiori ワードマーク等）。 */
+.brand-wordmark {
+  background-image: linear-gradient(120deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* deck.gl の canvas を角丸内に収める */

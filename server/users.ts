@@ -52,22 +52,27 @@ export function firestore(): Firestore {
 }
 
 /**
- * ログイン時に users を JIT upsert し、利用許可とロールを返す。
- * - 新規: allowed=false（承認待ち）/ role=user で作成。
- * - 既存: email / name / updatedAt を更新し、既存の allowed / role を返す。
+ * ログイン時に users を JIT upsert し、利用許可・ロールと「新規作成か」を返す。
+ * - 新規: allowed=false（承認待ち）/ role=user で作成（isNew=true）。
+ * - 既存: email / name / updatedAt を更新し、既存の allowed / role を返す（isNew=false）。
  * 利用可否は「ログイン時のみ」判定する（server/auth.ts のコールバック）。
+ * isNew は「初回申請」と「すでに申請済み（承認待ち）」の画面出し分けに使う。
  */
-export async function upsertUserOnLogin(sub: string, email: string, name: string): Promise<UserRecord> {
+export async function upsertUserOnLogin(
+  sub: string,
+  email: string,
+  name: string,
+): Promise<UserRecord & { isNew: boolean }> {
   const ref = firestore().collection(COLLECTION).doc(sub);
   const snap = await ref.get();
   const now = new Date().toISOString();
 
   if (!snap.exists) {
     await ref.set({ sub, email, name, allowed: false, role: "user", createdAt: now, updatedAt: now });
-    return { sub, email, name, allowed: false, role: "user" };
+    return { sub, email, name, allowed: false, role: "user", isNew: true };
   }
 
   const data = snap.data() ?? {};
   await ref.set({ email, name, updatedAt: now }, { merge: true });
-  return { sub, email, name, allowed: data.allowed === true, role: toRole(data.role) };
+  return { sub, email, name, allowed: data.allowed === true, role: toRole(data.role), isNew: false };
 }

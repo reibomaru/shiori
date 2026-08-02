@@ -6,9 +6,10 @@
   "packageManager": "pnpm@9.15.0",
   "description": "スイス & 南仏ハネムーン しおり（SQLite永続化・旅程・予算・地図・PDF）",
   "scripts": {
-    "dev": "concurrently -k -n emu,api,web -c magenta,cyan,green \"pnpm emulator\" \"node --env-file-if-exists=.env server/index.ts\" \"vite\"",
+    "dev": "docker compose up -d firestore-emulator && (trap 'docker compose stop firestore-emulator' EXIT INT TERM; concurrently -k -n api,web -c cyan,green \"node --env-file-if-exists=.env server/index.ts\" \"vite\")",
     "dev:no-emu": "concurrently -k -n api,web -c cyan,green \"node --env-file-if-exists=.env server/index.ts\" \"vite\"",
     "emulator": "docker compose up firestore-emulator",
+    "emulator:logs": "docker compose logs -f firestore-emulator",
     "web": "vite",
     "api": "node --env-file-if-exists=.env server/index.ts",
     "db:init": "node db/seed.ts",

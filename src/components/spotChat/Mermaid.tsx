@@ -52,16 +52,18 @@ export default function Mermaid({ chart }: { chart: string }) {
 
   if (error) {
     return (
-      <pre className="mb-2 overflow-x-auto rounded-lg bg-rose-50 p-2.5 text-[12px] text-rose-700 ring-1 ring-rose-100 last:mb-0">
+      <pre className="mb-2 overflow-x-auto rounded-lg bg-rose-50 p-2.5 text-[12px] text-rose-700 ring-1 ring-rose-100 last:mb-0 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/20">
         {chart}
       </pre>
     );
   }
 
+  // mermaid の SVG は light 固定（neutral テーマ）で描画されるため、ダークでも
+  // 図が読めるよう地色は白のまま保ち、暗所で浮くよう薄いリングだけ足す。
   return (
     <div
       ref={ref}
-      className="my-2 flex justify-center overflow-x-auto rounded-xl bg-white p-2 [&_svg]:h-auto [&_svg]:max-w-full"
+      className="my-2 flex justify-center overflow-x-auto rounded-xl bg-white p-2 dark:ring-1 dark:ring-white/10 [&_svg]:h-auto [&_svg]:max-w-full"
     />
   );
 }

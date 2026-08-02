@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PanelRightOpen } from "lucide-react";
 import { useTrip } from "../store";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -13,6 +14,7 @@ const CHAT_DEFAULT = 440;
 const STORAGE_KEY = "spotChatWidth";
 
 export default function SpotsPage() {
+  const { t } = useTranslation("spots");
   const { data, reload } = useTrip();
   const isMobile = useIsMobile();
   // モバイルはチャットを全画面オーバーレイで出す。キーボードで縮む可視領域に
@@ -65,7 +67,7 @@ export default function SpotsPage() {
   };
 
   return (
-    <div ref={containerRef} className="relative flex h-full bg-slate-100">
+    <div ref={containerRef} className="relative flex h-full bg-slate-100 dark:bg-slate-900">
       {/* 左: 行きたいスポット候補（囲いなし・スクロール）。
           デスクトップで閉じているときだけ、右上の開くボタン分の余白を空ける。
           モバイルはチャットが全画面オーバーレイで、開くボタンは右下に浮かせるため余白不要。 */}
@@ -83,9 +85,9 @@ export default function SpotsPage() {
             isMobile && !chatOpen ? (
               <button
                 onClick={() => setChatOpen(true)}
-                title="チャットを開く"
-                aria-label="チャットを開く"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 ring-1 ring-slate-200 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                title={t("chat.open")}
+                aria-label={t("chat.open")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 ring-1 ring-slate-200 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:ring-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100"
               >
                 <PanelRightOpen size={16} />
               </button>
@@ -98,8 +100,8 @@ export default function SpotsPage() {
       {chatOpen && !isMobile && (
         <div
           onMouseDown={startDrag}
-          title="ドラッグで幅を調整"
-          className="group relative w-1 shrink-0 cursor-col-resize bg-slate-200 transition-colors hover:bg-cyan-400"
+          title={t("splitter")}
+          className="group relative w-1 shrink-0 cursor-col-resize bg-slate-200 transition-colors hover:bg-cyan-400 dark:bg-slate-700"
         >
           {/* 当たり判定を広げる透明な掴みしろ */}
           <span className="absolute inset-y-0 -left-1.5 -right-1.5" />
@@ -111,7 +113,7 @@ export default function SpotsPage() {
           中身（チャット）だけをキーボードで縮む可視領域に収める。 */}
       {chatOpen && (
         <div
-          className={isMobile ? "fixed inset-0 z-[560] bg-white" : "shrink-0"}
+          className={isMobile ? "fixed inset-0 z-[560] bg-white dark:bg-slate-900" : "shrink-0"}
           style={isMobile ? undefined : { width: chatWidth }}
         >
           <div
@@ -128,9 +130,9 @@ export default function SpotsPage() {
       {!chatOpen && !isMobile && (
         <button
           onClick={() => setChatOpen(true)}
-          title="チャットを開く"
-          aria-label="チャットを開く"
-          className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+          title={t("chat.open")}
+          aria-label={t("chat.open")}
+          className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
         >
           <PanelRightOpen size={16} />
         </button>

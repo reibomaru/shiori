@@ -1,6 +1,7 @@
 // タイムライン上の 1 ブロック（= items 1 行）。並べ替え（DnD）・時刻のインライン編集・
 // 詳細編集パネル（タイトル/種別/費用/リンク/メモ）・削除を持つ。
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FaGripVertical, FaXmark, FaPen, FaLink, FaCompass, FaRoute, FaCheck } from "react-icons/fa6";
@@ -16,6 +17,7 @@ const EDITABLE_TYPES: ItemType[] = ["spot", "meal", "hotel"];
 
 /** ドラッグ中のオーバーレイや一覧で使う、ブロックの本体表示（アイコン＋タイトル＋費用＋由来）。 */
 export function BlockBody({ block }: { block: Block }) {
+  const { t } = useTranslation("itinerary");
   const meta = ITEM_META[block.type] ?? ITEM_META.spot;
   return (
     <>
@@ -27,22 +29,22 @@ export function BlockBody({ block }: { block: Block }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate font-medium text-slate-800">{block.title}</span>
+          <span className="truncate font-medium text-slate-800 dark:text-slate-100">{block.title}</span>
           {block.cost ? (
-            <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+            <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
               {yen(block.cost)}
             </span>
           ) : null}
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-400">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-400 dark:text-slate-500">
           {block.spot_id != null && (
-            <span className="inline-flex items-center gap-1 text-cyan-600">
-              <FaCompass className="text-[9px]" /> スポット候補より
+            <span className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
+              <FaCompass className="text-[9px]" /> {t("block.fromSpot")}
             </span>
           )}
           {block.leg_id != null && (
-            <span className="inline-flex items-center gap-1 text-blue-600">
-              <FaRoute className="text-[9px]" /> 移動区間より
+            <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+              <FaRoute className="text-[9px]" /> {t("block.fromLeg")}
             </span>
           )}
           {block.url && (
@@ -51,10 +53,10 @@ export function BlockBody({ block }: { block: Block }) {
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex min-w-0 max-w-[12rem] items-center gap-1 font-medium text-cyan-700 hover:underline"
+              className="inline-flex min-w-0 max-w-[12rem] items-center gap-1 font-medium text-cyan-700 hover:underline dark:text-cyan-400"
             >
               <FaLink className="shrink-0 text-[9px]" />
-              <span className="min-w-0 flex-1 truncate">{block.url_label || "リンク"}</span>
+              <span className="min-w-0 flex-1 truncate">{block.url_label || t("block.link")}</span>
             </a>
           )}
         </div>
@@ -64,7 +66,7 @@ export function BlockBody({ block }: { block: Block }) {
 }
 
 const fieldCls =
-  "rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-cyan-500 focus:outline-none";
+  "rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-cyan-500 focus:outline-none dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500";
 
 /** 詳細編集パネル（種別はアイコンボタンの自前ピッカー＝<select> は使わない）。 */
 function Editor({
@@ -76,6 +78,7 @@ function Editor({
   onSave: (patch: BlockPatch) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation(["itinerary", "common"]);
   const [draft, setDraft] = useState<BlockPatch>({
     type: block.type,
     title: block.title,
@@ -86,22 +89,24 @@ function Editor({
   });
 
   return (
-    <div className="mt-2 space-y-2 rounded-lg bg-slate-50 p-2.5 ring-1 ring-slate-200">
+    <div className="mt-2 space-y-2 rounded-lg bg-slate-50 p-2.5 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
       {/* 種別ピッカーはスポット由来（spot_id あり）のブロックのみ。
           手入力の自由項目（spot_id/leg_id なし）は free 固定、移動（leg_id あり）は種別を変えない。 */}
       {block.spot_id != null && (
         <div className="flex flex-wrap gap-1">
-          {EDITABLE_TYPES.map((t) => {
-            const m = ITEM_META[t];
-            const on = draft.type === t;
+          {EDITABLE_TYPES.map((ty) => {
+            const m = ITEM_META[ty];
+            const on = draft.type === ty;
             return (
               <button
-                key={t}
+                key={ty}
                 type="button"
-                onClick={() => setDraft((d) => ({ ...d, type: t }))}
-                title={m.label}
+                onClick={() => setDraft((d) => ({ ...d, type: ty }))}
+                title={t(`itemType.${ty}`)}
                 className={`flex h-7 w-7 items-center justify-center rounded-lg text-sm transition ${
-                  on ? "text-white" : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100"
+                  on
+                    ? "text-white"
+                    : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-700 dark:hover:bg-slate-700"
                 }`}
                 style={on ? { background: m.color } : undefined}
               >
@@ -115,14 +120,14 @@ function Editor({
         <input
           className={`${fieldCls} min-w-[8rem] flex-1`}
           value={draft.title ?? ""}
-          placeholder="タイトル"
+          placeholder={t("block.titlePlaceholder")}
           onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
         />
         <input
           className={`${fieldCls} w-24`}
           type="number"
           value={draft.cost ?? ""}
-          placeholder="費用¥"
+          placeholder={t("block.costPlaceholder")}
           onChange={(e) =>
             setDraft((d) => ({ ...d, cost: e.target.value === "" ? null : Number(e.target.value) }))
           }
@@ -132,20 +137,20 @@ function Editor({
         className={`${fieldCls} w-full`}
         rows={2}
         value={draft.note ?? ""}
-        placeholder="メモ・見どころ"
+        placeholder={t("block.notePlaceholder")}
         onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
       />
       <div className="flex flex-wrap items-center gap-2">
         <input
           className={`${fieldCls} min-w-[8rem] flex-1`}
           value={draft.url ?? ""}
-          placeholder="https://… 保存したいリンク"
+          placeholder={t("block.urlPlaceholder")}
           onChange={(e) => setDraft((d) => ({ ...d, url: e.target.value }))}
         />
         <input
           className={`${fieldCls} w-32`}
           value={draft.url_label ?? ""}
-          placeholder="リンク表示名"
+          placeholder={t("block.urlLabelPlaceholder")}
           onChange={(e) => setDraft((d) => ({ ...d, url_label: e.target.value }))}
         />
         <button
@@ -156,14 +161,14 @@ function Editor({
           }}
           className="inline-flex items-center gap-1 rounded-md bg-cyan-600 px-3 py-1 text-sm font-semibold text-white hover:bg-cyan-700"
         >
-          <FaCheck className="text-xs" /> 保存
+          <FaCheck className="text-xs" /> {t("common:actions.save")}
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-200"
+          className="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700"
         >
-          閉じる
+          {t("common:actions.close")}
         </button>
       </div>
     </div>
@@ -187,6 +192,7 @@ export default function BlockCard({
   // 自由項目・移動区間では undefined（開く手段を出さない）。
   onOpenDetail?: () => void;
 }) {
+  const { t } = useTranslation("itinerary");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: String(block.id),
   });
@@ -197,7 +203,7 @@ export default function BlockCard({
     <li
       ref={setNodeRef}
       style={style}
-      className={`rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm ${
+      className={`rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:ring-1 dark:ring-white/10 ${
         isDragging ? "z-10 opacity-50" : ""
       }`}
     >
@@ -205,8 +211,8 @@ export default function BlockCard({
         <button
           {...attributes}
           {...listeners}
-          className="no-print cursor-grab touch-none rounded p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing"
-          aria-label="ドラッグして並べ替え"
+          className="no-print cursor-grab touch-none rounded p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing dark:text-slate-600 dark:hover:text-slate-400"
+          aria-label={t("block.dragReorder")}
         >
           <FaGripVertical />
         </button>
@@ -214,8 +220,8 @@ export default function BlockCard({
           value={block.time}
           onChange={(e) => onTimeChange(e.target.value)}
           onBlur={(e) => onTimeCommit(e.target.value)}
-          placeholder="時刻"
-          className="w-14 shrink-0 rounded-md border border-slate-200 px-1.5 py-1 text-center text-xs tabular-nums focus:border-cyan-500 focus:outline-none"
+          placeholder={t("block.timePlaceholder")}
+          className="w-14 shrink-0 rounded-md border border-slate-200 px-1.5 py-1 text-center text-xs tabular-nums focus:border-cyan-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
         />
         {onOpenDetail ? (
           // 本体（アイコン＋タイトル）をクリックで詳細モーダルを開く。中にリンク <a> を
@@ -230,8 +236,8 @@ export default function BlockCard({
                 onOpenDetail();
               }
             }}
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg text-left transition-colors hover:bg-slate-50"
-            aria-label={`${block.title} の詳細を見る`}
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+            aria-label={t("block.viewDetail", { title: block.title })}
           >
             <BlockBody block={block} />
           </div>
@@ -243,18 +249,18 @@ export default function BlockCard({
         <button
           type="button"
           onClick={() => setEditing((v) => !v)}
-          className={`no-print shrink-0 rounded p-1.5 hover:bg-slate-100 ${
-            editing ? "text-cyan-700" : "text-slate-300 hover:text-slate-600"
+          className={`no-print shrink-0 rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 ${
+            editing ? "text-cyan-700 dark:text-cyan-400" : "text-slate-300 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-300"
           }`}
-          aria-label="この予定を編集"
+          aria-label={t("block.edit")}
         >
           <FaPen className="text-xs" />
         </button>
         <button
           type="button"
           onClick={onRemove}
-          className="no-print shrink-0 rounded p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
-          aria-label="旅程から外す"
+          className="no-print shrink-0 rounded p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
+          aria-label={t("block.removeAria")}
         >
           <FaXmark />
         </button>

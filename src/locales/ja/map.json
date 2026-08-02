@@ -1,0 +1,45 @@
+{
+  "mode": {
+    "train": "鉄道",
+    "bus": "バス・登山",
+    "car": "車",
+    "flight": "飛行機",
+    "walk": "徒歩"
+  },
+  "basemap": {
+    "osm": "標準",
+    "satellite": "衛星",
+    "topo": "地形",
+    "light": "白黒"
+  },
+  "controls": {
+    "view2d": "2D表示",
+    "view3d": "3D表示",
+    "resetView": "全体表示",
+    "openPanel": "移動の工程を開く",
+    "closePanel": "パネルを閉じる",
+    "resizePanel": "パネルの幅を調整"
+  },
+  "legend": {
+    "border": "国境",
+    "spots": "候補スポット",
+    "missingCoords": "座標未設定のため非表示: {{count}} 件"
+  },
+  "tooltip": {
+    "geojsonDetail": "GeoJSON詳細・{{count}}点",
+    "straight": "直線",
+    "border": "（国境）"
+  },
+  "panel": {
+    "legsTitle": "移動の工程",
+    "legsHint": "カードをクリックで地図上のルートを強調",
+    "spotsTitle": "候補スポット",
+    "spotsHint": "カードをクリックで詳細を表示 · 左のチェックで地図のピン表示を切替",
+    "backToSpots": "候補スポット一覧へ",
+    "showSpotsOnMap": "候補スポットを地図に表示",
+    "segment": "区間 {{n}}",
+    "routePoints": "ルート{{count}}点",
+    "straight": "直線",
+    "shownOnMap": "地図に表示中"
+  }
+}

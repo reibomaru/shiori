@@ -1,6 +1,7 @@
 // 移動データ（leg）を OSRM で作成する UI。出発地・目的地を選び、
 // 複数の経路候補から 1 つを選んで確定 → POST /api/legs で保存する。
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   FaTrain,
@@ -24,20 +25,14 @@ export interface Place {
   lat: number;
 }
 
-const MODES: { key: string; label: string; Icon: IconType; color: string }[] = [
-  { key: "train", label: "鉄道", Icon: FaTrain, color: "#0e7490" },
-  { key: "flight", label: "飛行機", Icon: FaPlane, color: "#2563eb" },
-  { key: "bus", label: "バス・登山", Icon: FaCableCar, color: "#0891b2" },
-  { key: "car", label: "車", Icon: FaCar, color: "#d97706" },
-  { key: "walk", label: "徒歩", Icon: FaPersonWalking, color: "#16a34a" },
+// label は i18n キー（modeTrain 等）。表示時に t() で解決する。
+const MODES: { key: string; labelKey: string; Icon: IconType; color: string }[] = [
+  { key: "train", labelKey: "legCreator.modeTrain", Icon: FaTrain, color: "#0e7490" },
+  { key: "flight", labelKey: "legCreator.modeFlight", Icon: FaPlane, color: "#2563eb" },
+  { key: "bus", labelKey: "legCreator.modeBus", Icon: FaCableCar, color: "#0891b2" },
+  { key: "car", labelKey: "legCreator.modeCar", Icon: FaCar, color: "#d97706" },
+  { key: "walk", labelKey: "legCreator.modeWalk", Icon: FaPersonWalking, color: "#16a34a" },
 ];
-
-const fmtKm = (m: number) => `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} km`;
-const fmtDur = (s: number) => {
-  const min = Math.round(s / 60);
-  if (min < 60) return `${min} 分`;
-  return `${Math.floor(min / 60)} 時間 ${min % 60} 分`;
-};
 
 /**
  * 出発地・目的地の入力。フリーテキスト（Photon でジオコード補完）＋
@@ -59,6 +54,7 @@ function PlaceInput({
   placeholder: string;
   tag?: string; // OSM 種別フィルタ（例: 空港 = aeroway:aerodrome）
 }) {
+  const { t } = useTranslation("itinerary");
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<GeocodeResult[]>([]);
@@ -112,53 +108,53 @@ function PlaceInput({
             setOpen(true);
           }}
           placeholder={placeholder}
-          className="w-full rounded-md border border-slate-300 py-1.5 pl-7 pr-2 text-sm focus:border-cyan-500 focus:outline-none"
+          className="w-full rounded-md border border-slate-300 py-1.5 pl-7 pr-2 text-sm focus:border-cyan-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
         />
       </div>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-y-auto rounded-xl bg-white p-1.5 shadow-lg ring-1 ring-slate-200">
+          <div className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-y-auto rounded-xl bg-white p-1.5 shadow-lg ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
             {/* 登録済み地点（クイック選択） */}
             {knownMatches.length > 0 && (
               <>
-                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  登録済みの地点
+                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  {t("legCreator.placeInput.knownPlaces")}
                 </p>
                 {knownMatches.map((p, i) => (
                   <button
                     key={`known-${p.name}-${i}`}
                     type="button"
                     onClick={() => pick(p)}
-                    className="flex w-full items-center gap-2 truncate rounded-md px-2 py-1.5 text-left text-xs hover:bg-slate-100"
+                    className="flex w-full items-center gap-2 truncate rounded-md px-2 py-1.5 text-left text-xs hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
                   >
-                    <FaLocationDot className="shrink-0 text-[10px] text-cyan-600" />
+                    <FaLocationDot className="shrink-0 text-[10px] text-cyan-600 dark:text-cyan-400" />
                     {p.name}
                   </button>
                 ))}
               </>
             )}
             {/* ジオコード検索結果 */}
-            <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-              検索結果{loading ? "（検索中…）" : ""}
+            <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+              {loading ? t("legCreator.placeInput.resultsSearching") : t("legCreator.placeInput.results")}
             </p>
             {q.trim().length < 2 ? (
-              <p className="px-2 py-2 text-[11px] text-slate-400">2 文字以上で地名を検索</p>
+              <p className="px-2 py-2 text-[11px] text-slate-400 dark:text-slate-500">{t("legCreator.placeInput.minChars")}</p>
             ) : results.length === 0 && !loading ? (
-              <p className="px-2 py-2 text-[11px] text-slate-400">該当なし</p>
+              <p className="px-2 py-2 text-[11px] text-slate-400 dark:text-slate-500">{t("legCreator.placeInput.noResults")}</p>
             ) : (
               results.map((r, i) => (
                 <button
                   key={`geo-${i}`}
                   type="button"
                   onClick={() => pick({ name: r.name, lng: r.lng, lat: r.lat })}
-                  className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-slate-100"
+                  className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-700"
                 >
                   <FaMagnifyingGlass className="mt-0.5 shrink-0 text-[9px] text-slate-400" />
                   <span className="min-w-0">
-                    <span className="block truncate font-medium text-slate-700">{r.name}</span>
+                    <span className="block truncate font-medium text-slate-700 dark:text-slate-200">{r.name}</span>
                     {r.label && r.label !== r.name && (
-                      <span className="block truncate text-[10px] text-slate-400">{r.label}</span>
+                      <span className="block truncate text-[10px] text-slate-400 dark:text-slate-500">{r.label}</span>
                     )}
                   </span>
                 </button>
@@ -180,6 +176,13 @@ export default function LegCreator({
   nextOrderIndex: number;
   onCreated: () => void;
 }) {
+  const { t } = useTranslation(["itinerary", "common"]);
+  const fmtKm = (m: number) => t("legCreator.km", { value: (m / 1000).toFixed(m < 10000 ? 1 : 0) });
+  const fmtDur = (s: number) => {
+    const min = Math.round(s / 60);
+    if (min < 60) return t("legCreator.durMinutes", { minutes: min });
+    return t("legCreator.durHours", { hours: Math.floor(min / 60), minutes: min % 60 });
+  };
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
@@ -245,7 +248,8 @@ export default function LegCreator({
     try {
       const viaCoords = (vias.filter(Boolean) as Place[]).map((v) => `${v.lng},${v.lat}`);
       const r = await api.osrmRoute(`${from.lng},${from.lat}`, `${to.lng},${to.lat}`, "driving", viaCoords);
-      if (!r.routes?.length) setError(r.error ? `経路が見つかりません（${r.error}）` : "経路が見つかりません");
+      if (!r.routes?.length)
+        setError(r.error ? t("legCreator.routeNotFoundWith", { error: r.error }) : t("legCreator.routeNotFound"));
       else {
         setCandidates(r.routes);
         setSel(0);
@@ -285,7 +289,7 @@ export default function LegCreator({
           mode,
           geojson: chosen.geometry,
           note: `${fmtKm(chosen.distance)} / ${fmtDur(chosen.duration)}${
-            pass.length ? ` · 通過: ${pass.join(" → ")}` : chosen.via ? ` · ${chosen.via}` : ""
+            pass.length ? ` · ${t("legCreator.notePass", { pass: pass.join(" → ") })}` : chosen.via ? ` · ${chosen.via}` : ""
           }`,
         });
       }
@@ -306,9 +310,9 @@ export default function LegCreator({
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-cyan-300 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-50"
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-cyan-300 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-50 dark:border-cyan-500/40 dark:text-cyan-400 dark:hover:bg-cyan-500/10"
       >
-        <FaPlus className="text-xs" /> 移動を作成
+        <FaPlus className="text-xs" /> {t("legCreator.create")}
       </button>
 
       {open &&
@@ -319,16 +323,16 @@ export default function LegCreator({
               if (e.target === e.currentTarget) close();
             }}
           >
-            <div className="my-auto w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-5">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800">
-                  <FaRoute className="text-cyan-700" /> 移動を作成
+            <div className="my-auto w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-white/10">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-5 dark:border-slate-700">
+                <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800 dark:text-slate-100">
+                  <FaRoute className="text-cyan-700 dark:text-cyan-400" /> {t("legCreator.create")}
                 </h3>
                 <button
                   type="button"
                   onClick={close}
-                  aria-label="閉じる"
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  aria-label={t("legCreator.close")}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                 >
                   <FaXmark size={20} />
                 </button>
@@ -337,7 +341,7 @@ export default function LegCreator({
               <div className="space-y-4 p-5">
                 {/* 交通手段 */}
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-500">交通手段</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">{t("legCreator.mode")}</label>
                   <div className="flex flex-wrap gap-1.5">
                     {MODES.map((m) => {
                       const on = mode === m.key;
@@ -351,11 +355,13 @@ export default function LegCreator({
                             setError(null);
                           }}
                           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition ${
-                            on ? "text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
+                            on
+                              ? "text-white"
+                              : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700"
                           }`}
                           style={on ? { background: m.color } : undefined}
                         >
-                          <m.Icon className="text-xs" /> {m.label}
+                          <m.Icon className="text-xs" /> {t(m.labelKey)}
                         </button>
                       );
                     })}
@@ -365,17 +371,17 @@ export default function LegCreator({
                 {isFlight ? (
                   /* 飛行機：空港を直接入力（経由地つき）。OSRM は使わない。 */
                   <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-slate-500">空港（出発 → 経由 → 到着）</label>
-                    <PlaceInput places={places} bias={bias} tag="aeroway:aerodrome" value={from} onChange={setFrom} placeholder="出発空港（地名で検索）" />
+                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{t("legCreator.airportsLabel")}</label>
+                    <PlaceInput places={places} bias={bias} tag="aeroway:aerodrome" value={from} onChange={setFrom} placeholder={t("legCreator.departureAirport")} />
                     {vias.map((v, i) => (
                       <div key={i} className="flex items-center gap-1.5">
-                        <span className="shrink-0 text-slate-300">↳</span>
-                        <PlaceInput places={places} bias={bias} tag="aeroway:aerodrome" value={v} onChange={(p) => setVia(i, p)} placeholder={`経由空港 ${i + 1}`} />
+                        <span className="shrink-0 text-slate-300 dark:text-slate-600">↳</span>
+                        <PlaceInput places={places} bias={bias} tag="aeroway:aerodrome" value={v} onChange={(p) => setVia(i, p)} placeholder={t("legCreator.viaAirport", { index: i + 1 })} />
                         <button
                           type="button"
                           onClick={() => removeVia(i)}
-                          aria-label="経由地を削除"
-                          className="shrink-0 rounded p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
+                          aria-label={t("legCreator.removeVia")}
+                          className="shrink-0 rounded p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
                         >
                           <FaXmark />
                         </button>
@@ -384,36 +390,36 @@ export default function LegCreator({
                     <button
                       type="button"
                       onClick={addVia}
-                      className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 hover:border-cyan-300 hover:text-cyan-700"
+                      className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 hover:border-cyan-300 hover:text-cyan-700 dark:border-slate-600 dark:text-slate-400 dark:hover:border-cyan-500/50 dark:hover:text-cyan-400"
                     >
-                      <FaPlus className="text-[10px]" /> 経由空港を追加
+                      <FaPlus className="text-[10px]" /> {t("legCreator.addViaAirport")}
                     </button>
-                    <PlaceInput places={places} bias={bias} tag="aeroway:aerodrome" value={to} onChange={setTo} placeholder="到着空港（地名で検索）" />
-                    <p className="text-[11px] leading-relaxed text-slate-400">
-                      入力した空港を直線でつないで保存します（経路計算なし）。経由空港を追加すると、その空港を通る線になります。
+                    <PlaceInput places={places} bias={bias} tag="aeroway:aerodrome" value={to} onChange={setTo} placeholder={t("legCreator.arrivalAirport")} />
+                    <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+                      {t("legCreator.flightHint")}
                     </p>
                   </div>
                 ) : (
                   /* それ以外：出発地・目的地から経路候補を計算 */
                   <>
                     <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">出発地・目的地</label>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">{t("legCreator.fromToLabel")}</label>
                       <div className="flex items-center gap-2">
-                        <PlaceInput places={places} bias={bias} value={from} onChange={setFrom} placeholder="出発地（地名で検索）" />
+                        <PlaceInput places={places} bias={bias} value={from} onChange={setFrom} placeholder={t("legCreator.departure")} />
                         <FaArrowRightLong className="shrink-0 text-slate-400" />
-                        <PlaceInput places={places} bias={bias} value={to} onChange={setTo} placeholder="目的地（地名で検索）" />
+                        <PlaceInput places={places} bias={bias} value={to} onChange={setTo} placeholder={t("legCreator.arrival")} />
                       </div>
                       {/* 経由地（from → via… → to の順で経路を計算） */}
                       <div className="mt-2 space-y-2">
                         {vias.map((v, i) => (
                           <div key={i} className="flex items-center gap-1.5">
-                            <span className="shrink-0 text-slate-300">↳</span>
-                            <PlaceInput places={places} bias={bias} value={v} onChange={(p) => setVia(i, p)} placeholder={`経由地 ${i + 1}（地名で検索）`} />
+                            <span className="shrink-0 text-slate-300 dark:text-slate-600">↳</span>
+                            <PlaceInput places={places} bias={bias} value={v} onChange={(p) => setVia(i, p)} placeholder={t("legCreator.via", { index: i + 1 })} />
                             <button
                               type="button"
                               onClick={() => removeVia(i)}
-                              aria-label="経由地を削除"
-                              className="shrink-0 rounded p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
+                              aria-label={t("legCreator.removeVia")}
+                              className="shrink-0 rounded p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
                             >
                               <FaXmark />
                             </button>
@@ -422,13 +428,13 @@ export default function LegCreator({
                         <button
                           type="button"
                           onClick={addVia}
-                          className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 hover:border-cyan-300 hover:text-cyan-700"
+                          className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 hover:border-cyan-300 hover:text-cyan-700 dark:border-slate-600 dark:text-slate-400 dark:hover:border-cyan-500/50 dark:hover:text-cyan-400"
                         >
-                          <FaPlus className="text-[10px]" /> 経由地を追加
+                          <FaPlus className="text-[10px]" /> {t("legCreator.addVia")}
                         </button>
                         {vias.some(Boolean) && (
-                          <p className="text-[11px] leading-relaxed text-slate-400">
-                            指定した経由地を通る経路を計算します（出発地 → 経由地… → 目的地）。
+                          <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+                            {t("legCreator.viaHint")}
                           </p>
                         )}
                       </div>
@@ -439,48 +445,50 @@ export default function LegCreator({
                       disabled={!from || !to || loading}
                       className="w-full rounded-lg bg-cyan-600 py-2 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-40"
                     >
-                      {loading ? "経路を取得中…" : "ルート候補を取得"}
+                      {loading ? t("legCreator.fetching") : t("legCreator.fetchCandidates")}
                     </button>
 
-                    {error && <p className="text-sm text-rose-600">{error}</p>}
+                    {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
                   </>
                 )}
 
                 {!isFlight && candidates && (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-500">候補から選択（道路ルートで計算）</p>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t("legCreator.candidatesLabel")}</p>
                     {candidates.map((r, i) => (
                       <button
                         key={i}
                         type="button"
                         onClick={() => setSel(i)}
                         className={`block w-full rounded-xl border px-3.5 py-2.5 text-left transition ${
-                          sel === i ? "border-cyan-500 bg-cyan-50/60 ring-1 ring-cyan-400" : "border-slate-200 bg-white hover:border-cyan-300"
+                          sel === i
+                            ? "border-cyan-500 bg-cyan-50/60 ring-1 ring-cyan-400 dark:border-cyan-500 dark:bg-cyan-500/10"
+                            : "border-slate-200 bg-white hover:border-cyan-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-cyan-500/50"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="flex items-center gap-2.5 font-medium text-slate-700">
+                          <span className="flex items-center gap-2.5 font-medium text-slate-700 dark:text-slate-200">
                             <span
                               className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                                sel === i ? "border-cyan-600 bg-cyan-600" : "border-slate-300"
+                                sel === i ? "border-cyan-600 bg-cyan-600" : "border-slate-300 dark:border-slate-600"
                               }`}
                             >
                               {sel === i && <span className="h-2 w-2 rounded-full bg-white" />}
                             </span>
-                            候補 {i + 1}
+                            {t("legCreator.candidate", { index: i + 1 })}
                           </span>
-                          <span className="text-sm font-medium text-slate-600">
+                          <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
                             {fmtKm(r.distance)} · {fmtDur(r.duration)}
                           </span>
                         </div>
                         {r.waypoints && r.waypoints.length > 0 ? (
-                          <p className="mt-1.5 pl-7 text-xs leading-relaxed text-slate-600">
-                            <span className="text-slate-400">通過：</span>
+                          <p className="mt-1.5 pl-7 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                            <span className="text-slate-400 dark:text-slate-500">{t("legCreator.passVia")}</span>
                             {[from?.name, ...r.waypoints, to?.name].filter(Boolean).join(" → ")}
                           </p>
                         ) : r.via ? (
-                          <p className="mt-1.5 pl-7 text-xs leading-relaxed text-slate-500">
-                            <span className="text-slate-400">主な経路：</span>
+                          <p className="mt-1.5 pl-7 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                            <span className="text-slate-400 dark:text-slate-500">{t("legCreator.mainRoute")}</span>
                             {r.via}
                           </p>
                         ) : null}
@@ -490,20 +498,20 @@ export default function LegCreator({
                 )}
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 p-5">
+              <div className="flex justify-end gap-2 border-t border-slate-100 p-5 dark:border-slate-700">
                 <button
                   type="button"
                   onClick={close}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
-                  キャンセル
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   onClick={confirm}
                   disabled={saving || (isFlight ? !(from && to) : !candidates)}
                   className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
                 >
-                  {saving ? "保存中…" : "確定して移動を追加"}
+                  {saving ? t("legCreator.saving") : t("legCreator.confirm")}
                 </button>
               </div>
             </div>

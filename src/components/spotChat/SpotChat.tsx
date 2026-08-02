@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FaPaperPlane, FaStop, FaWandMagicSparkles, FaImage, FaXmark, FaTrash } from "react-icons/fa6";
 import { PanelRightClose } from "lucide-react";
 import { api } from "../../api";
@@ -12,22 +13,13 @@ import Markdown from "./Markdown";
 const MAX_IMAGES = 4;
 const MAX_BYTES = 12 * 1024 * 1024; // 1 枚あたり 12MB まで（HEIC の元ファイルは大きめ）
 
-const TOOL_LABELS: Record<string, string> = {
-  list_spots: "候補一覧を確認",
-  web_search: "Web 検索",
-  fetch_url: "ページ取得",
-  geocode: "座標を取得",
-  propose_upsert_spot: "追加/更新を提案",
-  propose_delete_spot: "削除を提案",
-};
+// AI が実行するツール名 → 翻訳キー（表示名は i18n 側で解決）。
+const TOOL_KEYS = ["list_spots", "web_search", "fetch_url", "geocode", "propose_upsert_spot", "propose_delete_spot"];
 
-const SUGGESTIONS = [
-  "ツェルマットでマッターホルンが見えるおすすめスポットを3つ追加して",
-  "ニースの海沿いで朝食できるカフェを調べて候補に入れて",
-  "今ある候補の重複を確認して整理を提案して",
-];
+const SUGGESTION_KEYS = ["suggestions.s1", "suggestions.s2", "suggestions.s3"];
 
 export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat; reload: () => void; onClose?: () => void }) {
+  const { t } = useTranslation("spotChat");
   const {
     messages, usage, streaming, error, statuses, loadingHistory,
     sessions, activeId, send, stop, setProposalStatus, newSession, selectSession, deleteSession,
@@ -66,7 +58,7 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
       void api.resolveProposal(activeId, p.tempId, "saved").catch(() => {});
       reload();
     } catch (e) {
-      setSaveError(`保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      setSaveError(t("saveError", { error: e instanceof Error ? e.message : String(e) }));
     } finally {
       setSavingId(null);
     }
@@ -84,14 +76,14 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
     setAttached([]);
   }
 
-  const activeTitle = sessions.find((s) => s.id === activeId)?.title ?? "この会話";
+  const activeTitle = sessions.find((s) => s.id === activeId)?.title ?? t("session.fallbackTitle");
 
   return (
     <div className="mesh-light flex h-full flex-col">
       <ConfirmDialog
         open={confirmDelete}
-        title="会話を削除しますか？"
-        message={`「${activeTitle}」の会話履歴を削除します。この操作は取り消せません。`}
+        title={t("confirm.title")}
+        message={t("confirm.message", { title: activeTitle })}
         busy={deletingSession}
         onConfirm={async () => {
           setDeletingSession(true);
@@ -105,12 +97,12 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
         onCancel={() => setConfirmDelete(false)}
       />
       {/* ヘッダ: 会話履歴はセレクトボックスで選択 */}
-      <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 dark:border-slate-700">
         {onClose && (
           <button
             onClick={onClose}
-            title="チャットを閉じる"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            title={t("close")}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-100"
           >
             <PanelRightClose size={16} />
           </button>
@@ -118,7 +110,7 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
         <SessionSelect
           value={activeId}
           options={[
-            ...(activeSaved ? [] : [{ id: activeId, title: "新しい会話" }]),
+            ...(activeSaved ? [] : [{ id: activeId, title: t("session.newConversation") }]),
             ...sessions,
           ]}
           onSelect={(id) => {
@@ -130,17 +122,17 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
         {activeSaved && (
           <button
             onClick={() => setConfirmDelete(true)}
-            title="この会話を削除"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+            title={t("session.delete")}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
           >
             <FaTrash className="text-xs" />
           </button>
         )}
       </div>
       {usage.costUSD > 0 && (
-        <div className="flex justify-end border-b border-slate-100 px-3 py-1">
-          <span className="text-[11px] text-slate-400" title="このセッションの累計コスト">
-            {usage.inputTokens + usage.outputTokens > 0 && `${(usage.inputTokens + usage.outputTokens).toLocaleString()} tok · `}
+        <div className="flex justify-end border-b border-slate-100 px-3 py-1 dark:border-slate-700">
+          <span className="text-[11px] text-slate-400" title={t("usage.title")}>
+            {usage.inputTokens + usage.outputTokens > 0 && t("usage.tokens", { count: usage.inputTokens + usage.outputTokens })}
             ${usage.costUSD.toFixed(4)}
           </span>
         </div>
@@ -148,24 +140,26 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
 
       {/* メッセージ */}
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        {loadingHistory && <p className="py-6 text-center text-xs text-slate-400">履歴を読み込み中…</p>}
+        {loadingHistory && <p className="py-6 text-center text-xs text-slate-400">{t("history.loading")}</p>}
         {!loadingHistory && messages.length === 0 && (
           <div className="mx-auto max-w-md py-6 text-center">
-            <FaWandMagicSparkles className="mx-auto mb-2 text-2xl text-cyan-600" />
-            <p className="text-sm text-slate-500">
-              行きたいスポットを言葉で伝えると、AI が情報を調べて候補への追加・更新・削除を提案します。
-              保存はあなたが確認してから確定します。
+            <FaWandMagicSparkles className="mx-auto mb-2 text-2xl text-cyan-600 dark:text-cyan-400" />
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t("empty.lead")}
             </p>
             <div className="mt-4 space-y-2 text-left">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => submit(s)}
-                  className="block w-full rounded-lg bg-slate-50 px-3 py-2 text-left text-xs text-slate-600 ring-1 ring-slate-200 transition-colors hover:bg-cyan-50 hover:text-cyan-800"
-                >
-                  {s}
-                </button>
-              ))}
+              {SUGGESTION_KEYS.map((k) => {
+                const s = t(k);
+                return (
+                  <button
+                    key={k}
+                    onClick={() => submit(s)}
+                    className="block w-full rounded-lg bg-slate-50 px-3 py-2 text-left text-xs text-slate-600 ring-1 ring-slate-200 transition-colors hover:bg-cyan-50 hover:text-cyan-800 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-300"
+                  >
+                    {s}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -191,13 +185,15 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
                   {/* ツール実行チップ */}
                   {m.tools.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
-                      {m.tools.map((t, j) => (
+                      {m.tools.map((tool, j) => (
                         <span
-                          key={t.id + j}
-                          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500"
+                          key={tool.id + j}
+                          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                         >
-                          <span className="font-medium text-slate-600">{TOOL_LABELS[t.name] ?? t.name}</span>
-                          {t.detail && <span className="max-w-[200px] truncate text-slate-400">{t.detail}</span>}
+                          <span className="font-medium text-slate-600 dark:text-slate-300">
+                            {TOOL_KEYS.includes(tool.name) ? t(`tools.${tool.name}`) : tool.name}
+                          </span>
+                          {tool.detail && <span className="max-w-[200px] truncate text-slate-400 dark:text-slate-500">{tool.detail}</span>}
                         </span>
                       ))}
                     </div>
@@ -222,11 +218,11 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
 
         {streaming && (
           <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-500" /> 考え中…
+            <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-500" /> {t("thinking")}
           </div>
         )}
-        {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</div>}
-        {saveError && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{saveError}</div>}
+        {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</div>}
+        {saveError && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{saveError}</div>}
       </div>
 
       {/* 入力（メッセージ欄と地続きに見せるため区切り線は置かない） */}
@@ -243,17 +239,17 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
           }}
         />
         {/* 一体型の入力カード：テキストと操作ボタンを 1 つの角丸にまとめる */}
-        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors focus-within:border-cyan-400">
+        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors focus-within:border-cyan-400 dark:border-slate-600 dark:bg-slate-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
           {/* 添付画像のプレビュー */}
           {attached.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
               {attached.map((im, i) => (
                 <div key={i} className="relative">
-                  <img src={im.dataUrl} alt="" className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200" />
+                  <img src={im.dataUrl} alt="" className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700" />
                   <button
                     onClick={() => setAttached((a) => a.filter((_, j) => j !== i))}
                     className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-[10px] text-white hover:bg-slate-900"
-                    title="削除"
+                    title={t("input.removeImage")}
                   >
                     <FaXmark />
                   </button>
@@ -280,24 +276,24 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
               }
             }}
             rows={1}
-            placeholder="メッセージを入力…"
-            className="max-h-32 min-h-[24px] w-full resize-none border-0 bg-transparent p-0 text-sm leading-6 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+            placeholder={t("input.placeholder")}
+            className="max-h-32 min-h-[24px] w-full resize-none border-0 bg-transparent p-0 text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 dark:text-slate-100 dark:placeholder-slate-500"
           />
           {/* 操作ボタン：カード内下段（左＝添付 / 右＝送信・中断） */}
           <div className="mt-2 flex items-center gap-1">
             <button
               onClick={() => fileRef.current?.click()}
               disabled={streaming || attached.length >= MAX_IMAGES}
-              title="画像を添付"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
+              title={t("input.attach")}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-slate-200"
             >
               <FaImage />
             </button>
             {streaming ? (
               <button
                 onClick={stop}
-                className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300"
-                title="中断"
+                className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                title={t("input.stop")}
               >
                 <FaStop />
               </button>
@@ -306,14 +302,14 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
                 onClick={() => submit(input)}
                 disabled={!input.trim() && attached.length === 0}
                 className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-700 text-white transition-colors hover:bg-cyan-600 disabled:opacity-40"
-                title="送信"
+                title={t("input.send")}
               >
                 <FaPaperPlane />
               </button>
             )}
           </div>
         </div>
-        <p className="mt-1.5 px-1 text-[10px] text-slate-400">Enter で送信 / Shift+Enter で改行</p>
+        <p className="mt-1.5 px-1 text-[10px] text-slate-400">{t("input.hint")}</p>
       </div>
     </div>
   );

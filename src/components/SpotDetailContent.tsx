@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import {
   FaLink,
   FaMapLocationDot,
@@ -16,26 +17,28 @@ import InstagramGallery, { normalizePermalink } from "./InstagramGallery";
 
 /** Google マップの評価バッジ（Places API でライブ取得した rating を表示）。 */
 export function RatingBadge({ rating, count }: { rating: number; count: number }) {
+  const { t } = useTranslation("spots");
   return (
-    <span className="inline-flex items-center gap-1" title="Google マップの評価（クチコミはリンク先で確認）">
+    <span className="inline-flex items-center gap-1" title={t("rating.tooltip")}>
       <FaStar className="text-[11px] text-amber-400" />
-      <span className="font-semibold text-slate-700">{rating.toFixed(1)}</span>
-      {count > 0 && <span className="text-slate-400">({count.toLocaleString()})</span>}
+      <span className="font-semibold text-slate-700 dark:text-slate-200">{rating.toFixed(1)}</span>
+      {count > 0 && <span className="text-slate-400 dark:text-slate-500">({count.toLocaleString()})</span>}
     </span>
   );
 }
 
 /** Google マップへのリンク。口コミ・評価はリンク先で確認する（shiori には保存しない）。 */
 export function GoogleMapsLink({ url, onClick }: { url: string; onClick?: (e: React.MouseEvent) => void }) {
+  const { t } = useTranslation("spots");
   return (
     <a
       href={url}
       target="_blank"
       rel="noreferrer"
       onClick={onClick}
-      className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline"
+      className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline dark:text-emerald-400"
     >
-      <FaMapLocationDot className="text-[10px]" /> Google マップ
+      <FaMapLocationDot className="text-[10px]" /> {t("links.googleMaps")}
     </a>
   );
 }
@@ -55,19 +58,20 @@ export function PhotoCarousel({
   heightClass?: string;
   rounded?: boolean;
 }) {
+  const { t } = useTranslation("spots");
   const [idx, setIdx] = useState(0);
   if (urls.length === 0) return null;
   const n = urls.length;
   const go = (d: number) => setIdx((i) => (i + d + n) % n);
   return (
-    <div className={`relative select-none overflow-hidden bg-slate-100 ${rounded ? "rounded-lg" : ""}`}>
-      <img src={urls[idx]} alt={`${alt} の写真 ${idx + 1}`} className={`mx-auto ${heightClass} w-full object-contain`} />
+    <div className={`relative select-none overflow-hidden bg-slate-100 dark:bg-slate-800 ${rounded ? "rounded-lg" : ""}`}>
+      <img src={urls[idx]} alt={t("carousel.photoAlt", { name: alt, index: idx + 1 })} className={`mx-auto ${heightClass} w-full object-contain`} />
       {n > 1 && (
         <>
           <button
             type="button"
             onClick={() => go(-1)}
-            aria-label="前の写真"
+            aria-label={t("carousel.prev")}
             className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition hover:bg-black/60"
           >
             <FaChevronLeft />
@@ -75,7 +79,7 @@ export function PhotoCarousel({
           <button
             type="button"
             onClick={() => go(1)}
-            aria-label="次の写真"
+            aria-label={t("carousel.next")}
             className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition hover:bg-black/60"
           >
             <FaChevronRight />
@@ -90,7 +94,7 @@ export function PhotoCarousel({
                   key={i}
                   type="button"
                   onClick={() => setIdx(i)}
-                  aria-label={`${i + 1} 枚目へ`}
+                  aria-label={t("carousel.goTo", { index: i + 1 })}
                   className={`h-1.5 rounded-full transition-all ${i === idx ? "w-4 bg-white" : "w-1.5 bg-white/60 hover:bg-white/90"}`}
                 />
               ))}
@@ -107,13 +111,14 @@ export function PhotoCarousel({
  * 名称・都市・国から検索クエリを組み、地図＋場所カード（星評価）を表示する。
  */
 function GoogleMapEmbed({ spot }: { spot: Spot }) {
+  const { t } = useTranslation("spots");
   const query = [spot.name, spot.city, spot.country].filter(Boolean).join(" ");
   if (!query) return null;
   const src = `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=15&hl=ja&output=embed`;
   return (
-    <div className="overflow-hidden rounded-lg ring-1 ring-slate-200">
+    <div className="overflow-hidden rounded-lg ring-1 ring-slate-200 dark:ring-slate-700">
       <iframe
-        title={`${spot.name} の Google マップ`}
+        title={t("detailContent.mapTitle", { name: spot.name })}
         src={src}
         loading="lazy"
         referrerPolicy="no-referrer-when-downgrade"
@@ -126,6 +131,7 @@ function GoogleMapEmbed({ spot }: { spot: Spot }) {
 
 /** Instagram 投稿 URL を追加/削除する UI。変更は即保存。 */
 function InstagramEditor({ spot, reload }: { spot: Spot; reload: () => void }) {
+  const { t } = useTranslation("spots");
   const [input, setInput] = useState("");
   const urls = spot.instagram ?? [];
 
@@ -136,7 +142,7 @@ function InstagramEditor({ spot, reload }: { spot: Spot; reload: () => void }) {
   async function add() {
     const norm = normalizePermalink(input);
     if (!norm) {
-      alert("Instagram 投稿の URL（…/p/…, /reel/…, /tv/…）を入力してください");
+      alert(t("instagram.invalidUrl"));
       return;
     }
     setInput("");
@@ -144,18 +150,18 @@ function InstagramEditor({ spot, reload }: { spot: Spot; reload: () => void }) {
   }
 
   return (
-    <div className="mb-3 rounded-lg bg-slate-50 p-2">
-      <div className="mb-1.5 text-xs font-medium text-slate-500">Instagram 投稿 URL（{urls.length}）</div>
+    <div className="mb-3 rounded-lg bg-slate-50 p-2 dark:bg-slate-800">
+      <div className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">{t("instagram.editorLabel", { count: urls.length })}</div>
       {urls.length > 0 && (
         <ul className="mb-1.5 space-y-1">
           {urls.map((u) => (
             <li key={u} className="flex items-center gap-1.5 text-xs">
-              <span className="min-w-0 flex-1 truncate text-slate-600">{u}</span>
+              <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{u}</span>
               <button
                 type="button"
                 onClick={() => save(urls.filter((x) => x !== u))}
-                title="削除"
-                className="shrink-0 rounded p-1 text-rose-600 hover:bg-rose-50"
+                title={t("instagram.delete")}
+                className="shrink-0 rounded p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
               >
                 <FaXmark />
               </button>
@@ -173,15 +179,15 @@ function InstagramEditor({ spot, reload }: { spot: Spot; reload: () => void }) {
               add();
             }
           }}
-          placeholder="https://www.instagram.com/p/..."
-          className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-xs"
+          placeholder={t("instagram.placeholder")}
+          className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
         />
         <button
           type="button"
           onClick={add}
-          className="shrink-0 rounded bg-cyan-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-cyan-800"
+          className="shrink-0 rounded bg-cyan-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-cyan-800 dark:bg-cyan-600 dark:hover:bg-cyan-500"
         >
-          追加
+          {t("instagram.add")}
         </button>
       </div>
     </div>
@@ -204,6 +210,7 @@ export default function SpotDetailContent({
   reload: () => void;
   onClose?: () => void;
 }) {
+  const { t } = useTranslation("spots");
   const photos = rating?.photoUrls ?? [];
   return (
     <div>
@@ -216,20 +223,20 @@ export default function SpotDetailContent({
           className="h-44 w-full object-cover"
         />
       )}
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
+      <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4 dark:border-slate-700">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-2xl leading-none">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-2xl leading-none dark:bg-slate-800">
             {resolveSpotIcon(spot).emoji}
           </span>
           <div className="min-w-0">
-            <h3 className="text-lg font-bold text-slate-800">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
               {spot.name}
-              {spot.name_en && <span className="ml-1.5 text-sm font-normal text-slate-400">{spot.name_en}</span>}
+              {spot.name_en && <span className="ml-1.5 text-sm font-normal text-slate-400 dark:text-slate-500">{spot.name_en}</span>}
             </h3>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
               {spot.country && <span>{spot.country}</span>}
               {spot.city && <span>· {spot.city}</span>}
-              {spot.category && <span className="rounded bg-slate-100 px-1.5 py-0.5">{spot.category}</span>}
+              {spot.category && <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">{spot.category}</span>}
               {rating && <RatingBadge rating={rating.rating} count={rating.userRatingCount} />}
             </div>
           </div>
@@ -238,8 +245,8 @@ export default function SpotDetailContent({
           <button
             type="button"
             onClick={onClose}
-            aria-label="閉じる"
-            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            aria-label={t("detailContent.close")}
+            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           >
             <FaXmark size={20} />
           </button>
@@ -247,7 +254,7 @@ export default function SpotDetailContent({
       </div>
       {(spot.note || spot.url || spot.google_maps_url || spot.source) && (
         <div className="space-y-3 px-4 pt-4">
-          {spot.note && <p className="text-sm text-slate-600">{spot.note}</p>}
+          {spot.note && <p className="text-sm text-slate-600 dark:text-slate-300">{spot.note}</p>}
           <div className="flex flex-wrap items-center gap-3 text-xs">
             {spot.google_maps_url && <GoogleMapsLink url={spot.google_maps_url} />}
             {spot.url && (
@@ -255,45 +262,52 @@ export default function SpotDetailContent({
                 href={spot.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 font-medium text-cyan-700 hover:underline"
+                className="inline-flex items-center gap-1 font-medium text-cyan-700 hover:underline dark:text-cyan-400"
               >
-                <FaLink className="text-[10px]" /> リンク
+                <FaLink className="text-[10px]" /> {t("links.link")}
               </a>
             )}
-            {spot.source && <span className="text-slate-400">出典: {spot.source}</span>}
+            {spot.source && <span className="text-slate-400 dark:text-slate-500">{t("detailContent.source", { source: spot.source })}</span>}
           </div>
         </div>
       )}
       {/* Google の写真（2 枚目以降）を、縦が切れないカルーセルで表示。 */}
       {photos.length > 1 && (
         <div className="space-y-1.5 p-4">
-          <h4 className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-            <FaImages className="text-amber-500" /> Google の写真
+          <h4 className="flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
+            <FaImages className="text-amber-500" /> {t("detailContent.googlePhotos")}
           </h4>
           <PhotoCarousel key={spot.id} urls={photos.slice(1)} alt={spot.name} />
         </div>
       )}
       {/* Google マップ（埋め込み地図＋場所カード）。 */}
       <div className="space-y-1.5 p-4">
-        <h4 className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-          <FaMapLocationDot className="text-emerald-700" /> Google マップ
+        <h4 className="flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
+          <FaMapLocationDot className="text-emerald-700 dark:text-emerald-400" /> {t("links.googleMaps")}
         </h4>
         <GoogleMapEmbed spot={spot} />
-        <p className="text-xs text-slate-400">
-          星評価・写真はカード内に表示されます。クチコミ本文は{" "}
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           {spot.google_maps_url ? (
-            <a href={spot.google_maps_url} target="_blank" rel="noreferrer" className="text-emerald-700 hover:underline">
-              Google マップ
-            </a>
+            <Trans
+              t={t}
+              i18nKey="detailContent.reviewHint"
+              components={[
+                <a
+                  href={spot.google_maps_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-700 hover:underline dark:text-emerald-400"
+                />,
+              ]}
+            />
           ) : (
-            "Google マップ"
-          )}{" "}
-          で確認できます。
+            t("detailContent.reviewHintPlain")
+          )}
         </p>
       </div>
       {/* Instagram */}
       <div className="p-4">
-        <h4 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-slate-700">
+        <h4 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
           <FaInstagram className="text-pink-500" /> Instagram
         </h4>
         <InstagramEditor spot={spot} reload={reload} />

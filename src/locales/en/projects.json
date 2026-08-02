@@ -1,0 +1,26 @@
+{
+  "heading": "Projects",
+  "createPlaceholder": "New project name (e.g. Taiwan Trip 2026)",
+  "empty": {
+    "title": "No projects yet.",
+    "hint": "Create your first project from the input above."
+  },
+  "member": {
+    "count_one": "{{count}} member",
+    "count_other": "{{count}} members",
+    "owner": " · Owner"
+  },
+  "actions": {
+    "members": "Members",
+    "rename": "Rename"
+  },
+  "delete": {
+    "title": "Delete this project?",
+    "message": "The itinerary, spots, budget, and chat history for \"{{name}}\" will all be deleted. This cannot be undone."
+  },
+  "login": {
+    "tagline": "Start planning your trip",
+    "description": "Sign in with your Google account to create your itinerary.",
+    "google": "Sign in with Google"
+  }
+}

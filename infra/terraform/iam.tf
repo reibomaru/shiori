@@ -23,6 +23,23 @@ resource "google_project_iam_member" "runtime_firestore" {
   member  = "serviceAccount:${google_service_account.runtime.email}"
 }
 
+# BYOK: 実行 SA がユーザーごとの Gemini API キーを Secret Manager に
+# 実行時作成・更新・読取・削除する（secret_ids の固定シークレットとは別に、
+# byok-gemini-<sub> を動的に管理するため create/delete 権限が要る）。
+# IAM condition で byok-gemini- プレフィックスのシークレットに限定して最小権限にする。
+# ※ プレフィックスは server 側の BYOK_SECRET_PREFIX 既定値（byok-gemini）と揃える。
+resource "google_project_iam_member" "runtime_byok_secret_admin" {
+  project = var.project_id
+  role    = "roles/secretmanager.admin"
+  member  = "serviceAccount:${google_service_account.runtime.email}"
+
+  condition {
+    title       = "byok-gemini-secrets-only"
+    description = "BYOK 用（byok-gemini-*）のシークレットのみに限定"
+    expression  = "resource.name.startsWith(\"projects/${var.project_id}/secrets/byok-gemini-\")"
+  }
+}
+
 # ---- GitHub Actions デプロイ用 SA --------------------------
 resource "google_service_account" "deployer" {
   account_id   = "${var.service_name}-deployer"

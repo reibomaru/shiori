@@ -78,11 +78,14 @@ export default function ByokSettings() {
         <p className="text-xs text-slate-400 dark:text-slate-500">{t("byok.loading")}</p>
       ) : (
         <>
-          {/* 状態表示 */}
+          {/* 状態表示。BYOK 登録時は上限なしだが、参考として当月の利用率を表示する。 */}
           {status.hasKey ? (
-            <p className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
-              <FaCheck size={12} /> {t("byok.registered")}
-            </p>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
+                <FaCheck size={12} /> {t("byok.registered")}
+              </p>
+              <UsageBar cost={status.usage.costUsd} limit={status.usage.limitUsd} enforced={false} />
+            </div>
           ) : (
             <div className="text-xs text-slate-500 dark:text-slate-400">
               <p>{t("byok.usingShared")}</p>
@@ -190,10 +193,13 @@ export default function ByokSettings() {
   );
 }
 
-/** 当月の消費量バー（共有キー利用時）。 */
-function UsageBar({ cost, limit }: { cost: number; limit: number }) {
+/**
+ * 当月の消費量バー。パーセント数値は実際の利用率（100% 超も表示）、バー幅は 100% で頭打ち。
+ * enforced=false（BYOK・上限なし）のときは超過しても警告色にしない。
+ */
+function UsageBar({ cost, limit, enforced = true }: { cost: number; limit: number; enforced?: boolean }) {
   const { t } = useTranslation("dialogs");
-  const pct = limit > 0 ? Math.min(100, Math.round((cost / limit) * 100)) : 0;
+  const pct = limit > 0 ? Math.round((cost / limit) * 100) : 0;
   const over = cost >= limit;
   return (
     <div className="mt-1.5">
@@ -203,8 +209,8 @@ function UsageBar({ cost, limit }: { cost: number; limit: number }) {
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
         <div
-          className={`h-full rounded-full ${over ? "bg-rose-500" : "bg-cyan-500"}`}
-          style={{ width: `${pct}%` }}
+          className={`h-full rounded-full ${enforced && over ? "bg-rose-500" : "bg-cyan-500"}`}
+          style={{ width: `${Math.min(100, pct)}%` }}
         />
       </div>
     </div>

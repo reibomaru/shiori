@@ -23,7 +23,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import {
   currentUsageMonth,
   getAiUsageState,
-  recordSharedUsage,
+  recordAiUsage,
   setByokKeyFlag,
   type AiUsageState,
 } from "./users.ts";
@@ -61,9 +61,10 @@ export function monthlyLimitFor(state: AiUsageState): number {
   return state.limitUsd != null && state.limitUsd >= 0 ? state.limitUsd : DEFAULT_MONTHLY_LIMIT_USD;
 }
 
-/** 当月ぶんの消費（記録月が当月でなければ 0 とみなす）。 */
-function currentMonthCost(state: AiUsageState): number {
-  return state.usageMonth === currentUsageMonth() ? state.usageCostUsd : 0;
+/** 当月ぶんの消費（記録月が当月でなければ 0 とみなす）。source で共有/BYOK を切替。 */
+function currentMonthCost(state: AiUsageState, source: KeySource): number {
+  if (state.usageMonth !== currentUsageMonth()) return 0;
+  return source === "byok" ? state.byokUsageCostUsd : state.usageCostUsd;
 }
 
 // ============================================================
@@ -245,12 +246,14 @@ export interface ByokStatus {
 /** ユーザーの BYOK 状態を返す。 */
 export async function getByokStatus(sub: string): Promise<ByokStatus> {
   const state = await getAiUsageState(sub);
+  const source: KeySource = state.hasByokKey ? "byok" : "shared";
   return {
     hasKey: state.hasByokKey,
-    source: state.hasByokKey ? "byok" : "shared",
+    source,
     usage: {
       month: currentUsageMonth(),
-      costUsd: currentMonthCost(state),
+      // BYOK 登録時は BYOK 分、未登録時は共有キー分の当月コストを表示する。
+      costUsd: currentMonthCost(state, source),
       limitUsd: monthlyLimitFor(state),
     },
     sharedKeyConfigured: !!process.env.GEMINI_API_KEY,
@@ -279,7 +282,7 @@ export async function resolveAiKey(sub: string): Promise<{ apiKey: string; sourc
       "AI 機能を利用できません。自分の API キー（BYOK）を登録してください（共有キーは未設定です）。",
     );
   }
-  const cost = currentMonthCost(state);
+  const cost = currentMonthCost(state, "shared");
   const limit = monthlyLimitFor(state);
   if (cost >= limit) {
     throw new UsageLimitExceededError(cost, limit, currentUsageMonth());
@@ -287,12 +290,14 @@ export async function resolveAiKey(sub: string): Promise<{ apiKey: string; sourc
   return { apiKey: shared, source: "shared" };
 }
 
-/** 共有キーを使ったときだけ、消費コストを当月集計へ加算する。 */
+/**
+ * 消費コストを当月集計へ加算する。共有キー分と BYOK 分を別々に積む
+ * （BYOK 分は表示用で上限判定には使わない）。
+ */
 export async function recordUsage(sub: string, source: KeySource, costUsd: number): Promise<void> {
-  if (source !== "shared") return; // BYOK はユーザー負担なので集計対象外
   try {
-    await recordSharedUsage(sub, costUsd);
+    await recordAiUsage(sub, costUsd, source);
   } catch (e) {
-    console.error("共有キー利用量の記録に失敗しました:", e);
+    console.error("AI 利用量の記録に失敗しました:", e);
   }
 }

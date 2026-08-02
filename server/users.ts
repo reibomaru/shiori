@@ -117,14 +117,16 @@ export async function upsertUserOnLogin(
 //  使ったときだけ加算する（BYOK 利用時はコストがユーザー負担のため対象外）。
 // ============================================================
 
-/** 共有キー利用時の AI 状態（BYOK 有無・当月の消費・上限）。 */
+/** AI 利用状態（BYOK 有無・当月の消費・上限）。 */
 export interface AiUsageState {
   /** BYOK（自分の API キー）を登録済みか。 */
   hasByokKey: boolean;
   /** 集計が記録されている月（"YYYY-MM"・UTC）。 */
   usageMonth: string;
-  /** usageMonth の累計コスト（USD）。 */
+  /** usageMonth の共有キー利用の累計コスト（USD）。上限判定に使う。 */
   usageCostUsd: number;
+  /** usageMonth の BYOK 利用の累計コスト（USD）。表示のみ（上限は適用しない）。 */
+  byokUsageCostUsd: number;
   /** ユーザーごとの月次上限の上書き（未設定は null → 環境変数の既定を使う）。 */
   limitUsd: number | null;
 }
@@ -142,6 +144,7 @@ export async function getAiUsageState(sub: string): Promise<AiUsageState> {
     hasByokKey: x.hasByokKey === true,
     usageMonth: typeof x.usageMonth === "string" ? x.usageMonth : "",
     usageCostUsd: typeof x.usageCostUsd === "number" ? x.usageCostUsd : 0,
+    byokUsageCostUsd: typeof x.byokUsageCostUsd === "number" ? x.byokUsageCostUsd : 0,
     limitUsd: typeof x.sharedKeyMonthlyLimitUsd === "number" ? x.sharedKeyMonthlyLimitUsd : null,
   };
 }
@@ -155,21 +158,29 @@ export async function setByokKeyFlag(sub: string, has: boolean): Promise<void> {
 }
 
 /**
- * 共有キー利用時のコストを当月の集計へ加算する（トランザクションで月替わりも処理）。
- * usageMonth が当月と異なれば当月ぶんとしてリセットして記録し直す。
+ * AI 利用コストを当月の集計へ加算する（トランザクションで月替わりも処理）。
+ * 共有キー(shared)分と BYOK(byok)分を別々のフィールドに積む。usageMonth が当月と
+ * 異なれば両方を 0 にリセットしてから当月ぶんとして記録し直す（片方だけ古い値が
+ * 残らないよう、書き込むフィールド以外もリセットする）。
  */
-export async function recordSharedUsage(sub: string, costUsd: number): Promise<void> {
+export async function recordAiUsage(sub: string, costUsd: number, source: "shared" | "byok"): Promise<void> {
   if (!(costUsd > 0)) return;
   const ref = firestore().collection(COLLECTION).doc(sub);
   const month = currentUsageMonth();
   await firestore().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const x = (snap.exists ? snap.data() : {}) ?? {};
-    const prevMonth = typeof x.usageMonth === "string" ? x.usageMonth : "";
-    const prevCost = prevMonth === month && typeof x.usageCostUsd === "number" ? x.usageCostUsd : 0;
+    const sameMonth = x.usageMonth === month;
+    const shared = sameMonth && typeof x.usageCostUsd === "number" ? x.usageCostUsd : 0;
+    const byok = sameMonth && typeof x.byokUsageCostUsd === "number" ? x.byokUsageCostUsd : 0;
     tx.set(
       ref,
-      { usageMonth: month, usageCostUsd: prevCost + costUsd, updatedAt: new Date().toISOString() },
+      {
+        usageMonth: month,
+        usageCostUsd: shared + (source === "shared" ? costUsd : 0),
+        byokUsageCostUsd: byok + (source === "byok" ? costUsd : 0),
+        updatedAt: new Date().toISOString(),
+      },
       { merge: true },
     );
   });

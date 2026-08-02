@@ -14,6 +14,7 @@
     "api": "node --env-file-if-exists=.env server/index.ts",
     "db:init": "node db/seed.ts",
     "db:reset": "node db/seed.ts --reset",
+    "test": "docker compose up -d firestore-emulator && FIRESTORE_EMULATOR_HOST=localhost:8085 FIRESTORE_PROJECT_ID=demo node --test \"server/**/*.test.ts\"",
     "typecheck": "tsc -b && tsc -p tsconfig.server.json",
     "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
     "preview": "vite preview"

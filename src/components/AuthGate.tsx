@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { api, type Me } from "../api";
 import { LandingPage } from "./LandingPage";
 
@@ -25,6 +26,7 @@ export function useAuth(): AuthCtx {
  *   - 認証済み: 子（アプリ本体）を描画
  */
 export function AuthGate({ children }: { children: ReactNode }) {
+  const { t } = useTranslation("common");
   const [state, setState] = useState<{ loading: boolean; me: Me | null }>({ loading: true, me: null });
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, []);
 
   if (state.loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-400">読み込み中…</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-400">{t("common:state.loading")}</div>;
   }
   if (!state.me) return <LandingPage />;
 

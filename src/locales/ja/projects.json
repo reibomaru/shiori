@@ -1,0 +1,26 @@
+{
+  "heading": "プロジェクト",
+  "createPlaceholder": "新しいプロジェクト名（例: 台湾旅行 2026）",
+  "empty": {
+    "title": "まだプロジェクトがありません。",
+    "hint": "上の入力欄から最初のプロジェクトを作成しましょう。"
+  },
+  "member": {
+    "count_one": "{{count}} 人のメンバー",
+    "count_other": "{{count}} 人のメンバー",
+    "owner": "・オーナー"
+  },
+  "actions": {
+    "members": "メンバー",
+    "rename": "名前を変更"
+  },
+  "delete": {
+    "title": "プロジェクトを削除しますか？",
+    "message": "「{{name}}」の旅程・スポット・予算・会話履歴がすべて削除されます。元に戻せません。"
+  },
+  "login": {
+    "tagline": "旅の計画をはじめる",
+    "description": "Google アカウントでログインして、あなたの旅程を作成しましょう。",
+    "google": "Google でログイン"
+  }
+}

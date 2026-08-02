@@ -1,0 +1,17 @@
+{
+  "title": "予算計画（1人あたり）",
+  "col": {
+    "category": "費目",
+    "perPerson": "1人あたり"
+  },
+  "notePlaceholder": "メモ",
+  "perPersonTotal": "1人あたり合計",
+  "grandTotal": "{{count}}名 総額",
+  "addItem": "費目を追加",
+  "newItemName": "新しい費目",
+  "empty": "費目がまだありません",
+  "confirmDelete": {
+    "title": "費目を削除しますか？",
+    "message": "「{{category}}」を予算から削除します。この操作は取り消せません。"
+  }
+}

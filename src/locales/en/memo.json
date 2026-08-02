@@ -1,0 +1,85 @@
+{
+  "list": {
+    "heading": "Notes",
+    "addPage": "Add page",
+    "empty": "No notes yet.",
+    "createFirst": "Create your first note",
+    "untitled": "Untitled note",
+    "updatedAt": "Updated {{date}}",
+    "deleteTitle": "Delete this note"
+  },
+  "detail": {
+    "backToList": "Notes list",
+    "openAiEditMobile": "Edit with AI",
+    "openAiEdit": "Open AI editor",
+    "deleteTitle": "Delete this note",
+    "notFound": "Note not found.",
+    "backToListLink": "Back to list",
+    "resizeHint": "Drag to adjust width",
+    "closeChat": "Close chat"
+  },
+  "editor": {
+    "titlePlaceholder": "Note title",
+    "sectionLabel": "Note",
+    "bodyPlaceholder": "Write freely in Markdown (headings, bullet lists, tables, ```mermaid diagrams too). You can also pass images via \"Edit with AI\" to have it written for you.",
+    "preview": "Preview",
+    "previewEmpty": "A preview will appear here as you type.",
+    "empty": "No note yet. Write freely from \"Edit\", or pass an image via \"Edit with AI\" to have it written for you."
+  },
+  "diff": {
+    "noChanges": "No changes to the body.",
+    "omitted": "⋯ {{count}} lines omitted"
+  },
+  "confirm": {
+    "deleteTitle": "Delete this note page?",
+    "deleteMessageList": "This will delete \"{{title}}\". This action cannot be undone, including the original imported images.",
+    "deleteMessageDetail": "This will delete \"{{title}}\". This action cannot be undone.",
+    "deleteSessionTitle": "Delete this conversation?",
+    "deleteSessionMessage": "This will delete the conversation history of \"{{title}}\". This action cannot be undone."
+  },
+  "chat": {
+    "defaultSessionName": "This conversation",
+    "newSession": "New conversation",
+    "deleteSession": "Delete this conversation",
+    "sessionCostTitle": "Cumulative cost of this session",
+    "loadingHistory": "Loading history…",
+    "introText": "Describe in words how to edit the note content (free text and info imported from images). Fix typos, summarize, format, append, and more. Nothing is saved until you confirm.",
+    "thinking": "Thinking…",
+    "saveError": "Failed to save: {{error}}",
+    "attachImage": "Attach image",
+    "removeImage": "Remove",
+    "stop": "Stop",
+    "sendTitle": "Send",
+    "inputPlaceholder": "Describe how to edit the note…",
+    "sendHint": "Enter to send / Shift+Enter for newline",
+    "suggestions": {
+      "fixTypos": "Fix typos and tidy up the imported information",
+      "summarize": "Summarize the key points of this note in 3 lines into the body",
+      "packingList": "Add a packing list to the body based on the imported information"
+    },
+    "tools": {
+      "list_memo_pages": "Checking note list",
+      "get_memo_page": "Fetching note",
+      "propose_upsert_memo_page": "Proposing create/edit",
+      "propose_delete_memo_page": "Proposing delete"
+    }
+  },
+  "proposal": {
+    "untitled": "Untitled note",
+    "createLabel": "Create proposal",
+    "updateLabel": "Edit proposal",
+    "deleteLabel": "Delete proposal",
+    "viewPreview": "Preview",
+    "viewDiff": "Diff",
+    "applied": "✓ Applied",
+    "dismissed": "Dismissed",
+    "deleteConfirm": "This will delete \"{{title}}\". Are you sure?",
+    "titleLabel": "Title:",
+    "emptyValue": "(empty)",
+    "noChanges": "No changes.",
+    "noBody": "(no body)",
+    "dismiss": "Dismiss",
+    "delete": "Delete",
+    "save": "Save"
+  }
+}

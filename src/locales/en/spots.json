@@ -1,0 +1,56 @@
+{
+  "title": "Places to Visit",
+  "count": "{{count}} items",
+  "description": "Candidates you registered via chat while browsing your guidebook. Click a card to see details and Instagram posts.",
+  "empty": "No candidates yet. Try registering some from the chat.",
+  "detail": "Details ›",
+  "view": {
+    "group": "Toggle view",
+    "card": "Card view",
+    "list": "List view"
+  },
+  "chat": {
+    "open": "Open chat"
+  },
+  "splitter": "Drag to resize",
+  "iconPicker": {
+    "change": "Change map pin icon",
+    "resetToCategory": "Reset to category default ({{category}})",
+    "none": "None"
+  },
+  "delete": {
+    "title": "Delete this candidate?",
+    "message": "\"{{name}}\" will be removed from your candidates. This action cannot be undone."
+  },
+  "links": {
+    "link": "Link",
+    "googleMaps": "Google Maps"
+  },
+  "rating": {
+    "tooltip": "Google Maps rating (see reviews at the link)"
+  },
+  "carousel": {
+    "prev": "Previous photo",
+    "next": "Next photo",
+    "photoAlt": "Photo {{index}} of {{name}}",
+    "goTo": "Go to photo {{index}}"
+  },
+  "detailContent": {
+    "close": "Close",
+    "source": "Source: {{source}}",
+    "googlePhotos": "Google photos",
+    "mapTitle": "Google Maps for {{name}}",
+    "reviewHint": "Ratings and photos are shown in the card. See full reviews on <0>Google Maps</0>.",
+    "reviewHintPlain": "Ratings and photos are shown in the card. See full reviews on Google Maps."
+  },
+  "instagram": {
+    "editorLabel": "Instagram post URLs ({{count}})",
+    "invalidUrl": "Enter an Instagram post URL (…/p/…, /reel/…, /tv/…)",
+    "delete": "Delete",
+    "placeholder": "https://www.instagram.com/p/...",
+    "add": "Add",
+    "empty": "No related Instagram posts yet.",
+    "showMore": "Show {{count}} more",
+    "close": "Close"
+  }
+}

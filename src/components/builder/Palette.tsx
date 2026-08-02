@@ -1,6 +1,7 @@
 // 右ドックのパーツパレット。スポット候補と移動区間を、検索・タブ・配置状況付きで一覧表示し、
 // DnD（useDraggable）＋クリック追加の両方で旅程へ差し込めるようにする。
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useDraggable } from "@dnd-kit/core";
 import {
   FaCompass,
@@ -26,16 +27,18 @@ export interface PlacedIndex {
 }
 
 function PlacedBadge({ dayNos }: { dayNos: number[] }) {
+  const { t } = useTranslation("itinerary");
   if (dayNos.length === 0) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-      ✓ {dayNos.map((n) => `Day${n}`).join(" ")}
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+      {t("palette.placedBadge", { days: dayNos.map((n) => `Day${n}`).join(" ") })}
     </span>
   );
 }
 
 /** 「＋ この日に追加」用の自前ドロップダウン（<select> は使わない）。 */
 function AddToDayMenu({ days, onPick }: { days: BuilderDay[]; onPick: (dayId: string) => void }) {
+  const { t } = useTranslation("itinerary");
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -45,14 +48,14 @@ function AddToDayMenu({ days, onPick }: { days: BuilderDay[]; onPick: (dayId: st
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex items-center gap-1 rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-700 hover:bg-cyan-100"
+        className="inline-flex items-center gap-1 rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-700 hover:bg-cyan-100 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-300 dark:hover:bg-cyan-500/20"
       >
-        <FaPlus className="text-[9px]" /> この日に追加 <FaChevronDown className="text-[8px]" />
+        <FaPlus className="text-[9px]" /> {t("palette.addToDay")} <FaChevronDown className="text-[8px]" />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-20 mt-1 max-h-56 w-44 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200">
+          <div className="absolute right-0 z-20 mt-1 max-h-56 w-44 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
             {days.map((d) => (
               <button
                 key={d.id}
@@ -61,10 +64,10 @@ function AddToDayMenu({ days, onPick }: { days: BuilderDay[]; onPick: (dayId: st
                   setOpen(false);
                   onPick(d.id);
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-slate-100"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-700"
               >
-                <span className="font-semibold text-slate-700">Day{d.day_no}</span>
-                <span className="truncate text-slate-400">{d.city ?? d.title ?? ""}</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-200">Day{d.day_no}</span>
+                <span className="truncate text-slate-400 dark:text-slate-500">{d.city ?? d.title ?? ""}</span>
               </button>
             ))}
           </div>
@@ -96,20 +99,21 @@ function PaletteCard({
   onAdd: (dayId: string) => void;
   onDelete?: () => void;
 }) {
+  const { t } = useTranslation("itinerary");
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: dragId });
   const placed = dayNos.length > 0;
   return (
     <div
       ref={setNodeRef}
-      className={`flex items-start gap-2 rounded-xl border bg-white p-2.5 shadow-sm transition ${
+      className={`flex items-start gap-2 rounded-xl border bg-white p-2.5 shadow-sm transition dark:bg-slate-900 ${
         isDragging ? "opacity-30" : ""
-      } ${placed ? "border-slate-100 opacity-70" : "border-slate-200 hover:border-cyan-300"}`}
+      } ${placed ? "border-slate-100 opacity-70 dark:border-slate-800" : "border-slate-200 hover:border-cyan-300 dark:border-slate-700 dark:hover:border-cyan-500/50"}`}
     >
       <button
         {...attributes}
         {...listeners}
-        className="mt-0.5 cursor-grab touch-none rounded p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing"
-        aria-label="ドラッグして旅程に追加"
+        className="mt-0.5 cursor-grab touch-none rounded p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing dark:text-slate-600 dark:hover:text-slate-400"
+        aria-label={t("palette.dragToAdd")}
       >
         <FaGripVertical />
       </button>
@@ -120,8 +124,8 @@ function PaletteCard({
         {emoji}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-slate-800">{title}</div>
-        <div className="mt-0.5 truncate text-[11px] text-slate-400">{subtitle}</div>
+        <div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</div>
+        <div className="mt-0.5 truncate text-[11px] text-slate-400 dark:text-slate-500">{subtitle}</div>
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <PlacedBadge dayNos={dayNos} />
           <div className="flex items-center gap-1">
@@ -132,9 +136,9 @@ function PaletteCard({
                   e.stopPropagation();
                   onDelete();
                 }}
-                className="rounded-md p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
-                aria-label="この移動を削除"
-                title="この移動を削除"
+                className="rounded-md p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
+                aria-label={t("palette.deleteLeg")}
+                title={t("palette.deleteLeg")}
               >
                 <FaTrashCan className="text-[11px]" />
               </button>
@@ -168,6 +172,7 @@ export default function Palette({
   onDeleteLeg: (leg: LegFeature) => void;
   onLegCreated: () => void;
 }) {
+  const { t } = useTranslation("itinerary");
   const [tab, setTab] = useState<Tab>("spots");
   const [q, setQ] = useState("");
   const [unplacedOnly, setUnplacedOnly] = useState(false);
@@ -197,50 +202,52 @@ export default function Palette({
   ];
   const nextOrderIndex = legs.reduce((m, l) => Math.max(m, l.properties.order_index), -1) + 1;
 
-  const tabBtn = (t: Tab, Icon: typeof FaCompass, label: string, n: number) => (
+  const tabBtn = (tb: Tab, Icon: typeof FaCompass, label: string, n: number) => (
     <button
       type="button"
-      onClick={() => setTab(t)}
+      onClick={() => setTab(tb)}
       className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold transition ${
-        tab === t ? "bg-white text-cyan-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+        tab === tb
+          ? "bg-white text-cyan-700 shadow-sm dark:bg-slate-900 dark:text-cyan-400"
+          : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
       }`}
     >
       <Icon className="text-xs" /> {label}
-      <span className="rounded-full bg-slate-100 px-1.5 text-[10px] text-slate-500">{n}</span>
+      <span className="rounded-full bg-slate-100 px-1.5 text-[10px] text-slate-500 dark:bg-slate-700 dark:text-slate-400">{n}</span>
     </button>
   );
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-slate-100 p-3">
-        <div className="mb-2 flex gap-1 rounded-xl bg-slate-100 p-1">
-          {tabBtn("spots", FaCompass, "スポット", spots.length)}
-          {tabBtn("legs", FaRoute, "移動", legs.length)}
+      <div className="border-b border-slate-100 p-3 dark:border-slate-700">
+        <div className="mb-2 flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+          {tabBtn("spots", FaCompass, t("palette.tabSpots"), spots.length)}
+          {tabBtn("legs", FaRoute, t("palette.tabLegs"), legs.length)}
         </div>
         <div className="relative">
           <FaMagnifyingGlass className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="名称・都市で検索"
-            className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-2 text-sm focus:border-cyan-500 focus:outline-none"
+            placeholder={t("palette.searchPlaceholder")}
+            className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-2 text-sm focus:border-cyan-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
           />
         </div>
-        <label className="mt-2 flex cursor-pointer items-center gap-1.5 text-xs text-slate-500">
+        <label className="mt-2 flex cursor-pointer items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
           <input
             type="checkbox"
             checked={unplacedOnly}
             onChange={(e) => setUnplacedOnly(e.target.checked)}
             className="accent-cyan-600"
           />
-          未配置のみ表示
+          {t("palette.unplacedOnly")}
         </label>
       </div>
 
       <div className="flex-1 space-y-2 overflow-y-auto p-3">
         {tab === "spots" &&
           (visibleSpots.length === 0 ? (
-            <p className="py-8 text-center text-xs text-slate-400">該当するスポットがありません</p>
+            <p className="py-8 text-center text-xs text-slate-400 dark:text-slate-500">{t("palette.noSpots")}</p>
           ) : (
             visibleSpots.map((s) => {
               const meta = ITEM_META[spotItemType(s)];
@@ -264,10 +271,11 @@ export default function Palette({
         )}
         {tab === "legs" &&
           (visibleLegs.length === 0 ? (
-            <p className="py-6 text-center text-xs text-slate-400">移動区間がありません。上の「移動を作成」で追加できます。</p>
+            <p className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">{t("palette.noLegs")}</p>
           ) : (
             visibleLegs.map((l) => {
-              const meta = ITEM_META[legItemType(l.properties.mode)];
+              const it = legItemType(l.properties.mode);
+              const meta = ITEM_META[it];
               return (
                 <PaletteCard
                   key={l.properties.id}
@@ -275,7 +283,10 @@ export default function Palette({
                   emoji={<meta.Icon />}
                   color={meta.color}
                   title={`${l.properties.from ?? "?"} → ${l.properties.to ?? "?"}`}
-                  subtitle={`区間 ${l.properties.order_index + 1} · ${meta.label}`}
+                  subtitle={t("palette.legSubtitle", {
+                    index: l.properties.order_index + 1,
+                    mode: t(`itemType.${it}`),
+                  })}
                   dayNos={placed.legs.get(l.properties.id) ?? []}
                   days={days}
                   onAdd={(dayId) => onAddLeg(l, dayId)}

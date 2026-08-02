@@ -1,0 +1,79 @@
+{
+  "session": {
+    "fallbackTitle": "this conversation",
+    "untitled": "(Untitled)",
+    "newConversation": "New conversation",
+    "create": "Start a new conversation",
+    "select": "Select conversation history",
+    "delete": "Delete this conversation"
+  },
+  "confirm": {
+    "title": "Delete this conversation?",
+    "message": "The conversation history for “{{title}}” will be deleted. This action cannot be undone."
+  },
+  "close": "Close chat",
+  "usage": {
+    "title": "Cumulative cost for this session",
+    "tokens": "{{count}} tok · "
+  },
+  "history": {
+    "loading": "Loading history…"
+  },
+  "empty": {
+    "lead": "Describe the spots you want to visit and the AI will look up information and propose adding, updating, or deleting candidates. Nothing is saved until you confirm it."
+  },
+  "suggestions": {
+    "s1": "Add 3 recommended spots in Zermatt with a view of the Matterhorn",
+    "s2": "Find a seaside breakfast cafe in Nice and add it to the candidates",
+    "s3": "Check the current candidates for duplicates and suggest how to tidy them up"
+  },
+  "tools": {
+    "list_spots": "Check candidate list",
+    "web_search": "Web search",
+    "fetch_url": "Fetch page",
+    "geocode": "Get coordinates",
+    "propose_upsert_spot": "Propose add/update",
+    "propose_delete_spot": "Propose deletion"
+  },
+  "thinking": "Thinking…",
+  "saveError": "Failed to save: {{error}}",
+  "input": {
+    "placeholder": "Type a message…",
+    "attach": "Attach image",
+    "removeImage": "Remove",
+    "stop": "Stop",
+    "send": "Send",
+    "hint": "Enter to send / Shift+Enter for a new line"
+  },
+  "proposal": {
+    "create": "Add proposal",
+    "update": "Update proposal",
+    "delete": "Delete proposal",
+    "target": "({{name}})",
+    "preview": "Preview",
+    "edit": "Edit",
+    "saved": "✓ Applied",
+    "dismissed": "Dismissed",
+    "deleteConfirm": "Remove “{{name}}” from the candidates. Are you sure?",
+    "noChanges": "No changes.",
+    "empty": "(empty)",
+    "dismiss": "Dismiss",
+    "doDelete": "Delete",
+    "doSave": "Save",
+    "fields": {
+      "name": "Name",
+      "name_en": "English name",
+      "category": "Category",
+      "city": "City",
+      "country": "Country",
+      "url": "URL",
+      "google_maps_url": "Google Maps URL",
+      "source": "Source",
+      "note": "Note",
+      "lat": "Latitude",
+      "lng": "Longitude",
+      "latInput": "Latitude (lat)",
+      "lngInput": "Longitude (lng)"
+    }
+  }
+}

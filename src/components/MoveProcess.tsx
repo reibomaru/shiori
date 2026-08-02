@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { IconType } from "react-icons";
 import { FaTrain, FaPlane, FaCableCar, FaCar, FaPersonWalking, FaRoute, FaLocationDot, FaCheck } from "react-icons/fa6";
 import { TbLayoutSidebarRightCollapse } from "react-icons/tb";
@@ -8,19 +9,19 @@ import type { SpotRating } from "../api";
 import { resolveSpotIcon } from "../spotIcons";
 import SpotDetailContent, { RatingBadge } from "./SpotDetailContent";
 
-const MODE: Record<string, { Icon: IconType; label: string; color: string }> = {
-  train: { Icon: FaTrain, label: "鉄道", color: "#0e7490" },
-  flight: { Icon: FaPlane, label: "飛行機", color: "#2563eb" },
-  bus: { Icon: FaCableCar, label: "バス・登山", color: "#0891b2" },
-  car: { Icon: FaCar, label: "車", color: "#d97706" },
-  walk: { Icon: FaPersonWalking, label: "徒歩", color: "#16a34a" },
+const MODE: Record<string, { Icon: IconType; color: string }> = {
+  train: { Icon: FaTrain, color: "#0e7490" },
+  flight: { Icon: FaPlane, color: "#2563eb" },
+  bus: { Icon: FaCableCar, color: "#0891b2" },
+  car: { Icon: FaCar, color: "#d97706" },
+  walk: { Icon: FaPersonWalking, color: "#16a34a" },
 };
 
 // 工程・候補スポットで共通の見出し（同列カテゴリとして見た目を揃える）
 const SECTION_HEADER =
-  "group flex w-full items-center gap-2 rounded-lg py-1 text-left transition-colors hover:bg-white/40";
+  "group flex w-full items-center gap-2 rounded-lg py-1 text-left transition-colors hover:bg-white/40 dark:hover:bg-white/10";
 const SECTION_TITLE =
-  "flex items-center gap-2 text-base font-bold text-slate-800 [text-shadow:0_1px_3px_rgba(255,255,255,0.9)]";
+  "flex items-center gap-2 text-base font-bold text-slate-800 [text-shadow:0_1px_3px_rgba(255,255,255,0.9)] dark:text-slate-100 dark:[text-shadow:none]";
 
 export default function MoveProcess({
   legs,
@@ -53,6 +54,8 @@ export default function MoveProcess({
   onClose?: () => void;
   itineraryLegOrder?: string[]; // 旅程に組み込まれた leg id を旅程順に並べた配列
 }) {
+  const { t } = useTranslation("map");
+  const modeLabel = (m: string) => t(`mode.${m}`, { defaultValue: m });
   // 旅程に移動が組み込まれていれば、その記載順で表示（地図の番号と一致）。
   // 無ければ従来どおり order_index 順で全件表示。
   const legById = new Map(legs.map((l) => [l.properties.id, l]));
@@ -81,15 +84,15 @@ export default function MoveProcess({
   }, [detailSpotId]);
 
   return (
-    <aside className="mesh-overlay flex h-full min-w-0 flex-1 flex-col bg-white/45 shadow-[-8px_0_24px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+    <aside className="mesh-overlay flex h-full min-w-0 flex-1 flex-col bg-white/45 shadow-[-8px_0_24px_rgba(15,23,42,0.06)] backdrop-blur-sm dark:bg-slate-900/55">
       {/* パネルの開閉トグルはカテゴリより一段上に置く */}
       {onClose && (
         <div className="flex px-3 pt-3">
           <button
             type="button"
             onClick={onClose}
-            aria-label="パネルを閉じる"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-white/60 hover:text-slate-900 [filter:drop-shadow(0_1px_2px_rgba(255,255,255,0.9))]"
+            aria-label={t("controls.closePanel")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-white/60 hover:text-slate-900 [filter:drop-shadow(0_1px_2px_rgba(255,255,255,0.9))] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-slate-100 dark:[filter:none]"
           >
             <TbLayoutSidebarRightCollapse size={20} />
           </button>
@@ -103,11 +106,11 @@ export default function MoveProcess({
             <button
               type="button"
               onClick={onCloseDetail}
-              className="-ml-1 flex items-center gap-1 rounded-lg px-1.5 py-1 text-sm font-medium text-slate-600 transition-colors hover:bg-white/50 hover:text-slate-900 [text-shadow:0_1px_3px_rgba(255,255,255,0.9)]"
+              className="-ml-1 flex items-center gap-1 rounded-lg px-1.5 py-1 text-sm font-medium text-slate-600 transition-colors hover:bg-white/50 hover:text-slate-900 [text-shadow:0_1px_3px_rgba(255,255,255,0.9)] dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-100 dark:[text-shadow:none]"
             >
-              <ChevronLeft size={18} /> 候補スポット一覧へ
+              <ChevronLeft size={18} /> {t("panel.backToSpots")}
             </button>
-            <div className="overflow-hidden rounded-xl border border-pink-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-xl border border-pink-200 bg-white shadow-sm dark:border-pink-500/30 dark:bg-slate-800">
               <SpotDetailContent spot={detailSpot} rating={ratings[detailSpot.id] ?? null} reload={reload ?? (() => {})} />
             </div>
           </div>
@@ -118,17 +121,17 @@ export default function MoveProcess({
             <section className="order-2 space-y-3">
               <button type="button" onClick={() => setLegsOpen((v) => !v)} aria-expanded={legsOpen} className={SECTION_HEADER}>
                 <h2 className={SECTION_TITLE}>
-                  <FaRoute className="text-cyan-700" /> 移動の工程
+                  <FaRoute className="text-cyan-700 dark:text-cyan-400" /> {t("panel.legsTitle")}
                 </h2>
                 <ChevronDown
                   size={18}
-                  className={`ml-auto text-slate-500 transition-transform [filter:drop-shadow(0_1px_2px_rgba(255,255,255,0.9))] ${legsOpen ? "" : "-rotate-90"}`}
+                  className={`ml-auto text-slate-500 transition-transform [filter:drop-shadow(0_1px_2px_rgba(255,255,255,0.9))] dark:text-slate-400 dark:[filter:none] ${legsOpen ? "" : "-rotate-90"}`}
                 />
               </button>
               {legsOpen && (
                 <>
-                  <p className="px-1 text-[11px] text-slate-500 [text-shadow:0_1px_3px_rgba(255,255,255,0.9)]">
-                    カードをクリックで地図上のルートを強調
+                  <p className="px-1 text-[11px] text-slate-500 [text-shadow:0_1px_3px_rgba(255,255,255,0.9)] dark:text-slate-400 dark:[text-shadow:none]">
+                    {t("panel.legsHint")}
                   </p>
                   <ol className="space-y-3">
                     {ordered.map((f, i) => {
@@ -144,8 +147,8 @@ export default function MoveProcess({
                             aria-pressed={active}
                             className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left shadow-sm backdrop-blur transition-colors ${
                               active
-                                ? "border-cyan-500 bg-cyan-50/95 ring-2 ring-cyan-500/40"
-                                : "border-white/70 bg-white/85 hover:border-cyan-300 hover:bg-white/95"
+                                ? "border-cyan-500 bg-cyan-50/95 ring-2 ring-cyan-500/40 dark:border-cyan-500 dark:bg-cyan-500/15"
+                                : "border-white/70 bg-white/85 hover:border-cyan-300 hover:bg-white/95 dark:border-white/10 dark:bg-slate-800/85 dark:hover:border-cyan-500/50 dark:hover:bg-slate-800/95"
                             }`}
                           >
                             <div
@@ -155,15 +158,15 @@ export default function MoveProcess({
                               <m.Icon />
                             </div>
                             <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                                <span className="font-semibold text-slate-500">区間 {i + 1}</span>
-                                <span>· {m.label}</span>
-                                <span>· {pts > 0 ? `ルート${pts}点` : "直線"}</span>
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+                                <span className="font-semibold text-slate-500 dark:text-slate-400">{t("panel.segment", { n: i + 1 })}</span>
+                                <span>· {modeLabel(p.mode)}</span>
+                                <span>· {pts > 0 ? t("panel.routePoints", { count: pts }) : t("panel.straight")}</span>
                               </div>
-                              <div className="font-semibold text-slate-800">
-                                {p.from} <span className="text-slate-400">→</span> {p.to}
+                              <div className="font-semibold text-slate-800 dark:text-slate-100">
+                                {p.from} <span className="text-slate-400 dark:text-slate-500">→</span> {p.to}
                               </div>
-                              {p.note && <p className="mt-0.5 text-xs text-slate-500">{p.note}</p>}
+                              {p.note && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{p.note}</p>}
                             </div>
                           </button>
                         </li>
@@ -181,7 +184,7 @@ export default function MoveProcess({
                   {/* 地図にピンを表示するかのチェック（候補スポット見出しの横） */}
                   <label
                     className="flex shrink-0 cursor-pointer items-center"
-                    title="候補スポットを地図に表示"
+                    title={t("panel.showSpotsOnMap")}
                   >
                     <input
                       type="checkbox"
@@ -192,7 +195,7 @@ export default function MoveProcess({
                     <span
                       aria-hidden
                       className={`flex h-5 w-5 items-center justify-center rounded-md border transition-colors ${
-                        showSpots ? "border-pink-600 bg-pink-600 text-white" : "border-slate-300 bg-white text-transparent"
+                        showSpots ? "border-pink-600 bg-pink-600 text-white" : "border-slate-300 bg-white text-transparent dark:border-slate-600 dark:bg-slate-800"
                       }`}
                     >
                       <FaCheck size={11} />
@@ -200,19 +203,19 @@ export default function MoveProcess({
                   </label>
                   <button type="button" onClick={() => setSpotsOpen((v) => !v)} aria-expanded={spotsOpen} className={SECTION_HEADER}>
                     <h2 className={SECTION_TITLE}>
-                      <FaLocationDot className="text-pink-600" /> 候補スポット
-                      <span className="text-sm font-normal text-slate-400">{spots.length}</span>
+                      <FaLocationDot className="text-pink-600 dark:text-pink-400" /> {t("panel.spotsTitle")}
+                      <span className="text-sm font-normal text-slate-400 dark:text-slate-500">{spots.length}</span>
                     </h2>
                     <ChevronDown
                       size={18}
-                      className={`ml-auto text-slate-500 transition-transform [filter:drop-shadow(0_1px_2px_rgba(255,255,255,0.9))] ${spotsOpen ? "" : "-rotate-90"}`}
+                      className={`ml-auto text-slate-500 transition-transform [filter:drop-shadow(0_1px_2px_rgba(255,255,255,0.9))] dark:text-slate-400 dark:[filter:none] ${spotsOpen ? "" : "-rotate-90"}`}
                     />
                   </button>
                 </div>
                 {spotsOpen && (
                   <>
-                    <p className="px-1 text-[11px] text-slate-500 [text-shadow:0_1px_3px_rgba(255,255,255,0.9)]">
-                      カードをクリックで詳細を表示 · 左のチェックで地図のピン表示を切替
+                    <p className="px-1 text-[11px] text-slate-500 [text-shadow:0_1px_3px_rgba(255,255,255,0.9)] dark:text-slate-400 dark:[text-shadow:none]">
+                      {t("panel.spotsHint")}
                     </p>
                     <ul className="space-y-2">
                       {orderedSpots.map((s) => {
@@ -225,7 +228,7 @@ export default function MoveProcess({
                             <button
                               type="button"
                               onClick={() => onOpenSpot?.(s.id)}
-                              className="block w-full overflow-hidden rounded-xl border border-white/70 bg-white/90 text-left shadow-sm backdrop-blur transition-colors hover:border-pink-300 hover:bg-white"
+                              className="block w-full overflow-hidden rounded-xl border border-white/70 bg-white/90 text-left shadow-sm backdrop-blur transition-colors hover:border-pink-300 hover:bg-white dark:border-white/10 dark:bg-slate-800/90 dark:hover:border-pink-500/50 dark:hover:bg-slate-800"
                             >
                               {photo ? (
                                 <img
@@ -248,27 +251,27 @@ export default function MoveProcess({
                               <div className="space-y-1.5 p-3">
                                 <div className="flex items-start gap-2">
                                   <span className="shrink-0 text-base leading-6">{def.emoji}</span>
-                                  <h3 className="line-clamp-2 min-w-0 flex-1 font-bold leading-snug text-slate-800">
+                                  <h3 className="line-clamp-2 min-w-0 flex-1 font-bold leading-snug text-slate-800 dark:text-slate-100">
                                     {s.name}
                                     {s.name_en && (
-                                      <span className="ml-1 text-xs font-normal text-slate-400">{s.name_en}</span>
+                                      <span className="ml-1 text-xs font-normal text-slate-400 dark:text-slate-500">{s.name_en}</span>
                                     )}
                                   </h3>
                                   <span className="mt-0.5 shrink-0 text-pink-500">›</span>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-slate-500">
+                                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                                   {onMap && (
-                                    <span className="inline-flex items-center gap-0.5 rounded bg-pink-100 px-1.5 py-0.5 font-medium text-pink-700">
-                                      <FaLocationDot className="text-[9px]" /> 地図に表示中
+                                    <span className="inline-flex items-center gap-0.5 rounded bg-pink-100 px-1.5 py-0.5 font-medium text-pink-700 dark:bg-pink-500/15 dark:text-pink-300">
+                                      <FaLocationDot className="text-[9px]" /> {t("panel.shownOnMap")}
                                     </span>
                                   )}
                                   {s.country && <span>{s.country}</span>}
                                   {s.city && <span>· {s.city}</span>}
-                                  {s.category && <span className="rounded bg-slate-100 px-1.5 py-0.5">{s.category}</span>}
+                                  {s.category && <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-700">{s.category}</span>}
                                   {rating && <RatingBadge rating={rating.rating} count={rating.userRatingCount} />}
                                 </div>
                                 {s.note && (
-                                  <p className="line-clamp-3 text-xs leading-relaxed text-slate-600">{s.note}</p>
+                                  <p className="line-clamp-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{s.note}</p>
                                 )}
                               </div>
                             </button>

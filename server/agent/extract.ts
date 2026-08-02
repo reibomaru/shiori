@@ -20,8 +20,20 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { getModel } from "@earendil-works/pi-ai/compat";
 import { MissingApiKeyError } from "./runner.ts";
-import type { AgentImage } from "./runner.ts";
+import type { AgentImage, TurnUsage } from "./runner.ts";
 import type { MemoGraph } from "../../shared/types.ts";
+
+/** turn_end メッセージから 1 ターン分の usage を取り出す（runner.ts と同形）。 */
+function extractUsage(message: unknown): TurnUsage {
+  const u = (message as { usage?: { input?: number; output?: number; cacheRead?: number; cost?: { total?: number } } } | undefined)?.usage;
+  if (!u) return { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, costUSD: 0 };
+  return {
+    inputTokens: u.input ?? 0,
+    outputTokens: u.output ?? 0,
+    cacheReadInputTokens: u.cacheRead ?? 0,
+    costUSD: u.cost?.total ?? 0,
+  };
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
@@ -74,10 +86,14 @@ const GRAPH_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ機
 - 推測でノードやエッジを作らない。読み取れたものだけを書く。日本語のテキストはそのまま日本語で。`;
 
 interface OneShotOptions {
+  /** 解決済みの API キー（BYOK or 共有キー。呼び出し側が resolveAiKey で渡す）。 */
+  apiKey: string;
   systemPrompt: string;
   userPrompt: string;
   images: AgentImage[];
   signal?: AbortSignal;
+  /** 1 ターンの usage を受け取るコールバック（共有キー利用時の集計用）。 */
+  onUsage?: (u: TurnUsage) => void;
 }
 
 /**
@@ -85,10 +101,9 @@ interface OneShotOptions {
  * ツールは全無効（noTools: "all"）で、テキスト応答だけを収集する。
  * @throws MissingApiKeyError API キー未設定 / モデル解決失敗時
  */
-async function runOneShot({ systemPrompt, userPrompt, images, signal }: OneShotOptions): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+async function runOneShot({ apiKey, systemPrompt, userPrompt, images, signal, onUsage }: OneShotOptions): Promise<string> {
   if (!apiKey) {
-    throw new MissingApiKeyError("GEMINI_API_KEY が未設定です。サーバの環境変数に設定してください。");
+    throw new MissingApiKeyError("API キーが解決できませんでした。");
   }
 
   mkdirSync(SESSION_DIR, { recursive: true });
@@ -143,6 +158,8 @@ async function runOneShot({ systemPrompt, userPrompt, images, signal }: OneShotO
       if (event.type === "message_update") {
         const ame = event.assistantMessageEvent as { type?: string; delta?: string };
         if (ame?.type === "text_delta" && typeof ame.delta === "string") out += ame.delta;
+      } else if (event.type === "turn_end" && onUsage) {
+        onUsage(extractUsage(event.message));
       }
     });
 
@@ -167,7 +184,12 @@ async function runOneShot({ systemPrompt, userPrompt, images, signal }: OneShotO
  * 画像から情報を抽出し、整形済みの HTML 文字列（無害化前）を返す。
  * @throws MissingApiKeyError API キー未設定 / モデル解決失敗時
  */
-export function extractHtmlFromImages(args: { images: AgentImage[]; signal?: AbortSignal }): Promise<string> {
+export function extractHtmlFromImages(args: {
+  apiKey: string;
+  images: AgentImage[];
+  signal?: AbortSignal;
+  onUsage?: (u: TurnUsage) => void;
+}): Promise<string> {
   return runOneShot({
     systemPrompt: EXTRACT_SYSTEM_PROMPT,
     userPrompt: "添付画像から情報を読み取り、指示どおり HTML に整形して出力してください。",
@@ -230,8 +252,10 @@ function parseGraphResponse(raw: string): MemoGraph | null {
  * @throws MissingApiKeyError API キー未設定 / モデル解決失敗時
  */
 export async function extractGraphFromImages(args: {
+  apiKey: string;
   images: AgentImage[];
   signal?: AbortSignal;
+  onUsage?: (u: TurnUsage) => void;
 }): Promise<MemoGraph | null> {
   const raw = await runOneShot({
     systemPrompt: GRAPH_SYSTEM_PROMPT,

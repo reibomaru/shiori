@@ -8,6 +8,7 @@ import { readAttachedImage, isHeic } from "../../lib/readAttachedImage";
 import ProposalCard from "./ProposalCard";
 import SessionSelect from "./SessionSelect";
 import ConfirmDialog from "../ConfirmDialog";
+import ByokErrorNotice from "../ByokErrorNotice";
 import Markdown from "./Markdown";
 
 const MAX_IMAGES = 4;
@@ -21,7 +22,7 @@ const SUGGESTION_KEYS = ["suggestions.s1", "suggestions.s2", "suggestions.s3"];
 export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat; reload: () => void; onClose?: () => void }) {
   const { t } = useTranslation("spotChat");
   const {
-    messages, usage, streaming, error, statuses, loadingHistory,
+    messages, usage, streaming, error, errorCode, statuses, loadingHistory,
     sessions, activeId, send, stop, setProposalStatus, newSession, selectSession, deleteSession,
   } = chat;
   const activeSaved = sessions.some((s) => s.id === activeId);
@@ -221,7 +222,7 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
             <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-500" /> {t("thinking")}
           </div>
         )}
-        {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</div>}
+        <ByokErrorNotice error={error} code={errorCode} />
         {saveError && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{saveError}</div>}
       </div>
 

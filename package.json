@@ -14,6 +14,7 @@
     "api": "node --env-file-if-exists=.env server/index.ts",
     "db:init": "node db/seed.ts",
     "db:reset": "node db/seed.ts --reset",
+    "test": "docker compose up -d firestore-emulator && FIRESTORE_EMULATOR_HOST=localhost:8085 FIRESTORE_PROJECT_ID=demo node --test \"server/**/*.test.ts\"",
     "typecheck": "tsc -b && tsc -p tsconfig.server.json",
     "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
     "preview": "vite preview"
@@ -30,6 +31,7 @@
     "@earendil-works/pi-ai": "^0.80.2",
     "@earendil-works/pi-coding-agent": "^0.80.2",
     "@google-cloud/firestore": "^8.7.0",
+    "@google-cloud/secret-manager": "^6.3.0",
     "@hono/node-server": "^1.13.7",
     "@hono/oauth-providers": "^0.8.6",
     "heic-convert": "^2.1.0",

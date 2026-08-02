@@ -148,6 +148,47 @@ const FLOW_OUTPUTS = [
 ];
 
 /**
+ * コネクタ線の上を移動する「データパケット」の光点。
+ * 線に沿って animateMotion で往復ではなく片道に繰り返し流し、
+ * フェーズ間をデータが流れていく様子を表す。begin をずらして数珠つなぎに見せる。
+ */
+function FlowPulse({
+  x1,
+  y1,
+  x2,
+  y2,
+  color = "#38bdf8",
+  dur = 1.8,
+  begin = 0,
+  r = 2.6,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  color?: string;
+  dur?: number;
+  begin?: number;
+  r?: number;
+}) {
+  const d = `M${x1},${y1} L${x2},${y2}`;
+  return (
+    <circle r={r} fill={color}>
+      <animateMotion dur={`${dur}s`} begin={`${begin}s`} repeatCount="indefinite" path={d} />
+      {/* 端で唐突に消えないよう、出入りをフェードさせる */}
+      <animate
+        attributeName="opacity"
+        values="0;1;1;0"
+        keyTimes="0;0.15;0.85;1"
+        dur={`${dur}s`}
+        begin={`${begin}s`}
+        repeatCount="indefinite"
+      />
+    </circle>
+  );
+}
+
+/**
  * 機能紹介の主役。旅づくりを 4 フェーズのフローチャートで表現する。
  * 1〜4 のノードは shiori のサービス内空間を表す枠で囲む。
  * 入力元（ネット検索・書類 OCR・Gmail の予約メール・請求書）は枠の外から矢印で取り込み、
@@ -240,11 +281,21 @@ function FlowChart() {
             strokeWidth={1.3}
             strokeDasharray="4 4"
             markerEnd="url(#flow-arrow-slate)"
-          />
+          >
+            {/* 破線がノードへ向かって流れ、取り込み中であることを示す */}
+            <animate
+              attributeName="stroke-dashoffset"
+              from="0"
+              to="-16"
+              dur="1s"
+              repeatCount="indefinite"
+            />
+          </line>
+          <FlowPulse x1={src.cx} y1={52} x2={src.tx} y2={y - 2} color="#94a3b8" dur={1.6} r={2.2} />
         </g>
       ))}
 
-      {/* 前進の矢印（各フェーズを順につなぐ） */}
+      {/* 前進の矢印（各フェーズを順につなぐ）。カード間の状態遷移エッジはアニメーションしない。 */}
       {FLOW_STEPS.slice(0, -1).map((s, i) => {
         const next = FLOW_STEPS[i + 1];
         return (
@@ -391,6 +442,14 @@ function FlowChart() {
             stroke="#38bdf8"
             strokeWidth={1.5}
             markerEnd="url(#flow-arrow-cyan)"
+          />
+          <FlowPulse
+            x1={cx(FLOW_STEPS[3])}
+            y1={y + h}
+            x2={o.cx}
+            y2={FLOW_CONTAINER.y + FLOW_CONTAINER.h + 18}
+            dur={1.6}
+            r={2.2}
           />
           <rect
             x={o.cx - o.w / 2}

@@ -24,5 +24,27 @@
   "rename": {
     "title": "Rename project",
     "aria": "Rename project"
+  },
+  "byok": {
+    "title": "AI key (BYOK)",
+    "loading": "Loading…",
+    "loadError": "Failed to load status.",
+    "registered": "Your API key is registered",
+    "usingShared": "Using the shared key",
+    "usageLabel": "This month: ${{cost}} / ${{limit}}",
+    "overLimit": "You've reached this month's free usage limit. Register your own API key to keep using AI features.",
+    "sharedNotConfigured": "No shared key is configured. Please register your own API key.",
+    "benefit": "Register your own key to use AI features without a limit (you pay for usage).",
+    "keyPlaceholder": "Paste your Gemini API key",
+    "getKeyLink": "Get an API key",
+    "register": "Register",
+    "update": "Save changes",
+    "replace": "Use a different key",
+    "remove": "Remove key",
+    "saved": "API key registered.",
+    "invalid": "Invalid API key. Please enter a valid Gemini API key from Google AI Studio.",
+    "removeError": "Failed to remove the key.",
+    "confirmRemoveTitle": "Remove your API key?",
+    "confirmRemoveMessage": "You'll fall back to the shared key (with a monthly limit)."
   }
 }

@@ -19,8 +19,9 @@ import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { DatabaseSync } from "node:sqlite";
 import { createSpotTools, createMemoTools } from "./tools.ts";
-import { runChatAgent, MissingApiKeyError, SPOT_SYSTEM_PROMPT } from "./runner.ts";
+import { runChatAgent, SPOT_SYSTEM_PROMPT } from "./runner.ts";
 import type { AgentImage, EmitFn } from "./runner.ts";
+import { MissingApiKeyError, UsageLimitExceededError, resolveAiKey, recordUsage } from "../apiKeys.ts";
 import * as memoRepo from "../../db/memo-repo.ts";
 import {
   upsertSession,
@@ -75,6 +76,15 @@ function memoContextPreamble(db: DatabaseSync, pageId: string): string {
 
 const WEBSEARCH_API_KEY = process.env.WEBSEARCH_API_KEY ?? "";
 
+/** チャットのエラーを SSE 用の {message, code} に整形する。code はフロントの導線分岐に使う。 */
+function toChatError(err: unknown): { message: string; code?: "missing_key" | "limit_exceeded" } {
+  if (err instanceof UsageLimitExceededError) return { message: err.message, code: "limit_exceeded" };
+  if (err instanceof MissingApiKeyError) return { message: err.message, code: "missing_key" };
+  return {
+    message: `エージェントの実行中にエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`,
+  };
+}
+
 /** Hono アプリにチャット関連ルートを登録する。 */
 export function registerSpotChatRoute(app: Hono): void {
   // ---- セッション一覧 -------------------------------------
@@ -119,6 +129,7 @@ export function registerSpotChatRoute(app: Hono): void {
   app.post("/api/spots/chat", async (c) => {
     const db = c.get("db");
     const sessionDir = c.get("sessionDir");
+    const userId = c.get("userId");
     const body = (await c.req.json().catch(() => ({}))) as {
       sessionId?: unknown;
       message?: unknown;
@@ -152,6 +163,15 @@ export function registerSpotChatRoute(app: Hono): void {
       // 画像のみ送られた場合の既定指示。
       if (!message) message = "添付画像から行きたいスポットを読み取って、候補への追加を提案してください。";
 
+      // キー解決（BYOK 優先・共有キーは上限チェック）。ここで弾かれたら実行しない。
+      let resolved;
+      try {
+        resolved = await resolveAiKey(userId);
+      } catch (err) {
+        await emit("error", toChatError(err));
+        return;
+      }
+
       // セッション行を用意（初回はタイトルも設定）。
       upsertSession(db, sessionId, message);
 
@@ -165,6 +185,7 @@ export function registerSpotChatRoute(app: Hono): void {
 
       try {
         const sessionFile = await runChatAgent({
+          apiKey: resolved.apiKey,
           prompt: message,
           systemPrompt: SPOT_SYSTEM_PROMPT,
           resumeSessionFile: getSessionFile(db, sessionId),
@@ -175,13 +196,11 @@ export function registerSpotChatRoute(app: Hono): void {
           signal: controller.signal,
         });
         recordTurn(db, sessionId, { sessionFile, costUSD });
+        // 共有キー利用時のみ、消費コストをユーザーの月次集計へ加算する。
+        await recordUsage(userId, resolved.source, costUSD);
         await emit("done", {});
       } catch (err) {
-        const msg =
-          err instanceof MissingApiKeyError
-            ? err.message
-            : `エージェントの実行中にエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`;
-        await emit("error", { message: msg });
+        await emit("error", toChatError(err));
       }
     });
   });
@@ -230,6 +249,7 @@ export function registerMemoChatRoute(app: Hono): void {
   app.post("/api/memo/chat", async (c) => {
     const db = c.get("db");
     const sessionDir = c.get("sessionDir");
+    const userId = c.get("userId");
     const body = (await c.req.json().catch(() => ({}))) as {
       sessionId?: unknown;
       message?: unknown;
@@ -264,6 +284,15 @@ export function registerMemoChatRoute(app: Hono): void {
       }
       if (!message) message = "添付画像の内容を読み取って、開いているメモへの追記・整形を提案してください。";
 
+      // キー解決（BYOK 優先・共有キーは上限チェック）。ここで弾かれたら実行しない。
+      let resolved;
+      try {
+        resolved = await resolveAiKey(userId);
+      } catch (err) {
+        await emit("error", toChatError(err));
+        return;
+      }
+
       // セッション行を用意（初回はタイトルも設定・kind='memo'）。
       upsertSession(db, sessionId, message, "memo");
 
@@ -279,6 +308,7 @@ export function registerMemoChatRoute(app: Hono): void {
 
       try {
         const sessionFile = await runChatAgent({
+          apiKey: resolved.apiKey,
           prompt,
           systemPrompt: MEMO_SYSTEM_PROMPT,
           resumeSessionFile: getSessionFile(db, sessionId),
@@ -289,13 +319,11 @@ export function registerMemoChatRoute(app: Hono): void {
           signal: controller.signal,
         });
         recordTurn(db, sessionId, { sessionFile, costUSD });
+        // 共有キー利用時のみ、消費コストをユーザーの月次集計へ加算する。
+        await recordUsage(userId, resolved.source, costUSD);
         await emit("done", {});
       } catch (err) {
-        const msg =
-          err instanceof MissingApiKeyError
-            ? err.message
-            : `エージェントの実行中にエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`;
-        await emit("error", { message: msg });
+        await emit("error", toChatError(err));
       }
     });
   });

@@ -10,6 +10,7 @@ import { useAuth } from "./AuthGate";
 import { Avatar } from "./Avatar";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import ByokSettings from "./ByokSettings";
 
 export default function ProfileDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation(["dialogs", "common"]);
@@ -92,7 +93,7 @@ export default function ProfileDialog({ open, onClose }: { open: boolean; onClos
         role="dialog"
         aria-modal="true"
         aria-label={t("profile.aria")}
-        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-800 dark:ring-1 dark:ring-white/10"
+        className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-800 dark:ring-1 dark:ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -157,6 +158,9 @@ export default function ProfileDialog({ open, onClose }: { open: boolean; onClos
             {t("profile.displayNameHint", { account: me.name || me.email })}
           </span>
         </label>
+
+        {/* AI キー（BYOK）。登録・変更・削除は独立して即時反映（保存ボタンとは別）。 */}
+        <ByokSettings />
 
         {/* 外観・言語設定（即時反映・localStorage に永続化。保存ボタンとは独立） */}
         <div className="mt-5 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-700">

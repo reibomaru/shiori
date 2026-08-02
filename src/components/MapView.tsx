@@ -378,6 +378,9 @@ export default function MapView({
       getSize: 12, getColor: [30, 41, 59], getPixelOffset: [0, -16],
       getTextAnchor: "middle", getAlignmentBaseline: "bottom",
       fontFamily: '"Hiragino Sans", system-ui, sans-serif',
+      // 既定の characterSet は ASCII のみで全角（日本語・約物）が描画されない。
+      // "auto" にすると出現した文字を動的にフォントアトラスへ追加する。
+      characterSet: "auto",
       outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },
     }),
     // 行きたいスポット候補：Google マップ保存リスト風のピン。表示/非表示は凡例のチェックで切替。
@@ -404,6 +407,9 @@ export default function MapView({
         getSize: 11, getColor: SPOT_RGB, getPixelOffset: [0, 14],
         getTextAnchor: "middle", getAlignmentBaseline: "top",
         fontFamily: '"Hiragino Sans", system-ui, sans-serif',
+        // 既定の characterSet は ASCII のみで全角（日本語・約物）が描画されない。
+        // "auto" にすると出現した文字を動的にフォントアトラスへ追加する。
+        characterSet: "auto",
         outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },
       }),
   ].filter(Boolean) as any[];

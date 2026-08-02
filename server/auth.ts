@@ -43,12 +43,14 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** shiori ロゴ（ノードグラフ）の静的 SVG。React 版 Logo と同じ意匠。 */
+/** shiori ロゴ（ノードグラフ）の SVG。確定経路を破線が流れるアニメーションも React 版 Logo と揃える。 */
 const LOGO_SVG = `<svg width="34" height="34" viewBox="0 0 32 32" fill="none" role="img" aria-label="shiori" style="color:#22d3ee">
   <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a06bff"/></linearGradient></defs>
   <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.35"><line x1="7" y1="14" x2="11" y2="23"/><line x1="11" y1="23" x2="19" y2="25"/><line x1="14" y1="10" x2="11" y2="23"/><line x1="21" y1="15" x2="19" y2="25"/><line x1="19" y1="25" x2="26" y2="22"/></g>
   <g fill="currentColor" opacity="0.45"><circle cx="11" cy="23" r="1.3"/><circle cx="19" cy="25" r="1.3"/></g>
-  <path d="M7 14 L14 10 L21 15 L26 22" stroke="url(#lg)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M7 14 L14 10 L21 15 L26 22" stroke="url(#lg)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 5">
+    <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.4s" repeatCount="indefinite"/>
+  </path>
   <g fill="url(#lg)"><circle cx="7" cy="14" r="2"/><circle cx="14" cy="10" r="2"/><circle cx="21" cy="15" r="2"/><circle cx="26" cy="22" r="2"/></g>
 </svg>`;
 

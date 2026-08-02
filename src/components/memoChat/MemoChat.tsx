@@ -9,6 +9,7 @@ import { readAttachedImage, isHeic } from "../../lib/readAttachedImage";
 import MemoProposalCard from "./MemoProposalCard";
 import SessionSelect from "../spotChat/SessionSelect";
 import ConfirmDialog from "../ConfirmDialog";
+import ByokErrorNotice from "../ByokErrorNotice";
 import Markdown from "../spotChat/Markdown";
 
 const MAX_IMAGES = 4;
@@ -38,7 +39,7 @@ export default function MemoChat({
 }) {
   const { t } = useTranslation("memo");
   const {
-    messages, usage, streaming, error, statuses, loadingHistory,
+    messages, usage, streaming, error, errorCode, statuses, loadingHistory,
     sessions, activeId, send, stop, setProposalStatus, newSession, selectSession, deleteSession,
   } = chat;
   const activeSaved = sessions.some((s) => s.id === activeId);
@@ -233,7 +234,7 @@ export default function MemoChat({
             <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-500" /> {t("chat.thinking")}
           </div>
         )}
-        {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</div>}
+        <ByokErrorNotice error={error} code={errorCode} />
         {saveError && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{saveError}</div>}
       </div>
 

@@ -1,0 +1,10 @@
+rules_version = '2';
+
+// ローカルのエミュレータ専用ルール。開発用に全許可（本番の Firestore ルールとは無関係）。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

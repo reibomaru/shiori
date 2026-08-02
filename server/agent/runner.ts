@@ -20,6 +20,10 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { getModel } from "@earendil-works/pi-ai/compat";
+import { MissingApiKeyError } from "../apiKeys.ts";
+
+// キー解決（BYOK / 共有キー）は apiKeys.ts に集約。ここは渡されたキーで動くだけ。
+export { MissingApiKeyError } from "../apiKeys.ts";
 
 /** SSE 送出関数（route.ts から渡される）。 */
 export type EmitFn = (event: string, data: unknown) => Promise<void> | void;
@@ -112,10 +116,10 @@ export function summarizeToolInput(name: string, input: unknown): string | undef
   }
 }
 
-export class MissingApiKeyError extends Error {}
-
 /** runChatAgent のパラメータ。 */
 export interface RunChatAgentParams {
+  /** 解決済みの API キー（BYOK or 共有キー。呼び出し側が resolveAiKey で解決して渡す）。 */
+  apiKey: string;
   /** ユーザー入力 */
   prompt: string;
   /** システムプロンプト（ドメインごとに切り替える） */
@@ -140,6 +144,7 @@ export interface RunChatAgentParams {
  * @returns 次回 resume 用の pi セッションファイルパス
  */
 export async function runChatAgent({
+  apiKey,
   prompt,
   systemPrompt,
   resumeSessionFile,
@@ -149,9 +154,8 @@ export async function runChatAgent({
   images,
   signal,
 }: RunChatAgentParams): Promise<string | undefined> {
-  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new MissingApiKeyError("GEMINI_API_KEY が未設定です。サーバの環境変数に設定してください。");
+    throw new MissingApiKeyError("API キーが解決できませんでした。");
   }
 
   mkdirSync(sessionDir, { recursive: true });

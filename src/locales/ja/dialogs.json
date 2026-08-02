@@ -24,5 +24,27 @@
   "rename": {
     "title": "プロジェクト名を変更",
     "aria": "プロジェクト名を変更"
+  },
+  "byok": {
+    "title": "AI キー（BYOK）",
+    "loading": "読み込み中…",
+    "loadError": "状態を取得できませんでした。",
+    "registered": "自分の API キーを登録済み",
+    "usingShared": "共有キーを利用中",
+    "usageLabel": "今月の利用: ${{cost}} / ${{limit}}",
+    "overLimit": "今月の無料利用上限に達しました。自分の API キーを登録すると継続してご利用いただけます。",
+    "sharedNotConfigured": "共有キーが未設定です。自分の API キーを登録してください。",
+    "benefit": "自分のキーを登録すると、上限なしで AI 機能を使えます（料金はご自身の負担）。",
+    "keyPlaceholder": "Gemini API キーを貼り付け",
+    "getKeyLink": "API キーを取得",
+    "register": "登録",
+    "update": "変更を保存",
+    "replace": "別のキーに変更",
+    "remove": "キーを削除",
+    "saved": "API キーを登録しました。",
+    "invalid": "API キーが無効です。Google AI Studio で発行した有効な Gemini API キーを入力してください。",
+    "removeError": "キーの削除に失敗しました。",
+    "confirmRemoveTitle": "API キーを削除しますか？",
+    "confirmRemoveMessage": "以降は共有キー（月次上限あり）に戻ります。"
   }
 }

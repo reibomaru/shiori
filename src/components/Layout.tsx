@@ -22,6 +22,7 @@ import { Logo } from "./Logo";
 import { Avatar } from "./Avatar";
 import { Tooltip } from "./Tooltip";
 import ProfileDialog from "./ProfileDialog";
+import { OPEN_BYOK_EVENT } from "./ByokErrorNotice";
 import { displayNameOf } from "../api";
 import { yen } from "../itemMeta";
 import type { Day, TripMeta } from "../types";
@@ -63,6 +64,13 @@ export default function Layout() {
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  // AI エラー（キー未登録・上限超過）の導線から、プロフィール設定（BYOK）を開く。
+  useEffect(() => {
+    const open = () => setProfileOpen(true);
+    window.addEventListener(OPEN_BYOK_EVENT, open);
+    return () => window.removeEventListener(OPEN_BYOK_EVENT, open);
+  }, []);
 
   return (
     <div className="mesh-light flex min-h-screen">

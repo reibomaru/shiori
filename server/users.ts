@@ -108,6 +108,73 @@ export async function upsertUserOnLogin(
   return toUserRecord(sub, { ...data, ...patch });
 }
 
+// ============================================================
+//  BYOK（ユーザー自身の Gemini API キー）の利用量・上限（#93）。
+//
+//  API キー本体は Secret Manager 等に置き（server/apiKeys.ts）、ここでは
+//  「BYOK 登録の有無フラグ」と「共有キー利用時の月次コスト集計・上限」だけを
+//  users ドキュメントで管理する。集計は per-user・月次（UTC）で、共有キーを
+//  使ったときだけ加算する（BYOK 利用時はコストがユーザー負担のため対象外）。
+// ============================================================
+
+/** 共有キー利用時の AI 状態（BYOK 有無・当月の消費・上限）。 */
+export interface AiUsageState {
+  /** BYOK（自分の API キー）を登録済みか。 */
+  hasByokKey: boolean;
+  /** 集計が記録されている月（"YYYY-MM"・UTC）。 */
+  usageMonth: string;
+  /** usageMonth の累計コスト（USD）。 */
+  usageCostUsd: number;
+  /** ユーザーごとの月次上限の上書き（未設定は null → 環境変数の既定を使う）。 */
+  limitUsd: number | null;
+}
+
+/** 現在の集計対象月（"YYYY-MM"・UTC）。月初(UTC)に自然にリセットされる。 */
+export function currentUsageMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+/** users ドキュメントから BYOK 利用状態を読む（未登録・未集計は 0 として返す）。 */
+export async function getAiUsageState(sub: string): Promise<AiUsageState> {
+  const snap = await firestore().collection(COLLECTION).doc(sub).get();
+  const x = (snap.exists ? snap.data() : {}) ?? {};
+  return {
+    hasByokKey: x.hasByokKey === true,
+    usageMonth: typeof x.usageMonth === "string" ? x.usageMonth : "",
+    usageCostUsd: typeof x.usageCostUsd === "number" ? x.usageCostUsd : 0,
+    limitUsd: typeof x.sharedKeyMonthlyLimitUsd === "number" ? x.sharedKeyMonthlyLimitUsd : null,
+  };
+}
+
+/** BYOK 登録の有無フラグを立てる/降ろす（キー本体の保存は apiKeys.ts）。 */
+export async function setByokKeyFlag(sub: string, has: boolean): Promise<void> {
+  await firestore()
+    .collection(COLLECTION)
+    .doc(sub)
+    .set({ hasByokKey: has, updatedAt: new Date().toISOString() }, { merge: true });
+}
+
+/**
+ * 共有キー利用時のコストを当月の集計へ加算する（トランザクションで月替わりも処理）。
+ * usageMonth が当月と異なれば当月ぶんとしてリセットして記録し直す。
+ */
+export async function recordSharedUsage(sub: string, costUsd: number): Promise<void> {
+  if (!(costUsd > 0)) return;
+  const ref = firestore().collection(COLLECTION).doc(sub);
+  const month = currentUsageMonth();
+  await firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const x = (snap.exists ? snap.data() : {}) ?? {};
+    const prevMonth = typeof x.usageMonth === "string" ? x.usageMonth : "";
+    const prevCost = prevMonth === month && typeof x.usageCostUsd === "number" ? x.usageCostUsd : 0;
+    tx.set(
+      ref,
+      { usageMonth: month, usageCostUsd: prevCost + costUsd, updatedAt: new Date().toISOString() },
+      { merge: true },
+    );
+  });
+}
+
 /** 本人のプロフィール（表示名・アバター等）を取得する。未登録は null。 */
 export async function getUserProfile(sub: string): Promise<UserRecord | null> {
   const snap = await firestore().collection(COLLECTION).doc(sub).get();

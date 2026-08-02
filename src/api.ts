@@ -87,7 +87,7 @@ export interface ProjectMembers {
   members: string[];
 }
 
-// アクティブプロジェクト（URL の /p/{id} から ProjectProvider が設定する）。
+// アクティブプロジェクト（URL の /projects/{id} から ProjectProvider が設定する）。
 // ドメイン API リクエストに X-Project-Id ヘッダとして付与する。
 let activeProjectId: string | null = null;
 export function setActiveProject(id: string | null): void {

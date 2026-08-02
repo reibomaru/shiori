@@ -21,7 +21,7 @@ const OPEN_KEY = "memoChatOpen"; // AI 編集パネルの表示状態（オプ�
 export default function MemoDetailPage() {
   const { t } = useTranslation("memo");
   const { id = "", projectId = "" } = useParams();
-  const memoBase = `/p/${projectId}/memo`;
+  const memoBase = `/projects/${projectId}/memo`;
   const { pages, loading, error, update, remove, reload } = useMemoPages();
   const navigate = useNavigate();
   const isMobile = useIsMobile();

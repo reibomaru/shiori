@@ -47,7 +47,7 @@ export default function ProjectsPage() {
     setCreating(true);
     try {
       const p = await api.createProject(name.trim());
-      navigate(`/p/${p.id}/itinerary`);
+      navigate(`/projects/${p.id}/itinerary`);
     } finally {
       setCreating(false);
     }
@@ -131,7 +131,7 @@ export default function ProjectsPage() {
               return (
                 <li key={p.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
                   <button
-                    onClick={() => navigate(`/p/${p.id}/itinerary`)}
+                    onClick={() => navigate(`/projects/${p.id}/itinerary`)}
                     className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   >
                     <FaMapLocationDot className="shrink-0 text-cyan-700 dark:text-cyan-400" />

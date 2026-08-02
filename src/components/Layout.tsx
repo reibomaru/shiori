@@ -48,7 +48,7 @@ export default function Layout() {
   const { me, logout } = useAuth();
   const { projectId, project } = useProject();
   const { pathname } = useLocation();
-  // ナビの遷移先はプロジェクト配下（/p/{projectId}/...）。
+  // ナビの遷移先はプロジェクト配下（/projects/{projectId}/...）。
   const navItems = NAV;
   // 地図・候補・旅程（ビルダー）・メモ詳細（AI 編集パネル併設）は全画面（余白なし）。
   // メモ一覧(/memo)は従来どおり中央寄せ。詳細(/memo/:id)のみ全画面にする。
@@ -155,7 +155,7 @@ export default function Layout() {
           {navItems.map(({ to, labelKey, Icon }) => (
             <NavLink
               key={to}
-              to={`/p/${projectId}${to}`}
+              to={`/projects/${projectId}${to}`}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                   isActive

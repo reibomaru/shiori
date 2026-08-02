@@ -1,0 +1,17 @@
+{
+  "title": "Budget plan (per person)",
+  "col": {
+    "category": "Item",
+    "perPerson": "Per person"
+  },
+  "notePlaceholder": "Note",
+  "perPersonTotal": "Per-person total",
+  "grandTotal": "Total for {{count}}",
+  "addItem": "Add item",
+  "newItemName": "New item",
+  "empty": "No budget items yet",
+  "confirmDelete": {
+    "title": "Delete this item?",
+    "message": "\"{{category}}\" will be removed from the budget. This action cannot be undone."
+  }
+}

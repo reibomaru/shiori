@@ -1,0 +1,28 @@
+{
+  "profile": {
+    "title": "プロフィール",
+    "aria": "プロフィール編集",
+    "uploadImage": "画像をアップロード",
+    "changeImage": "画像を変更",
+    "displayName": "表示名",
+    "displayNamePlaceholder": "表示名",
+    "displayNameHint": "未入力の場合はアカウント名（{{account}}）が使われます。",
+    "imageError": "この画像は読み込めませんでした。別の画像（PNG / JPEG）でお試しください。"
+  },
+  "members": {
+    "title": "メンバー — {{name}}",
+    "invitePlaceholder": "招待するメールアドレス",
+    "invite": "招待",
+    "owner": "オーナー",
+    "removeMember": "メンバーを削除",
+    "inviteError": "招待に失敗しました。メールアドレスを確認してください。",
+    "removeError": "削除に失敗しました。",
+    "ownerOnly": "メンバーの追加・削除はオーナーのみ可能です。",
+    "confirmTitle": "メンバーを削除しますか？",
+    "confirmMessage": "{{email}} をこのプロジェクトから外します。"
+  },
+  "rename": {
+    "title": "プロジェクト名を変更",
+    "aria": "プロジェクト名を変更"
+  }
+}

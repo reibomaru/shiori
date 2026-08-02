@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { TbLayoutSidebarRightExpand } from "react-icons/tb";
 import { useTrip } from "../store";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -11,6 +12,7 @@ const PANEL_MIN = 280;
 const PANEL_MAX = 640;
 
 export default function MapPage() {
+  const { t } = useTranslation("map");
   const { data, reload } = useTrip();
   const isMobile = useIsMobile();
   const [selectedLeg, setSelectedLeg] = useState<number | null>(null);
@@ -151,10 +153,10 @@ export default function MapPage() {
               onPointerDown={startDrag}
               role="separator"
               aria-orientation="vertical"
-              aria-label="パネルの幅を調整"
+              aria-label={t("controls.resizePanel")}
               className="group relative w-2 shrink-0 cursor-col-resize touch-none"
             >
-              <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-300/70 transition-colors group-hover:bg-cyan-500/80" />
+              <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-300/70 transition-colors group-hover:bg-cyan-500/80 dark:bg-slate-600/70" />
             </div>
           )}
           <MoveProcess
@@ -178,8 +180,8 @@ export default function MapPage() {
         <button
           type="button"
           onClick={() => setPanelOpen(true)}
-          aria-label="移動の工程を開く"
-          className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-slate-600 shadow-md ring-1 ring-black/5 backdrop-blur transition-colors hover:bg-slate-50 hover:text-slate-900"
+          aria-label={t("controls.openPanel")}
+          className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-slate-600 shadow-md ring-1 ring-black/5 backdrop-blur transition-colors hover:bg-slate-50 hover:text-slate-900 dark:bg-slate-800/95 dark:text-slate-300 dark:ring-white/10 dark:hover:bg-slate-700 dark:hover:text-slate-100"
         >
           <TbLayoutSidebarRightExpand size={20} />
         </button>

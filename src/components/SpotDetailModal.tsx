@@ -44,7 +44,7 @@ export default function SpotDetailModal({
       onClick={onClose}
     >
       <div
-        className="my-auto w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="my-auto w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900 dark:ring-1 dark:ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <SpotDetailContent spot={openSpot} rating={ratings[openSpot.id] ?? null} reload={reload} onClose={onClose} />

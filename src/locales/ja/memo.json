@@ -1,0 +1,85 @@
+{
+  "list": {
+    "heading": "メモ",
+    "addPage": "ページを追加",
+    "empty": "まだメモがありません。",
+    "createFirst": "最初のメモを作成",
+    "untitled": "無題のメモ",
+    "updatedAt": "更新 {{date}}",
+    "deleteTitle": "このメモを削除"
+  },
+  "detail": {
+    "backToList": "メモ一覧",
+    "openAiEditMobile": "AI で編集",
+    "openAiEdit": "AI 編集を開く",
+    "deleteTitle": "このメモを削除",
+    "notFound": "メモが見つかりませんでした。",
+    "backToListLink": "一覧へ戻る",
+    "resizeHint": "ドラッグで幅を調整",
+    "closeChat": "チャットを閉じる"
+  },
+  "editor": {
+    "titlePlaceholder": "メモのタイトル",
+    "sectionLabel": "メモ",
+    "bodyPlaceholder": "Markdown で自由に書けます（見出し・箇条書き・表・```mermaid 図も可）。「AI で編集」から画像を渡して書いてもらうこともできます。",
+    "preview": "プレビュー",
+    "previewEmpty": "入力するとここにプレビューが表示されます。",
+    "empty": "まだメモがありません。「編集」から自由に書き込むか、「AI で編集」で画像を渡して書いてもらえます。"
+  },
+  "diff": {
+    "noChanges": "本文の変更はありません。",
+    "omitted": "⋯ {{count}} 行省略"
+  },
+  "confirm": {
+    "deleteTitle": "メモページを削除しますか？",
+    "deleteMessageList": "「{{title}}」を削除します。取り込んだ元画像も含め、この操作は取り消せません。",
+    "deleteMessageDetail": "「{{title}}」を削除します。この操作は取り消せません。",
+    "deleteSessionTitle": "会話を削除しますか？",
+    "deleteSessionMessage": "「{{title}}」の会話履歴を削除します。この操作は取り消せません。"
+  },
+  "chat": {
+    "defaultSessionName": "この会話",
+    "newSession": "新しい会話",
+    "deleteSession": "この会話を削除",
+    "sessionCostTitle": "このセッションの累計コスト",
+    "loadingHistory": "履歴を読み込み中…",
+    "introText": "メモの内容（自由記述・画像から取り込んだ情報）を言葉で指示して編集できます。誤字修正・要約・整形・追記など。保存はあなたが確認してから確定します。",
+    "thinking": "考え中…",
+    "saveError": "保存に失敗しました: {{error}}",
+    "attachImage": "画像を添付",
+    "removeImage": "削除",
+    "stop": "中断",
+    "sendTitle": "送信",
+    "inputPlaceholder": "メモの編集を指示…",
+    "sendHint": "Enter で送信 / Shift+Enter で改行",
+    "suggestions": {
+      "fixTypos": "取り込んだ情報の誤字を直して整えて",
+      "summarize": "このメモの要点を3行でメモ本文にまとめて",
+      "packingList": "取り込んだ情報から持ち物リストを本文に追記して"
+    },
+    "tools": {
+      "list_memo_pages": "メモ一覧を確認",
+      "get_memo_page": "メモを取得",
+      "propose_upsert_memo_page": "作成/編集を提案",
+      "propose_delete_memo_page": "削除を提案"
+    }
+  },
+  "proposal": {
+    "untitled": "無題のメモ",
+    "createLabel": "作成の提案",
+    "updateLabel": "編集の提案",
+    "deleteLabel": "削除の提案",
+    "viewPreview": "プレビュー",
+    "viewDiff": "差分",
+    "applied": "✓ 反映済み",
+    "dismissed": "破棄しました",
+    "deleteConfirm": "「{{title}}」を削除します。よろしいですか？",
+    "titleLabel": "タイトル:",
+    "emptyValue": "（空）",
+    "noChanges": "変更点はありません。",
+    "noBody": "（本文なし）",
+    "dismiss": "破棄",
+    "delete": "削除する",
+    "save": "保存する"
+  }
+}

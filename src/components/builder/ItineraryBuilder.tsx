@@ -1,6 +1,8 @@
 // 旅程ビルダー。右ドックのパレットから DnD／クリックで部品（スポット候補・移動区間）を差し込み、
 // タイムライン上で並べ替え・日跨ぎ移動できる。各操作は items API に永続化する（楽観的更新）。
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   DndContext,
   DragOverlay,
@@ -50,12 +52,16 @@ import {
   type BuilderDay,
 } from "./builderModel";
 
-const WD = ["日", "月", "火", "水", "木", "金", "土"];
-function fmtDate(d: string | null) {
+const WD_KEYS = ["weekday.sun", "weekday.mon", "weekday.tue", "weekday.wed", "weekday.thu", "weekday.fri", "weekday.sat"];
+function fmtDate(d: string | null, t: TFunction) {
   if (!d) return "";
   const dt = new Date(d + "T00:00:00");
   if (isNaN(dt.getTime())) return d;
-  return `${dt.getMonth() + 1}/${dt.getDate()}（${WD[dt.getDay()]}）`;
+  return t("day.dateWithWeekday", {
+    month: dt.getMonth() + 1,
+    date: dt.getDate(),
+    weekday: t(WD_KEYS[dt.getDay()]),
+  });
 }
 
 // ブロックのドロップ先（`day:`）と、日そのものの並べ替え対象（`dayrow:`）で id を分ける。
@@ -67,7 +73,7 @@ const dayRowKey = (id: string) => `${DAY_ROW_PREFIX}${id}`;
 
 // ---- 1 日のカード（ドロップ先＋並べ替えコンテナ） --------------------------
 const dayField =
-  "rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-cyan-500 focus:outline-none";
+  "rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-cyan-500 focus:outline-none dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500";
 
 function DayHeader({
   day,
@@ -80,34 +86,35 @@ function DayHeader({
   onDelete: () => void;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
 }) {
+  const { t } = useTranslation(["itinerary", "common"]);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ date: day.date, city: day.city, title: day.title });
   const dayCost = day.blocks.reduce((s, b) => s + (b.cost ?? 0), 0);
 
   if (!editing) {
     return (
-      <header className="mb-3 flex items-start gap-2 border-b border-slate-100 pb-2.5">
+      <header className="mb-3 flex items-start gap-2 border-b border-slate-100 pb-2.5 dark:border-slate-700">
         {dragHandleProps && (
           <button
             {...dragHandleProps}
             type="button"
-            className="no-print mt-2 shrink-0 cursor-grab touch-none rounded p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing"
-            aria-label="ドラッグして日を並べ替え"
+            className="no-print mt-2 shrink-0 cursor-grab touch-none rounded p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing dark:text-slate-600 dark:hover:text-slate-400"
+            aria-label={t("day.dragReorder")}
           >
             <FaGripVertical />
           </button>
         )}
         <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white">
-          <span className="text-[9px] leading-none opacity-80">DAY</span>
+          <span className="text-[9px] leading-none opacity-80">{t("day.badge")}</span>
           <span className="text-lg font-bold leading-none">{day.day_no}</span>
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
-            <span className="font-semibold text-slate-700">{fmtDate(day.date)}</span>
-            {day.city && <span className="rounded-full bg-slate-100 px-2 py-0.5">{day.city}</span>}
-            {dayCost > 0 && <span className="text-amber-600">概算 {yen(dayCost)}/人</span>}
+          <div className="flex flex-wrap items-center gap-x-2 text-xs text-slate-500 dark:text-slate-400">
+            <span className="font-semibold text-slate-700 dark:text-slate-200">{fmtDate(day.date, t)}</span>
+            {day.city && <span className="rounded-full bg-slate-100 px-2 py-0.5 dark:bg-slate-700">{day.city}</span>}
+            {dayCost > 0 && <span className="text-amber-600 dark:text-amber-400">{t("day.estimate", { amount: yen(dayCost) })}</span>}
           </div>
-          {day.title && <h3 className="mt-0.5 truncate text-base font-bold text-slate-800">{day.title}</h3>}
+          {day.title && <h3 className="mt-0.5 truncate text-base font-bold text-slate-800 dark:text-slate-100">{day.title}</h3>}
         </div>
         <button
           type="button"
@@ -115,8 +122,8 @@ function DayHeader({
             setDraft({ date: day.date, city: day.city, title: day.title });
             setEditing(true);
           }}
-          className="no-print shrink-0 rounded p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
-          aria-label="この日を編集"
+          className="no-print shrink-0 rounded p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+          aria-label={t("day.edit")}
         >
           <FaPen className="text-xs" />
         </button>
@@ -125,10 +132,10 @@ function DayHeader({
   }
 
   return (
-    <header className="no-print mb-3 border-b border-slate-100 pb-3">
+    <header className="no-print mb-3 border-b border-slate-100 pb-3 dark:border-slate-700">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white">
-          <span className="text-[9px] leading-none opacity-80">DAY</span>
+          <span className="text-[9px] leading-none opacity-80">{t("day.badge")}</span>
           <span className="text-lg font-bold leading-none">{day.day_no}</span>
         </div>
         <input
@@ -140,14 +147,14 @@ function DayHeader({
         <input
           value={draft.city ?? ""}
           onChange={(e) => setDraft((d) => ({ ...d, city: e.target.value || null }))}
-          placeholder="都市"
+          placeholder={t("day.cityPlaceholder")}
           className={`${dayField} min-w-0 flex-1`}
         />
       </div>
       <input
         value={draft.title ?? ""}
         onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value || null }))}
-        placeholder="この日のタイトル"
+        placeholder={t("day.titlePlaceholder")}
         className={`${dayField} mt-2 w-full`}
       />
       <div className="mt-2 flex items-center gap-2">
@@ -159,21 +166,21 @@ function DayHeader({
           }}
           className="inline-flex items-center gap-1 rounded-md bg-cyan-600 px-3 py-1 text-sm font-semibold text-white hover:bg-cyan-700"
         >
-          <FaCheck className="text-xs" /> 保存
+          <FaCheck className="text-xs" /> {t("common:actions.save")}
         </button>
         <button
           type="button"
           onClick={() => setEditing(false)}
-          className="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-200"
+          className="rounded-md px-2 py-1 text-sm text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700"
         >
-          閉じる
+          {t("common:actions.close")}
         </button>
         <button
           type="button"
           onClick={onDelete}
-          className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-rose-600 hover:bg-rose-50"
+          className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
         >
-          <FaTrashCan className="text-xs" /> この日を削除
+          <FaTrashCan className="text-xs" /> {t("day.delete")}
         </button>
       </div>
     </header>
@@ -201,6 +208,7 @@ function DayColumn({
   onDaySave: (patch: { date?: string | null; city?: string | null; title?: string | null }) => void;
   onDayDelete: () => void;
 }) {
+  const { t } = useTranslation("itinerary");
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: dayKey(day.id) });
   // 日そのものの並べ替え（`dayrow:` id）。ハンドルは DayHeader のグリップに割り当てる。
   const {
@@ -217,7 +225,7 @@ function DayColumn({
     <section
       ref={setSortRef}
       style={style}
-      className={`day-card rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 ${
+      className={`day-card rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700 ${
         isDragging ? "relative z-10 opacity-50" : ""
       }`}
     >
@@ -232,12 +240,12 @@ function DayColumn({
         <ul
           ref={setDropRef}
           className={`min-h-[3rem] space-y-2 rounded-xl p-1 transition-colors ${
-            isOver ? "bg-cyan-50 ring-2 ring-dashed ring-cyan-300" : ""
+            isOver ? "bg-cyan-50 ring-2 ring-dashed ring-cyan-300 dark:bg-cyan-500/10 dark:ring-cyan-500/40" : ""
           }`}
         >
           {day.blocks.length === 0 ? (
-            <li className="flex h-16 items-center justify-center rounded-xl border-2 border-dashed border-slate-200 text-xs text-slate-400">
-              ここに部品をドロップ
+            <li className="flex h-16 items-center justify-center rounded-xl border-2 border-dashed border-slate-200 text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
+              {t("day.emptyDrop")}
             </li>
           ) : (
             day.blocks.map((b) => (
@@ -257,9 +265,9 @@ function DayColumn({
 
       <button
         onClick={onAddManual}
-        className="no-print mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 py-1.5 text-xs font-medium text-slate-500 hover:border-cyan-300 hover:text-cyan-700"
+        className="no-print mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 py-1.5 text-xs font-medium text-slate-500 hover:border-cyan-300 hover:text-cyan-700 dark:border-slate-600 dark:text-slate-400 dark:hover:border-cyan-500/50 dark:hover:text-cyan-400"
       >
-        <FaPlus className="text-[10px]" /> 自由項目を追加（食事・自由時間など）
+        <FaPlus className="text-[10px]" /> {t("day.addManual")}
       </button>
     </section>
   );
@@ -267,16 +275,17 @@ function DayColumn({
 
 /** 日と日の間（および先頭）に空の日を差し込むための、ホバーで現れる挿入ボタン。 */
 function InsertDayRow({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation("itinerary");
   return (
     <div className="no-print group relative flex h-4 items-center justify-center">
-      <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-cyan-200 opacity-0 transition-opacity group-hover:opacity-100" />
+      <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-cyan-200 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-cyan-500/30" />
       <button
         type="button"
         onClick={onClick}
-        aria-label="ここに日を追加"
-        className="relative flex items-center gap-1 rounded-full border border-dashed border-cyan-300 bg-white px-2.5 py-0.5 text-[11px] font-medium text-cyan-700 opacity-0 shadow-sm transition-opacity hover:bg-cyan-50 focus:opacity-100 group-hover:opacity-100"
+        aria-label={t("day.insertHereAria")}
+        className="relative flex items-center gap-1 rounded-full border border-dashed border-cyan-300 bg-white px-2.5 py-0.5 text-[11px] font-medium text-cyan-700 opacity-0 shadow-sm transition-opacity hover:bg-cyan-50 focus:opacity-100 group-hover:opacity-100 dark:border-cyan-500/40 dark:bg-slate-800 dark:text-cyan-400 dark:hover:bg-cyan-500/10"
       >
-        <FaPlus className="text-[9px]" /> ここに日を追加
+        <FaPlus className="text-[9px]" /> {t("day.insertHere")}
       </button>
     </div>
   );
@@ -293,6 +302,7 @@ export default function ItineraryBuilder({
   legs: LegFeature[];
   route: RoutePoint[];
 }) {
+  const { t } = useTranslation(["itinerary", "common"]);
   const { reload } = useTrip();
   const [days, setDays] = useState<BuilderDay[]>(() => seedDays(srcDays));
   // パレットは lg 以上でドック表示。lg 未満はオーバーレイのため初期は閉じる。
@@ -393,7 +403,7 @@ export default function ItineraryBuilder({
         : d
     );
     setDays(inserted);
-    await api.createItem(itemBody(block, dayId, index < 0 ? 999 : index));
+    await api.createItem(itemBody(block, dayId, index < 0 ? 999 : index, t("block.untitled")));
     savedIds.current.add(block.id);
     await persistOrder(inserted, [dayId]);
   }
@@ -600,7 +610,7 @@ export default function ItineraryBuilder({
       let block: Block | null = null;
       if (kind === "spot") {
         const s = spots.find((x) => x.id === refId);
-        if (s) block = newBlockFromSpot(s);
+        if (s) block = newBlockFromSpot(s, t("block.link"));
       } else {
         const l = legs.find((x) => x.properties.id === refId);
         if (l) block = newBlockFromLeg(l);
@@ -624,16 +634,16 @@ export default function ItineraryBuilder({
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="flex items-center gap-2 text-xl font-bold text-slate-800">
-            <FaRegCalendarDays className="text-cyan-700" /> 旅程（{days.length}日間）
+          <h2 className="flex items-center gap-2 text-xl font-bold text-slate-800 dark:text-slate-100">
+            <FaRegCalendarDays className="text-cyan-700 dark:text-cyan-400" /> {t("header.title", { count: days.length })}
           </h2>
         </div>
         <button
           onClick={() => setPaletteOpen((v) => !v)}
-          className="no-print flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200"
+          className="no-print flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700"
         >
           {paletteOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
-          パーツ
+          {t("header.parts")}
         </button>
       </div>
 
@@ -646,8 +656,8 @@ export default function ItineraryBuilder({
         <div className="flex min-h-0 flex-1 gap-4">
           {/* タイムライン */}
           <div className="min-w-0 flex-1 overflow-y-auto pr-1 print:overflow-visible">
-            <p className="no-print mb-3 flex items-center gap-1.5 text-xs text-slate-400">
-              <FaCircleInfo /> 右のパレットから部品をドラッグ、または「この日に追加」で差し込めます。概算合計 {yen(totalCost)}/人
+            <p className="no-print mb-3 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+              <FaCircleInfo /> {t("hint", { total: yen(totalCost) })}
             </p>
             <div className="flex flex-col gap-2 pb-8">
               <SortableContext
@@ -667,7 +677,7 @@ export default function ItineraryBuilder({
                         setPendingRemove({ id, title: b?.title ?? "" });
                       }}
                       onOpenDetail={setOpenSpotId}
-                      onAddManual={() => addBlock(d.id, newBlockManual(), -1)}
+                      onAddManual={() => addBlock(d.id, newBlockManual(t("block.newItem")), -1)}
                       onDaySave={(patch) => saveDay(d.id, patch)}
                       onDayDelete={() => setPendingDeleteDay(d)}
                     />
@@ -679,9 +689,9 @@ export default function ItineraryBuilder({
               </SortableContext>
               <button
                 onClick={addDay}
-                className="no-print flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-cyan-300 py-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-50"
+                className="no-print flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-cyan-300 py-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-50 dark:border-cyan-500/40 dark:text-cyan-400 dark:hover:bg-cyan-500/10"
               >
-                <FaPlus className="text-xs" /> 日を追加
+                <FaPlus className="text-xs" /> {t("day.add")}
               </button>
             </div>
           </div>
@@ -693,14 +703,14 @@ export default function ItineraryBuilder({
                 className="no-print fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm lg:hidden"
                 onClick={() => setPaletteOpen(false)}
               />
-              <aside className="no-print fixed bottom-0 right-0 top-14 z-40 flex w-80 max-w-[85vw] flex-col overflow-hidden bg-white shadow-xl ring-1 ring-slate-200 lg:static lg:top-0 lg:z-auto lg:max-w-none lg:shrink-0 lg:rounded-2xl lg:shadow-sm">
+              <aside className="no-print fixed bottom-0 right-0 top-14 z-40 flex w-80 max-w-[85vw] flex-col overflow-hidden bg-white shadow-xl ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700 lg:static lg:top-0 lg:z-auto lg:max-w-none lg:shrink-0 lg:rounded-2xl lg:shadow-sm">
                 <Palette
                   spots={spots}
                   legs={legs}
                   route={route}
                   days={days}
                   placed={placed}
-                  onAddSpot={(s, dayId) => addBlock(dayId, newBlockFromSpot(s), -1)}
+                  onAddSpot={(s, dayId) => addBlock(dayId, newBlockFromSpot(s, t("block.link")), -1)}
                   onAddLeg={(l, dayId) => addBlock(dayId, newBlockFromLeg(l), -1)}
                   onDeleteLeg={(l) => setPendingDeleteLeg(l)}
                   onLegCreated={reload}
@@ -712,20 +722,20 @@ export default function ItineraryBuilder({
 
         <DragOverlay>
           {activeBlock && (
-            <div className="flex items-center gap-2 rounded-xl border border-cyan-300 bg-white p-2.5 shadow-xl">
+            <div className="flex items-center gap-2 rounded-xl border border-cyan-300 bg-white p-2.5 shadow-xl dark:border-cyan-500/40 dark:bg-slate-900">
               <BlockBody block={activeBlock} />
             </div>
           )}
           {activeDay && (
-            <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl ring-1 ring-cyan-300">
+            <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl ring-1 ring-cyan-300 dark:bg-slate-800 dark:ring-cyan-500/40">
               <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white">
-                <span className="text-[9px] leading-none opacity-80">DAY</span>
+                <span className="text-[9px] leading-none opacity-80">{t("day.badge")}</span>
                 <span className="text-lg font-bold leading-none">{activeDay.day_no}</span>
               </div>
               <div className="min-w-0">
-                <div className="text-xs text-slate-500">{fmtDate(activeDay.date)}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{fmtDate(activeDay.date, t)}</div>
                 {activeDay.title && (
-                  <div className="truncate text-base font-bold text-slate-800">{activeDay.title}</div>
+                  <div className="truncate text-base font-bold text-slate-800 dark:text-slate-100">{activeDay.title}</div>
                 )}
               </div>
             </div>
@@ -735,13 +745,11 @@ export default function ItineraryBuilder({
 
       <ConfirmDialog
         open={pendingRemove !== null}
-        title="旅程から外しますか？"
+        title={t("confirm.removeTitle")}
         message={
-          pendingRemove
-            ? `「${pendingRemove.title}」をこの旅程から外します。元のスポット候補・移動区間は残ります。`
-            : undefined
+          pendingRemove ? t("confirm.removeMessage", { title: pendingRemove.title }) : undefined
         }
-        confirmLabel="外す"
+        confirmLabel={t("confirm.removeConfirm")}
         onConfirm={() => {
           if (pendingRemove) removeBlock(pendingRemove.id);
           setPendingRemove(null);
@@ -751,12 +759,16 @@ export default function ItineraryBuilder({
 
       <ConfirmDialog
         open={pendingDeleteDay !== null}
-        title="この日を削除しますか？"
+        title={t("confirm.deleteDayTitle")}
         message={
           pendingDeleteDay
-            ? `Day${pendingDeleteDay.day_no}${
-                pendingDeleteDay.title ? `「${pendingDeleteDay.title}」` : ""
-              } と、この日の予定（${pendingDeleteDay.blocks.length}件）をすべて削除します。この操作は取り消せません。`
+            ? t("confirm.deleteDayMessage", {
+                dayNo: pendingDeleteDay.day_no,
+                title: pendingDeleteDay.title
+                  ? t("confirm.deleteDayTitleQuote", { title: pendingDeleteDay.title })
+                  : "",
+                count: pendingDeleteDay.blocks.length,
+              })
             : undefined
         }
         onConfirm={() => {
@@ -777,7 +789,7 @@ export default function ItineraryBuilder({
 
       <ConfirmDialog
         open={pendingDeleteLeg !== null}
-        title="この移動を削除しますか？"
+        title={t("confirm.deleteLegTitle")}
         message={
           pendingDeleteLeg
             ? (() => {
@@ -785,9 +797,15 @@ export default function ItineraryBuilder({
                 const placedNos = placed.legs.get(p.id) ?? [];
                 const where =
                   placedNos.length > 0
-                    ? `旅程（${placedNos.map((n) => `Day${n}`).join("・")}）に配置済みの予定はそのまま残ります。`
+                    ? t("confirm.deleteLegWhere", {
+                        days: placedNos.map((n) => `Day${n}`).join("・"),
+                      })
                     : "";
-                return `「${p.from ?? "?"} → ${p.to ?? "?"}」の移動区間を削除します。この操作は取り消せません。${where}`;
+                return t("confirm.deleteLegMessage", {
+                  from: p.from ?? "?",
+                  to: p.to ?? "?",
+                  where,
+                });
               })()
             : undefined
         }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FaPaperPlane, FaStop, FaWandMagicSparkles, FaImage, FaXmark, FaTrash } from "react-icons/fa6";
 import { PanelRightClose } from "lucide-react";
 import { api } from "../../api";
@@ -13,18 +14,15 @@ import Markdown from "../spotChat/Markdown";
 const MAX_IMAGES = 4;
 const MAX_BYTES = 12 * 1024 * 1024; // 1 枚あたり 12MB まで（HEIC の元ファイルは大きめ）
 
-const TOOL_LABELS: Record<string, string> = {
-  list_memo_pages: "メモ一覧を確認",
-  get_memo_page: "メモを取得",
-  propose_upsert_memo_page: "作成/編集を提案",
-  propose_delete_memo_page: "削除を提案",
+// ツール名 → i18n キー。ラベル文言は locale 側で管理する。
+const TOOL_LABEL_KEYS: Record<string, string> = {
+  list_memo_pages: "chat.tools.list_memo_pages",
+  get_memo_page: "chat.tools.get_memo_page",
+  propose_upsert_memo_page: "chat.tools.propose_upsert_memo_page",
+  propose_delete_memo_page: "chat.tools.propose_delete_memo_page",
 };
 
-const SUGGESTIONS = [
-  "取り込んだ情報の誤字を直して整えて",
-  "このメモの要点を3行でメモ本文にまとめて",
-  "取り込んだ情報から持ち物リストを本文に追記して",
-];
+const SUGGESTION_KEYS = ["chat.suggestions.fixTypos", "chat.suggestions.summarize", "chat.suggestions.packingList"];
 
 export default function MemoChat({
   chat,
@@ -38,6 +36,7 @@ export default function MemoChat({
   /** 現在開いているメモの id（提案の既定対象としてエージェントに渡す）。 */
   pageId?: string;
 }) {
+  const { t } = useTranslation("memo");
   const {
     messages, usage, streaming, error, statuses, loadingHistory,
     sessions, activeId, send, stop, setProposalStatus, newSession, selectSession, deleteSession,
@@ -76,7 +75,7 @@ export default function MemoChat({
       void api.resolveMemoProposal(activeId, p.tempId, "saved").catch(() => {});
       reload();
     } catch (e) {
-      setSaveError(`保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      setSaveError(t("chat.saveError", { error: e instanceof Error ? e.message : String(e) }));
     } finally {
       setSavingId(null);
     }
@@ -94,14 +93,14 @@ export default function MemoChat({
     setAttached([]);
   }
 
-  const activeTitle = sessions.find((s) => s.id === activeId)?.title ?? "この会話";
+  const activeTitle = sessions.find((s) => s.id === activeId)?.title ?? t("chat.defaultSessionName");
 
   return (
     <div className="mesh-light flex h-full flex-col">
       <ConfirmDialog
         open={confirmDelete}
-        title="会話を削除しますか？"
-        message={`「${activeTitle}」の会話履歴を削除します。この操作は取り消せません。`}
+        title={t("confirm.deleteSessionTitle")}
+        message={t("confirm.deleteSessionMessage", { title: activeTitle })}
         busy={deletingSession}
         onConfirm={async () => {
           setDeletingSession(true);
@@ -115,19 +114,19 @@ export default function MemoChat({
         onCancel={() => setConfirmDelete(false)}
       />
       {/* ヘッダ: 会話履歴はセレクトボックスで選択 */}
-      <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5 dark:border-slate-700">
         {onClose && (
           <button
             onClick={onClose}
-            title="チャットを閉じる"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            title={t("detail.closeChat")}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           >
             <PanelRightClose size={16} />
           </button>
         )}
         <SessionSelect
           value={activeId}
-          options={[...(activeSaved ? [] : [{ id: activeId, title: "新しい会話" }]), ...sessions]}
+          options={[...(activeSaved ? [] : [{ id: activeId, title: t("chat.newSession") }]), ...sessions]}
           onSelect={(id) => {
             const s = sessions.find((x) => x.id === id);
             if (s) void selectSession(s);
@@ -137,16 +136,16 @@ export default function MemoChat({
         {activeSaved && (
           <button
             onClick={() => setConfirmDelete(true)}
-            title="この会話を削除"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+            title={t("chat.deleteSession")}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:text-slate-500 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
           >
             <FaTrash className="text-xs" />
           </button>
         )}
       </div>
       {usage.costUSD > 0 && (
-        <div className="flex justify-end border-b border-slate-100 px-3 py-1">
-          <span className="text-[11px] text-slate-400" title="このセッションの累計コスト">
+        <div className="flex justify-end border-b border-slate-100 px-3 py-1 dark:border-slate-700">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500" title={t("chat.sessionCostTitle")}>
             {usage.inputTokens + usage.outputTokens > 0 && `${(usage.inputTokens + usage.outputTokens).toLocaleString()} tok · `}
             ${usage.costUSD.toFixed(4)}
           </span>
@@ -155,24 +154,26 @@ export default function MemoChat({
 
       {/* メッセージ */}
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        {loadingHistory && <p className="py-6 text-center text-xs text-slate-400">履歴を読み込み中…</p>}
+        {loadingHistory && <p className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">{t("chat.loadingHistory")}</p>}
         {!loadingHistory && messages.length === 0 && (
           <div className="mx-auto max-w-md py-6 text-center">
-            <FaWandMagicSparkles className="mx-auto mb-2 text-2xl text-cyan-600" />
-            <p className="text-sm text-slate-500">
-              メモの内容（自由記述・画像から取り込んだ情報）を言葉で指示して編集できます。
-              誤字修正・要約・整形・追記など。保存はあなたが確認してから確定します。
+            <FaWandMagicSparkles className="mx-auto mb-2 text-2xl text-cyan-600 dark:text-cyan-400" />
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t("chat.introText")}
             </p>
             <div className="mt-4 space-y-2 text-left">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => submit(s)}
-                  className="block w-full rounded-lg bg-slate-50 px-3 py-2 text-left text-xs text-slate-600 ring-1 ring-slate-200 transition-colors hover:bg-cyan-50 hover:text-cyan-800"
-                >
-                  {s}
-                </button>
-              ))}
+              {SUGGESTION_KEYS.map((key) => {
+                const s = t(key);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => submit(s)}
+                    className="block w-full rounded-lg bg-slate-50 px-3 py-2 text-left text-xs text-slate-600 ring-1 ring-slate-200 transition-colors hover:bg-cyan-50 hover:text-cyan-800 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-300"
+                  >
+                    {s}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -197,13 +198,15 @@ export default function MemoChat({
                 <div className="space-y-2">
                   {m.tools.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
-                      {m.tools.map((t, j) => (
+                      {m.tools.map((tool, j) => (
                         <span
-                          key={t.id + j}
-                          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500"
+                          key={tool.id + j}
+                          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                         >
-                          <span className="font-medium text-slate-600">{TOOL_LABELS[t.name] ?? t.name}</span>
-                          {t.detail && <span className="max-w-[200px] truncate text-slate-400">{t.detail}</span>}
+                          <span className="font-medium text-slate-600 dark:text-slate-300">
+                            {TOOL_LABEL_KEYS[tool.name] ? t(TOOL_LABEL_KEYS[tool.name]) : tool.name}
+                          </span>
+                          {tool.detail && <span className="max-w-[200px] truncate text-slate-400 dark:text-slate-500">{tool.detail}</span>}
                         </span>
                       ))}
                     </div>
@@ -226,12 +229,12 @@ export default function MemoChat({
         ))}
 
         {streaming && (
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-500" /> 考え中…
+          <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-500" /> {t("chat.thinking")}
           </div>
         )}
-        {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</div>}
-        {saveError && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{saveError}</div>}
+        {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</div>}
+        {saveError && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{saveError}</div>}
       </div>
 
       {/* 入力 */}
@@ -247,16 +250,16 @@ export default function MemoChat({
             e.target.value = "";
           }}
         />
-        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors focus-within:border-cyan-400">
+        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors focus-within:border-cyan-400 dark:border-slate-700 dark:bg-slate-800">
           {attached.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
               {attached.map((im, i) => (
                 <div key={i} className="relative">
-                  <img src={im.dataUrl} alt="" className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200" />
+                  <img src={im.dataUrl} alt="" className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700" />
                   <button
                     onClick={() => setAttached((a) => a.filter((_, j) => j !== i))}
                     className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-[10px] text-white hover:bg-slate-900"
-                    title="削除"
+                    title={t("chat.removeImage")}
                   >
                     <FaXmark />
                   </button>
@@ -282,23 +285,23 @@ export default function MemoChat({
               }
             }}
             rows={1}
-            placeholder="メモの編集を指示…"
-            className="max-h-32 min-h-[24px] w-full resize-none border-0 bg-transparent p-0 text-sm leading-6 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+            placeholder={t("chat.inputPlaceholder")}
+            className="max-h-32 min-h-[24px] w-full resize-none border-0 bg-transparent p-0 text-sm leading-6 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
           <div className="mt-2 flex items-center gap-1">
             <button
               onClick={() => fileRef.current?.click()}
               disabled={streaming || attached.length >= MAX_IMAGES}
-              title="画像を添付"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
+              title={t("chat.attachImage")}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
             >
               <FaImage />
             </button>
             {streaming ? (
               <button
                 onClick={stop}
-                className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300"
-                title="中断"
+                className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                title={t("chat.stop")}
               >
                 <FaStop />
               </button>
@@ -307,14 +310,14 @@ export default function MemoChat({
                 onClick={() => submit(input)}
                 disabled={!input.trim() && attached.length === 0}
                 className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-700 text-white transition-colors hover:bg-cyan-600 disabled:opacity-40"
-                title="送信"
+                title={t("chat.sendTitle")}
               >
                 <FaPaperPlane />
               </button>
             )}
           </div>
         </div>
-        <p className="mt-1.5 px-1 text-[10px] text-slate-400">Enter で送信 / Shift+Enter で改行</p>
+        <p className="mt-1.5 px-1 text-[10px] text-slate-400 dark:text-slate-500">{t("chat.sendHint")}</p>
       </div>
     </div>
   );

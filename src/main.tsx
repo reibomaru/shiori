@@ -2,6 +2,8 @@ import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import "./index.css";
+import i18n from "./i18n";
+import { ThemeProvider } from "./theme";
 import { TripProvider } from "./store";
 import { AuthGate } from "./components/AuthGate";
 import { ProjectProvider } from "./project";
@@ -31,8 +33,9 @@ function ProjectShell() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthGate>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthGate>
         <Routes>
           {/* ログイン後のトップ: プロジェクト一覧 */}
           <Route path="/" element={<ProjectsPage />} />
@@ -42,7 +45,7 @@ createRoot(document.getElementById("root")!).render(
             <Route
               path="map"
               element={
-                <Suspense fallback={<div className="p-10 text-center text-slate-400">地図を読み込み中…</div>}>
+                <Suspense fallback={<div className="p-10 text-center text-slate-400 dark:text-slate-500">{i18n.t("layout:mapLoading")}</div>}>
                   <MapPage />
                 </Suspense>
               }
@@ -55,7 +58,8 @@ createRoot(document.getElementById("root")!).render(
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </AuthGate>
-    </BrowserRouter>
+        </AuthGate>
+      </BrowserRouter>
+    </ThemeProvider>
   </StrictMode>
 );

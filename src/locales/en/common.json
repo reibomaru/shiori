@@ -1,0 +1,52 @@
+{
+  "app": {
+    "name": "shiori",
+    "fallbackTitle": "Shiori"
+  },
+  "nav": {
+    "map": "Map",
+    "itinerary": "Itinerary",
+    "budget": "Budget",
+    "spots": "Spots",
+    "memo": "Notes"
+  },
+  "actions": {
+    "add": "Add",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "create": "Create",
+    "confirm": "OK",
+    "back": "Back"
+  },
+  "state": {
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "empty": "No data"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "language": {
+    "label": "Language",
+    "ja": "日本語",
+    "en": "English"
+  },
+  "print": {
+    "pdf": "Export PDF"
+  },
+  "menu": {
+    "open": "Open menu",
+    "close": "Close menu",
+    "toProjects": "Back to projects"
+  },
+  "auth": {
+    "logout": "Log out",
+    "editProfile": "Edit profile"
+  }
+}

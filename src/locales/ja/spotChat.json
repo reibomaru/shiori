@@ -1,0 +1,79 @@
+{
+  "session": {
+    "fallbackTitle": "この会話",
+    "untitled": "（無題）",
+    "newConversation": "新しい会話",
+    "create": "新しい会話を作成",
+    "select": "会話履歴を選択",
+    "delete": "この会話を削除"
+  },
+  "confirm": {
+    "title": "会話を削除しますか？",
+    "message": "「{{title}}」の会話履歴を削除します。この操作は取り消せません。"
+  },
+  "close": "チャットを閉じる",
+  "usage": {
+    "title": "このセッションの累計コスト",
+    "tokens": "{{count}} tok · "
+  },
+  "history": {
+    "loading": "履歴を読み込み中…"
+  },
+  "empty": {
+    "lead": "行きたいスポットを言葉で伝えると、AI が情報を調べて候補への追加・更新・削除を提案します。保存はあなたが確認してから確定します。"
+  },
+  "suggestions": {
+    "s1": "ツェルマットでマッターホルンが見えるおすすめスポットを3つ追加して",
+    "s2": "ニースの海沿いで朝食できるカフェを調べて候補に入れて",
+    "s3": "今ある候補の重複を確認して整理を提案して"
+  },
+  "tools": {
+    "list_spots": "候補一覧を確認",
+    "web_search": "Web 検索",
+    "fetch_url": "ページ取得",
+    "geocode": "座標を取得",
+    "propose_upsert_spot": "追加/更新を提案",
+    "propose_delete_spot": "削除を提案"
+  },
+  "thinking": "考え中…",
+  "saveError": "保存に失敗しました: {{error}}",
+  "input": {
+    "placeholder": "メッセージを入力…",
+    "attach": "画像を添付",
+    "removeImage": "削除",
+    "stop": "中断",
+    "send": "送信",
+    "hint": "Enter で送信 / Shift+Enter で改行"
+  },
+  "proposal": {
+    "create": "追加の提案",
+    "update": "更新の提案",
+    "delete": "削除の提案",
+    "target": "（{{name}}）",
+    "preview": "プレビュー",
+    "edit": "編集",
+    "saved": "✓ 反映済み",
+    "dismissed": "破棄しました",
+    "deleteConfirm": "「{{name}}」を候補から削除します。よろしいですか？",
+    "noChanges": "変更点はありません。",
+    "empty": "（空）",
+    "dismiss": "破棄",
+    "doDelete": "削除する",
+    "doSave": "保存する",
+    "fields": {
+      "name": "名称",
+      "name_en": "英語名",
+      "category": "カテゴリ",
+      "city": "都市",
+      "country": "国",
+      "url": "URL",
+      "google_maps_url": "Google マップ URL",
+      "source": "出典",
+      "note": "メモ",
+      "lat": "緯度",
+      "lng": "経度",
+      "latInput": "緯度 (lat)",
+      "lngInput": "経度 (lng)"
+    }
+  }
+}

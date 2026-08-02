@@ -78,8 +78,12 @@ export function seedDays(days: Day[]): BuilderDay[] {
   }));
 }
 
-/** スポット候補 → 楽観的ブロック（差し込み時の初期値）。 */
-export function newBlockFromSpot(spot: Spot): Block {
+/**
+ * スポット候補 → 楽観的ブロック（差し込み時の初期値）。
+ * url_label はユーザーデータとして保存されるため、生成時の表示言語に合わせて
+ * 呼び出し側から翻訳済みのラベルを渡す（未指定なら日本語フォールバック）。
+ */
+export function newBlockFromSpot(spot: Spot, linkLabel = "リンク"): Block {
   return {
     id: tempId(),
     time: "",
@@ -87,7 +91,7 @@ export function newBlockFromSpot(spot: Spot): Block {
     title: spot.name,
     note: spot.note,
     url: spot.url ?? spot.google_maps_url,
-    url_label: spot.url || spot.google_maps_url ? "リンク" : null,
+    url_label: spot.url || spot.google_maps_url ? linkLabel : null,
     cost: null,
     spot_id: spot.id,
     leg_id: null,
@@ -111,13 +115,17 @@ export function newBlockFromLeg(leg: LegFeature): Block {
   };
 }
 
-/** 自由入力の空ブロック。 */
-export function newBlockManual(): Block {
+/**
+ * 自由入力の空ブロック。title はユーザーデータとして保存されるため、
+ * 生成時の表示言語に合わせて呼び出し側から翻訳済みのタイトルを渡す
+ * （未指定なら日本語フォールバック）。
+ */
+export function newBlockManual(title = "新しい予定"): Block {
   return {
     id: tempId(),
     time: "",
     type: "free",
-    title: "新しい予定",
+    title,
     note: null,
     url: null,
     url_label: null,
@@ -127,15 +135,19 @@ export function newBlockManual(): Block {
   };
 }
 
-/** Block → items の POST/PUT 用ボディ。id はクライアント採番の UUID をそのまま送る。 */
-export function itemBody(block: Block, dayId: string, sortOrder: number) {
+/**
+ * Block → items の POST/PUT 用ボディ。id はクライアント採番の UUID をそのまま送る。
+ * 無題フォールバックはユーザーデータとして保存されるため、呼び出し側から翻訳済みの
+ * 文言を渡す（未指定なら日本語フォールバック）。
+ */
+export function itemBody(block: Block, dayId: string, sortOrder: number, untitled = "（無題）") {
   return {
     id: block.id,
     day_id: dayId,
     sort_order: sortOrder,
     time: block.time || null,
     type: block.type,
-    title: block.title || "（無題）",
+    title: block.title || untitled,
     note: block.note,
     url: block.url,
     url_label: block.url_label,

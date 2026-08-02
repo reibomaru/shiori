@@ -72,6 +72,18 @@ export interface Me {
 export const displayNameOf = (u: { displayName?: string | null; name?: string; email: string }) =>
   u.displayName || u.name || u.email;
 
+/** BYOK（自分の Gemini API キー）の状態（GET /api/byok）。 */
+export interface ByokStatus {
+  /** BYOK を登録済みか。 */
+  hasKey: boolean;
+  /** 次のリクエストで使われるキーの出所（byok=自分のキー / shared=共有キー）。 */
+  source: "byok" | "shared";
+  /** 共有キー利用時の当月の消費と上限。 */
+  usage: { month: string; costUsd: number; limitUsd: number };
+  /** サーバに共有キーが設定されているか（未設定なら未登録ユーザーは AI を使えない）。 */
+  sharedKeyConfigured: boolean;
+}
+
 /** プロジェクト（テナント）の一覧行。 */
 export interface Project {
   id: string;
@@ -141,6 +153,12 @@ export const api = {
   // undefined は据え置き。更新後の Me を返す。
   updateProfile: (patch: { displayName?: string | null; avatar?: string | null }) =>
     http<Me>("/api/profile", "PATCH", patch),
+
+  // ---- BYOK（自分の Gemini API キー）----
+  getByok: () => http<ByokStatus>("/api/byok", "GET"),
+  // キーを登録/更新。サーバ側で疎通確認し、無効なら 400（http が throw）。
+  setByok: (apiKey: string) => http<ByokStatus>("/api/byok", "PUT", { apiKey }),
+  deleteByok: () => http<ByokStatus>("/api/byok", "DELETE"),
 
   // ---- プロジェクト（テナント）----
   listProjects: () => http<Project[]>("/api/projects", "GET"),

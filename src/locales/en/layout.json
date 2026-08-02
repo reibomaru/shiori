@@ -1,0 +1,8 @@
+{
+  "period": "{{start}} – {{end}}",
+  "party": "{{travelers}} ({{count}} ppl)",
+  "perPerson": "{{amount}} / person",
+  "apiError": "Cannot reach the API: {{error}}",
+  "apiErrorHint": "Start <0>pnpm dev</0> in another terminal.",
+  "mapLoading": "Loading map…"
+}

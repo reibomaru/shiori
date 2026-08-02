@@ -7,6 +7,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#0b1120" />
 
+    <!-- FOUC 防止: 描画前に保存済みテーマ（localStorage）を <html> に反映する。
+         値は src/theme.tsx の ThemeMode / STORAGE_KEY と一致させること。 -->
+    <script>
+      (function () {
+        try {
+          var m = localStorage.getItem("shiori-theme") || "system";
+          var dark =
+            m === "dark" ||
+            (m === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
+
     <meta
       name="description"
       content="移動ルート・日ごとの旅程・行きたいスポット・予算・メモをひとつにまとめて編集し、そのまま PDF に。AI と話しながら旅の計画をつくる、旅のしおりアプリ。"

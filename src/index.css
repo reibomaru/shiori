@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Tailwind v4: `.dark` クラス（またはその子孫）で dark: バリアントを有効化する。
+   テーマ切り替えは <html> に .dark を付与する方式（src/theme.tsx）。 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* ===== shiori テッキーパレット =====
      ダークベース + シアン/パープル（ロゴと同調）のネオンアクセント。 */
@@ -9,6 +13,22 @@
   --accent: #22d3ee; /* シアン（主アクセント／ロゴ左） */
   --accent-2: #a06bff; /* パープル（副アクセント／ロゴ右） */
   --accent-neon: #34d399; /* ネオングリーン */
+
+  /* ===== テーマ変数（ライト既定）=====
+     body やカスタム背景（mesh 系）の地色・文字色をここで切り替える。
+     コンポーネント個別の色は Tailwind の dark: バリアントで対応する。 */
+  --app-bg: #eef2f6; /* コンテンツ面の地色 */
+  --app-fg: var(--ink); /* 本文色 */
+  --mesh-line: rgba(15, 23, 42, 0.035); /* 明るい面の方眼線 */
+  --mesh-overlay-line: rgba(15, 23, 42, 0.06); /* 半透明パネルの方眼線 */
+}
+
+.dark {
+  /* ダーク時はコンテンツ面もダークベースに寄せ、文字は明るいスレートへ。 */
+  --app-bg: #0a1120;
+  --app-fg: #e2e8f0;
+  --mesh-line: rgba(148, 163, 184, 0.06);
+  --mesh-overlay-line: rgba(148, 163, 184, 0.08);
 }
 
 html {
@@ -17,11 +37,11 @@ html {
 
 body {
   margin: 0;
-  color: var(--ink);
+  color: var(--app-fg);
   /* ラテン文字は Ubuntu、日本語グリフは Noto Sans JP にフォールバック。 */
   font-family: "Ubuntu", "Noto Sans JP", system-ui, -apple-system,
     "Hiragino Sans", sans-serif;
-  background: #eef2f6;
+  background: var(--app-bg);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -67,10 +87,10 @@ body {
 /* 明るいコンテンツ面向けの、ごく薄いグリッド（方眼紙のような質感）。
    .tech-mesh とグリッド幅を揃え、線は極薄にして本文の可読性を損なわない。 */
 .mesh-light {
-  background-color: #eef2f6;
+  background-color: var(--app-bg);
   background-image:
-    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+    linear-gradient(var(--mesh-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mesh-line) 1px, transparent 1px);
   background-size:
     28px 28px,
     28px 28px;
@@ -80,8 +100,8 @@ body {
    グリッド線だけを重ねるので下の地図が透けたまま方眼の質感を足せる。 */
 .mesh-overlay {
   background-image:
-    linear-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+    linear-gradient(var(--mesh-overlay-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mesh-overlay-line) 1px, transparent 1px);
   background-size:
     28px 28px,
     28px 28px;

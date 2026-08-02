@@ -27,7 +27,7 @@ function LoginScreen() {
   return (
     <div className="tech-mesh relative flex min-h-screen items-center justify-center p-6 text-white">
       <div className="absolute right-4 top-4">
-        <LanguageSwitcher />
+        <LanguageSwitcher surface="dark" />
       </div>
       <div className="w-full max-w-sm rounded-2xl bg-white/5 p-8 text-center shadow-xl ring-1 ring-inset ring-cyan-400/15 backdrop-blur">
         <div className="mb-4 flex items-center justify-center gap-2.5">

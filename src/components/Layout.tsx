@@ -21,8 +21,6 @@ import { useProject } from "../project";
 import { Logo } from "./Logo";
 import { Avatar } from "./Avatar";
 import { Tooltip } from "./Tooltip";
-import { ThemeToggle } from "./ThemeToggle";
-import { LanguageSwitcher } from "./LanguageSwitcher";
 import ProfileDialog from "./ProfileDialog";
 import { displayNameOf } from "../api";
 import { yen } from "../itemMeta";
@@ -79,7 +77,6 @@ export default function Layout() {
         </button>
         <Logo size={24} className="shrink-0 text-cyan-300" />
         <h1 className="min-w-0 flex-1 truncate text-sm font-bold">{data?.trip?.title || project?.name || t("common:app.fallbackTitle")}</h1>
-        <LanguageSwitcher />
         <button
           onClick={() => window.print()}
           aria-label={t("common:print.pdf")}
@@ -174,12 +171,6 @@ export default function Layout() {
         </nav>
 
         <div className="space-y-2 border-t border-white/10 px-3 py-4">
-          {/* 外観・言語の切り替え（テーマ + 言語） */}
-          <div className="flex items-center justify-between gap-2">
-            <ThemeToggle />
-            <LanguageSwitcher />
-          </div>
-
           <button
             onClick={() => window.print()}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-400"

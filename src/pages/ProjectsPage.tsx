@@ -11,8 +11,6 @@ import MembersDialog from "../components/MembersDialog";
 import RenameProjectDialog from "../components/RenameProjectDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { Logo } from "../components/Logo";
-import { ThemeToggle } from "../components/ThemeToggle";
-import { LanguageSwitcher } from "../components/LanguageSwitcher";
 
 /**
  * プロジェクト一覧・作成画面（ログイン後のトップ `/`）。
@@ -75,8 +73,6 @@ export default function ProjectsPage() {
           <h1 className="brand-wordmark font-mono-tech text-xl font-bold lowercase tracking-wide">shiori</h1>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <ThemeToggle />
-          <LanguageSwitcher />
           <button
             onClick={() => setProfileOpen(true)}
             title={t("common:auth.editProfile")}

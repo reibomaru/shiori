@@ -8,6 +8,8 @@ import { api } from "../api";
 import { resizeToSquareDataUrl } from "../lib/resizeImage";
 import { useAuth } from "./AuthGate";
 import { Avatar } from "./Avatar";
+import { ThemeToggle } from "./ThemeToggle";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export default function ProfileDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation(["dialogs", "common"]);
@@ -156,7 +158,19 @@ export default function ProfileDialog({ open, onClose }: { open: boolean; onClos
           </span>
         </label>
 
-        {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{error}</p>}
+        {/* 外観・言語設定（即時反映・localStorage に永続化。保存ボタンとは独立） */}
+        <div className="mt-5 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-700">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t("common:theme.label")}</span>
+            <ThemeToggle surface="card" />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t("common:language.label")}</span>
+            <LanguageSwitcher surface="card" />
+          </div>
+        </div>
+
+        {error &&<p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{error}</p>}
 
         <div className="mt-5 flex justify-end gap-2">
           <button

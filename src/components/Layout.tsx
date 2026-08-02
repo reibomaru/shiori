@@ -65,7 +65,7 @@ export default function Layout() {
   return (
     <div className="mesh-light flex min-h-screen">
       {/* ===== モバイル用トップバー（md 未満のみ・ハンバーガー） ===== */}
-      <header className="tech-mesh no-print fixed inset-x-0 top-0 z-[550] flex h-14 items-center gap-3 border-b border-cyan-400/10 px-4 text-white md:hidden">
+      <header className="tech-mesh no-print fixed inset-x-0 top-0 z-[550] flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center gap-3 border-b border-cyan-400/10 px-4 pt-[env(safe-area-inset-top)] text-white md:hidden">
         <button
           onClick={() => setMobileOpen(true)}
           aria-label="メニューを開く"
@@ -106,7 +106,7 @@ export default function Layout() {
       {/* ===== 左サイドメニュー（印刷時は非表示） =====
           モバイル: 左からのドロワー（fixed + translate）。デスクトップ: 静的に横並び（navOpen で折りたたみ）。 */}
       <aside
-        className={`tech-mesh no-print fixed inset-y-0 left-0 z-[570] flex w-72 max-w-[80vw] flex-col overflow-hidden text-white transition-transform duration-200 md:sticky md:top-0 md:z-[500] md:h-screen md:max-w-none md:translate-x-0 md:border-r md:border-cyan-400/10 md:transition-all ${
+        className={`tech-mesh no-print fixed inset-y-0 left-0 z-[570] flex w-72 max-w-[80vw] flex-col overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-white transition-transform duration-200 md:sticky md:top-0 md:z-[500] md:h-screen md:max-w-none md:translate-x-0 md:border-r md:border-cyan-400/10 md:pt-0 md:pb-0 md:transition-all ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${navOpen ? "md:flex md:w-60" : "md:hidden md:w-0"}`}
       >
@@ -204,8 +204,8 @@ export default function Layout() {
 
       {/* ===== メイン（ページ） =====
           モバイルは固定トップバー（h-14）分だけ下げ、余白も控えめにする。 */}
-      <main className={`mt-14 h-[calc(100dvh-3.5rem)] min-w-0 flex-1 overflow-y-auto md:mt-0 md:h-screen ${
-        fullBleed ? "" : "px-4 py-4 md:px-6 md:py-6"
+      <main className={`mt-[calc(3.5rem+env(safe-area-inset-top))] h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] min-w-0 flex-1 overflow-y-auto md:mt-0 md:h-screen ${
+        fullBleed ? "" : "px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 md:px-6 md:py-6"
       } print:mt-0 print:h-auto print:overflow-visible print:px-0 print:py-0`}>
         {error ? (
           <div className="mx-auto max-w-xl p-10 text-center">

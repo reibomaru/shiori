@@ -19,7 +19,7 @@ const OPEN_KEY = "memoChatOpen"; // AI 編集パネルの表示状態（オプ�
 /** メモの詳細・編集ページ（/memo/:id）。AI 編集パネルを既定で右側に表示する。 */
 export default function MemoDetailPage() {
   const { id = "", projectId = "" } = useParams();
-  const memoBase = `/p/${projectId}/memo`;
+  const memoBase = `/projects/${projectId}/memo`;
   const { pages, loading, error, update, remove, reload } = useMemoPages();
   const navigate = useNavigate();
   const isMobile = useIsMobile();

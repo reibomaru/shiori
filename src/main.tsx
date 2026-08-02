@@ -16,7 +16,7 @@ import MemoDetailPage from "./pages/MemoDetailPage";
 // 地図(deck.gl)は重いので必要時のみ遅延ロード
 const MapPage = lazy(() => import("./pages/MapPage"));
 
-/** /p/:projectId 配下: アクティブプロジェクトを設定し、旅程データと Layout を提供する。
+/** /projects/:projectId 配下: アクティブプロジェクトを設定し、旅程データと Layout を提供する。
  *  key={projectId} 相当の再マウントで、プロジェクト切替時に子が再ロードされる。 */
 function ProjectShell() {
   const { projectId = "" } = useParams();
@@ -37,7 +37,7 @@ createRoot(document.getElementById("root")!).render(
           {/* ログイン後のトップ: プロジェクト一覧 */}
           <Route path="/" element={<ProjectsPage />} />
           {/* プロジェクト配下（共有テナント） */}
-          <Route path="/p/:projectId" element={<ProjectShell />}>
+          <Route path="/projects/:projectId" element={<ProjectShell />}>
             <Route index element={<Navigate to="itinerary" replace />} />
             <Route
               path="map"

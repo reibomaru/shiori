@@ -14,7 +14,7 @@ export default function MemoListPage() {
   const { pages, loading, error, create, remove } = useMemoPages();
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const base = `/p/${projectId}`;
+  const base = `/projects/${projectId}`;
   const [creating, setCreating] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);

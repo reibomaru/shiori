@@ -57,3 +57,29 @@ output "app_domain" {
   description = "公開ドメイン（証明書 ACTIVE 後にアクセス可能）。"
   value       = "https://${var.domain}"
 }
+
+# ---- ステージング（開発者限定 / Basic 認証） -----------------
+output "staging_service_url" {
+  description = "ステージング Cloud Run の URL（run.app 直・Basic 認証で保護）。staging_app_base_url に設定する。"
+  value       = google_cloud_run_v2_service.staging.uri
+}
+
+output "staging_service_name" {
+  value = google_cloud_run_v2_service.staging.name
+}
+
+output "staging_migrate_job_name" {
+  value = google_cloud_run_v2_job.staging_migrate.name
+}
+
+output "staging_state_bucket" {
+  value = google_storage_bucket.staging_state.name
+}
+
+output "staging_sessions_bucket" {
+  value = google_storage_bucket.staging_sessions.name
+}
+
+output "staging_firestore_database" {
+  value = google_firestore_database.staging.name
+}

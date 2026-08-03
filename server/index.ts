@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { HTTPException } from "hono/http-exception";
+import { basicAuth } from "hono/basic-auth";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
@@ -70,6 +71,23 @@ const PORT = Number(process.env.PORT || 8080);
 // プロジェクトを解決し、メンバー確認の上で db / sessionDir をセットする。
 // 順序が重要: requireAuth → プロジェクト管理ルート登録 → projectScope 登録
 // → ドメインルート登録（Hono は登録後のルートにのみ middleware を適用）。
+
+// ---- ステージング限定の Basic 認証ゲート（開発者だけ入れる壁）--------
+// APP_ENV=staging のときだけ、全ルート（/auth/* や静的配信も含む）の前段に
+// Basic 認証を置く。本番（APP_ENV≠staging）では無効。ここはサーバ側 401 の壁で、
+// アプリ層の Google SSO や CLAUDE.md の UI 規約（ConfirmDialog）とは無関係。
+// Hono は「登録後のルート」に middleware を適用するため、他ルート登録より前に置く。
+if (process.env.APP_ENV === "staging") {
+  const username = process.env.STAGING_BASIC_AUTH_USER;
+  const password = process.env.STAGING_BASIC_AUTH_PASSWORD;
+  if (username && password) {
+    app.use("*", basicAuth({ username, password }));
+    console.log("🔒 APP_ENV=staging: Basic 認証ゲートを有効化しました。");
+  } else {
+    console.warn("⚠ APP_ENV=staging ですが STAGING_BASIC_AUTH_USER/PASSWORD が未設定のため Basic 認証ゲートは無効です。");
+  }
+}
+
 registerAuthRoutes(app);
 app.use("/api/*", requireAuth);
 

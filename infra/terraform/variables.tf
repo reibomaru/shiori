@@ -70,6 +70,17 @@ variable "dns_zone_name" {
   default     = "booklet-ai"
 }
 
+variable "staging_app_base_url" {
+  type        = string
+  description = <<-EOT
+    ステージングの OAuth リダイレクト URI 組み立て用ベース URL。
+    初回 apply 時は run.app URL が未確定なので空でよい（空ならリクエストから自動解決）。
+    apply 後に `terraform output staging_service_url` の値を設定して再 apply し、
+    GCP OAuth クライアントの承認済みリダイレクト URI に <url>/auth/google を追加する。
+  EOT
+  default     = ""
+}
+
 variable "cpu" {
   type        = string
   description = "Cloud Run サービスの CPU。Litestream 常駐のため CPU 常時割当（cpu_idle=false）で使う。"

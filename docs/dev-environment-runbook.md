@@ -57,7 +57,53 @@ JSON
 
 > このセクションは PR #89（`infra/terraform` の staging リソース + Basic 認証ゲート）マージ後に実行する。
 
-（PR #89 で追記）
+ステージングは本番と分離した Cloud Run（`shiori-staging`）で、`run.app` 直アクセス + **アプリ側 Basic 認証**を壁にする（LB / DNS / 証明書は複製しない）。
+
+### 2-1. Terraform で staging リソースを作成
+
+```bash
+cd infra/terraform
+terraform plan    # staging.* の新規追加のみ・本番リソースに変更が無いことを確認
+terraform apply
+```
+
+作成されるもの: Cloud Run `shiori-staging` / Job `shiori-staging-migrate` / state・sessions バケット（`…-staging-state` / `…-staging-sessions`）/ 名前付き Firestore DB `staging` / Basic 認証シークレットの入れ物（`STAGING_BASIC_AUTH_USER` / `STAGING_BASIC_AUTH_PASSWORD`）。
+
+### 2-2. Basic 認証の資格情報を投入
+
+```bash
+printf '%s' "dev"                 | gcloud secrets versions add STAGING_BASIC_AUTH_USER --data-file=-
+printf '%s' "$(openssl rand -hex 16)" | gcloud secrets versions add STAGING_BASIC_AUTH_PASSWORD --data-file=-
+```
+
+- 未投入だとサーバ起動時に警告が出て Basic 認証は無効のまま（壁が無くなる）ので、**apply 直後に必ず投入**する。
+- GEMINI / WEBSEARCH / GOOGLE_MAPS / GOOGLE_OAUTH_* / SESSION_SECRET は本番と同じ入れ物を再利用する（すでに値がある前提）。分離したい場合は staging 専用シークレットを別途用意する。
+
+### 2-3. OAuth リダイレクト URI と ベース URL を確定
+
+```bash
+terraform output staging_service_url        # 例: https://shiori-staging-xxxx.asia-northeast1.run.app
+```
+
+1. その URL を `variables.tf` の `staging_app_base_url`（または `terraform.tfvars`）に設定して再 `terraform apply`。
+2. GCP コンソール → APIとサービス → 認証情報 → OAuth 2.0 クライアントの **承認済みリダイレクト URI** に `<staging_service_url>/auth/google` を追加。
+
+### 2-4. staging の利用許可（Firestore）
+
+Basic 認証を通った後は本番同様 Google SSO でログインする。名前付き DB `staging` の `users` コレクションで開発者を承認する:
+
+```bash
+# 例: 対象ユーザーの Google sub をキーに allowed=true。
+gcloud firestore documents update \
+  "projects/shinbun-489215/databases/staging/documents/users/<GOOGLE_SUB>" \
+  --update-mask allowed --data '{"fields":{"allowed":{"booleanValue":true}}}'
+```
+
+> `dev-login` バイパスは staging（`NODE_ENV=production`）では無効。開発者は SSO でログインする。
+
+### （将来オプション）`staging.booklet-ai.com`
+
+独自ドメインが必要になったら、`load_balancer.tf` / `dns.tf` に staging 用の NEG・backend・証明書・`staging.booklet-ai.com` の A/AAAA を追加し、Cloud Run の ingress を LB 限定へ戻す。今回はコスト最小化のため見送り。
 
 ---
 

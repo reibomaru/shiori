@@ -18,8 +18,10 @@ AI と一緒に旅行計画を作る、セルフホストの旅のしおりア�
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 22 以上（標準の `node:sqlite` を使うため）
+- [Node.js](https://nodejs.org/) 24（リポジトリの `.nvmrc` で固定。標準の `node:sqlite` と TypeScript 型ストリップを使うため）
 - [pnpm](https://pnpm.io/) 9 以上
+
+`nvm` 利用時はリポジトリ直下で `nvm use`（`.nvmrc` を読む）。開発フロー・貢献手順は [`CONTRIBUTING.md`](CONTRIBUTING.md) を参照。
 
 ### 1. Install
 

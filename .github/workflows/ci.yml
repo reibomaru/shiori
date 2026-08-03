@@ -1,0 +1,46 @@
+# PR 品質チェック CI。
+#
+# develop / main への PR で型チェックとビルドを回す。テスト（Firestore
+# エミュレータ結合）は別ワークフロー test.yml が担うため、ここは typecheck /
+# build に絞る（branch protection では quality + test の両方を必須にする）。
+#
+# Node は .nvmrc（= 実行環境 Dockerfile と同じ）を単一の真実として使う。
+name: ci
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm を先に用意してから setup-node の pnpm キャッシュを効かせる。
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      # Lint/Format（Biome, #39）導入後に追加する:
+      # - name: Check (lint/format)
+      #   run: pnpm check

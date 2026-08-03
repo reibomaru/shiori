@@ -1,6 +1,6 @@
 # 🗺️ shiori
 
-[![deploy](https://github.com/reibomaru/shiori/actions/workflows/deploy.yml/badge.svg)](https://github.com/reibomaru/shiori/actions/workflows/deploy.yml)
+[![deploy-production](https://github.com/reibomaru/shiori/actions/workflows/deploy-production.yml/badge.svg)](https://github.com/reibomaru/shiori/actions/workflows/deploy-production.yml)
 
 AI と一緒に旅行計画を作る、セルフホストの旅のしおりアプリ。[`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi/tree/main/packages/coding-agent) を使い、ブラウザで AI に話しかけながら、移動ルート・日ごとの旅程・行きたいスポット・予算・旅のメモを **1つの SQLite** にまとめて編集し、そのまま PDF に出力できる。
 
@@ -102,7 +102,7 @@ feature → `develop` の PR でステージングへ、`develop` → `main` の
 - [`.claude/skills/travel-plan/SKILL.md`](.claude/skills/travel-plan/SKILL.md) — データ編集 Skill と操作レシピ（`recipes/`）
 - [`docs/er-diagram.md`](docs/er-diagram.md) — データモデル（SQLite）
 - [`docs/gcp-deployment-design.md`](docs/gcp-deployment-design.md) — 本番デプロイ設計（Cloud Run / Litestream）
-- スキーマ変更は `db/migrations/` に連番 SQL を追加し、`node db/migrate.ts` で適用（本番は `.github/workflows/deploy.yml` が push 時に自動 migrate → deploy）
+- スキーマ変更は `db/migrations/` に連番 SQL を追加し、`node db/migrate.ts` で適用（本番は `.github/workflows/deploy-production.yml` が `main` push 時に自動 migrate → deploy、`deploy-staging.yml` が `develop` push で staging へ）
 - インフラ（Cloud Run / Artifact Registry / IAM / GCS）は [`infra/terraform`](infra/terraform) で管理
 
 構成: **SQLite**（`node:sqlite`）/ **Hono** API / **React 19 + Vite + React Router + Tailwind CSS v4** / **deck.gl**（地図）/ **pi-coding-agent + Gemini**（AI）/ **Docker → Cloud Run + Litestream**（本番）。

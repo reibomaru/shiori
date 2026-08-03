@@ -109,6 +109,46 @@ gcloud firestore documents update \
 
 ## 3. デプロイ / CI（#90）
 
-> このセクションは PR #90（`ci.yml` / `deploy-staging.yml` / `deploy-production.yml`）マージ後に実行する。
+> このセクションは PR #90（`ci.yml` / `deploy-staging.yml` / `deploy-production.yml` / `release-drafter.yml`）マージ後に実行する。
 
-（PR #90 で追記）
+### 3-1. GitHub Environments を作成し変数を分離
+
+`Settings → Environments` で `production` と `staging` を作成し、それぞれに Variables を設定する（従来リポジトリ変数だった `GCP_*` などを環境ごとに持たせる）。
+
+| Variable | `production` | `staging` |
+| --- | --- | --- |
+| `GCP_PROJECT_ID` | `shinbun-489215` | `shinbun-489215` |
+| `GCP_REGION` | `asia-northeast1` | `asia-northeast1` |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `terraform output workload_identity_provider` | 同左 |
+| `GCP_DEPLOY_SA` | `terraform output deployer_service_account` | 同左 |
+| `SERVICE_NAME` | `shiori` | **`shiori-staging`** |
+| `ARTIFACT_REPO` | （任意・未設定なら `shiori`） | （同左。staging も同じ `shiori` リポジトリを使う） |
+
+```bash
+# 例（gh CLI）。production も同様に --env production で。
+gh variable set SERVICE_NAME --env staging --body "shiori-staging"
+gh variable set GCP_PROJECT_ID --env staging --body "shinbun-489215"
+# … 残りの変数も同様に設定
+```
+
+- WIF（`google_iam_workload_identity_pool_provider.github`）は `reibomaru/travel-plans` リポジトリ全体を許可しているため、staging/production で SA を共用できる。
+- 必要なら `production` 環境に「required reviewers」等の保護ルールを付ける。
+
+### 3-2. 初回の SemVer タグを打つ
+
+`release-drafter` は直近タグからの bump を計算する。初回だけ基準タグを手で打っておく（`package.json` の version に合わせる）。
+
+```bash
+git checkout main && git pull
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+以降は `develop → main` のリリース PR に付いた `release:*` ラベルで自動 bump される（ラベル無しは patch）。
+
+### 3-3. 動作確認
+
+- `develop` に何かを push（またはリリース PR 以外の feature をマージ）→ `deploy-staging` が走り、`shiori-staging` が更新される。
+- `develop → main` のリリース PR をマージ → `deploy-production` が本番へデプロイし、成功後に `release` ジョブが `vX.Y.Z` タグ + リリースノートを発行する。
+
+> ⚠ `deploy-production.yml` は従来の `deploy.yml` を改名・拡張したもの。PR #90 を `main` にマージすると、その push で本番デプロイ + 初回リリース処理が走る。マージは §3-1 / §3-2 を整えてから意図的に行うこと。

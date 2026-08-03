@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=9"
+  },
   "description": "スイス & 南仏ハネムーン しおり（SQLite永続化・旅程・予算・地図・PDF）",
   "scripts": {
     "dev": "docker compose up -d firestore-emulator && (trap 'docker compose stop firestore-emulator' EXIT INT TERM; concurrently -k -n api,web -c cyan,green \"node --env-file-if-exists=.env server/index.ts\" \"vite\")",

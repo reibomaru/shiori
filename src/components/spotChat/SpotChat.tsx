@@ -240,7 +240,7 @@ export default function SpotChat({ chat, reload, onClose }: { chat: UseSpotChat;
           }}
         />
         {/* 一体型の入力カード：テキストと操作ボタンを 1 つの角丸にまとめる */}
-        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors focus-within:border-cyan-400 dark:border-slate-600 dark:bg-slate-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
+        <div data-onboarding="chat-spot" className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors focus-within:border-cyan-400 dark:border-slate-600 dark:bg-slate-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
           {/* 添付画像のプレビュー */}
           {attached.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">

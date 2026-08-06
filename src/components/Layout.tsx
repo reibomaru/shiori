@@ -23,6 +23,8 @@ import { Avatar } from "./Avatar";
 import { Tooltip } from "./Tooltip";
 import ProfileDialog from "./ProfileDialog";
 import { OPEN_BYOK_EVENT } from "./ByokErrorNotice";
+import { OnboardingBubble } from "./onboarding/OnboardingBubble";
+import type { OnboardingKey } from "./onboarding/OnboardingProvider";
 import { displayNameOf } from "../api";
 import { yen } from "../itemMeta";
 import type { Day, TripMeta } from "../types";
@@ -34,6 +36,13 @@ const NAV = [
   { to: "/spots", labelKey: "nav.spots", Icon: FaCompass },
   { to: "/memo", labelKey: "nav.memo", Icon: FaRegNoteSticky },
 ] as const;
+
+/** ナビ項目 → オンボーディング案内のステップ対応。 */
+const NAV_ONBOARDING: Partial<Record<string, OnboardingKey>> = {
+  "/spots": "search-spots",
+  "/map": "map-spots",
+  "/itinerary": "itinerary-dnd",
+};
 
 export default function Layout() {
   const { t } = useTranslation(["layout", "common"]);
@@ -164,6 +173,7 @@ export default function Layout() {
             <NavLink
               key={to}
               to={`/projects/${projectId}${to}`}
+              data-onboarding={NAV_ONBOARDING[to]}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                   isActive
@@ -177,6 +187,11 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+
+        {/* 初回案内: スポット検索・地図表示・旅程のステップはサイドナビの脇に吹き出しで出す。 */}
+        <OnboardingBubble stepKey="search-spots" side="right" />
+        <OnboardingBubble stepKey="map-spots" side="right" />
+        <OnboardingBubble stepKey="itinerary-dnd" side="right" />
 
         <div className="space-y-2 border-t border-white/10 px-3 py-4">
           <button

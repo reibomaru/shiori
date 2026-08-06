@@ -7,6 +7,7 @@ import { useVisualViewport } from "../hooks/useVisualViewport";
 import { useSpotChat } from "../hooks/useSpotChat";
 import Spots from "../components/Spots";
 import SpotChat from "../components/spotChat/SpotChat";
+import { OnboardingBubble } from "../components/onboarding/OnboardingBubble";
 
 const CHAT_MIN = 320; // チャットパネルの最小幅
 const SPOTS_MIN = 360; // 候補一覧に残す最小幅
@@ -137,6 +138,9 @@ export default function SpotsPage() {
           <PanelRightOpen size={16} />
         </button>
       )}
+
+      {/* 初回案内: 会話で地点を登録するステップ（チャット入力欄の上に吹き出し）。 */}
+      <OnboardingBubble stepKey="chat-spot" side="top" />
     </div>
   );
 }

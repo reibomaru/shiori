@@ -11,6 +11,8 @@ import MembersDialog from "../components/MembersDialog";
 import RenameProjectDialog from "../components/RenameProjectDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { Logo } from "../components/Logo";
+import { useOnboarding } from "../components/onboarding/OnboardingProvider";
+import { OnboardingBubble } from "../components/onboarding/OnboardingBubble";
 
 /**
  * プロジェクト一覧・作成画面（ログイン後のトップ `/`）。
@@ -19,6 +21,7 @@ import { Logo } from "../components/Logo";
 export default function ProjectsPage() {
   const { t } = useTranslation(["projects", "common"]);
   const { me, logout } = useAuth();
+  const { completeStep } = useOnboarding();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +50,8 @@ export default function ProjectsPage() {
     setCreating(true);
     try {
       const p = await api.createProject(name.trim());
+      // 初回オンボーディング中なら「プロジェクト作成」ステップを完了して次へ進める。
+      completeStep("create-project");
       navigate(`/projects/${p.id}/itinerary`);
     } finally {
       setCreating(false);
@@ -97,7 +102,7 @@ export default function ProjectsPage() {
         <h2 className="mb-4 text-xl font-bold text-slate-800 dark:text-slate-100">{t("projects:heading")}</h2>
 
         {/* 新規作成 */}
-        <div className="mb-6 flex gap-2">
+        <div data-onboarding="create-project" className="mb-6 flex gap-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -175,6 +180,7 @@ export default function ProjectsPage() {
         )}
       </main>
 
+      <OnboardingBubble stepKey="create-project" side="bottom" />
       <ProfileDialog open={profileOpen} onClose={() => setProfileOpen(false)} />
       {membersOf && <MembersDialog project={membersOf} onClose={() => setMembersOf(null)} />}
       {renameTarget && (

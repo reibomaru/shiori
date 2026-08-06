@@ -6,6 +6,7 @@ import i18n from "./i18n";
 import { ThemeProvider } from "./theme";
 import { TripProvider } from "./store";
 import { AuthGate } from "./components/AuthGate";
+import { OnboardingProvider } from "./components/onboarding/OnboardingProvider";
 import { ProjectProvider } from "./project";
 import Layout from "./components/Layout";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -36,6 +37,7 @@ createRoot(document.getElementById("root")!).render(
     <ThemeProvider>
       <BrowserRouter>
         <AuthGate>
+        <OnboardingProvider>
         <Routes>
           {/* ログイン後のトップ: プロジェクト一覧 */}
           <Route path="/" element={<ProjectsPage />} />
@@ -58,6 +60,7 @@ createRoot(document.getElementById("root")!).render(
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </OnboardingProvider>
         </AuthGate>
       </BrowserRouter>
     </ThemeProvider>

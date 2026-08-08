@@ -7,7 +7,7 @@
 # project_id        = "shinbun-489215"                                   # 既定あり
 # region            = "asia-northeast1"                                  # 既定あり
 # service_name      = "shiori"                                           # 既定あり
-# github_repository = "reibomaru/travel-plans"                           # 既定あり
+# github_repository = "reibomaru/shiori"                                 # 既定あり
 # app_base_url      = "https://shiori-1014849882013.asia-northeast1.run.app"  # 既定あり（OAuth redirect_uri 用）
 
 # 秘匿値（SESSION_SECRET / GOOGLE_OAUTH_* など）は tfvars ではなく Secret Manager に

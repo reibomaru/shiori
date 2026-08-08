@@ -38,7 +38,7 @@ gh label create "chore"         --color CFD3D7 --description "リリースノー
 
 ```bash
 # 例: main。develop も branch 名を変えて同様に。
-gh api -X PUT repos/reibomaru/travel-plans/branches/main/protection \
+gh api -X PUT repos/reibomaru/shiori/branches/main/protection \
   --input - <<'JSON'
 {
   "required_status_checks": { "strict": true, "contexts": ["quality"] },

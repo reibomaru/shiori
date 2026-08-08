@@ -5,7 +5,8 @@
 # エミュレータを一時起動し、その中で `node --test` を実行してから自動停止する。
 #
 # 実行要件:
-#   - Node 26+（.ts をそのまま実行する型ストリップ機能を使う）
+#   - Node は .nvmrc（= 実行環境 Dockerfile と同じ 24 系）を単一の真実として使う。
+#     24 系で node:sqlite と .ts の型ストリップ（node --test の .ts 実行）がフラグ無しで動く。
 #   - JDK 21+（Firestore エミュレータ本体が要求）
 #   - firebase.json の firestore ポート = 8085（ローカルの docker と揃えている）
 name: test
@@ -38,7 +39,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "26"
+          node-version-file: ".nvmrc"
           cache: "pnpm"
 
       # Firestore エミュレータ本体（Java 実装）に必要な JDK 21。

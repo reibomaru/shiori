@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FaReceipt, FaPlus, FaPen, FaTrash, FaLink } from "react-icons/fa6";
 import type { Expense } from "../types";
 import { money } from "../lib/money";
@@ -24,9 +25,9 @@ function aggregate(expenses: Expense[]) {
 
 function Card({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
-    <div className="rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">
-      <div className="text-[11px] font-medium text-slate-500">{label}</div>
-      <div className={`text-base font-bold tabular-nums ${tone ?? "text-slate-800"}`}>{value}</div>
+    <div className="rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200 dark:bg-slate-900/40 dark:ring-slate-700">
+      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{label}</div>
+      <div className={`text-base font-bold tabular-nums ${tone ?? "text-slate-800 dark:text-slate-100"}`}>{value}</div>
     </div>
   );
 }
@@ -42,23 +43,26 @@ function ExpenseRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation("budget");
   return (
-    <li className="flex items-start gap-3 border-b border-slate-100 py-3 last:border-0">
+    <li className="flex items-start gap-3 border-b border-slate-100 py-3 last:border-0 dark:border-slate-700">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
             {e.category}
           </span>
-          <span className="font-medium text-slate-800">{e.title}</span>
+          <span className="font-medium text-slate-800 dark:text-slate-100">{e.title}</span>
           <span
             className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-              e.paid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+              e.paid
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
             }`}
           >
-            {e.paid ? "支払済" : "未払い"}
+            {e.paid ? t("status.paid") : t("status.unpaid")}
           </span>
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400 dark:text-slate-500">
           {e.vendor && <span>{e.vendor}</span>}
           {e.incurred_on && <span className="tabular-nums">{e.incurred_on}</span>}
           {e.source_url && (
@@ -66,21 +70,21 @@ function ExpenseRow({
               href={e.source_url}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1 text-cyan-600 hover:underline"
+              className="flex items-center gap-1 text-cyan-600 hover:underline dark:text-cyan-400"
             >
-              <FaLink className="text-[10px]" /> リンク
+              <FaLink className="text-[10px]" /> {t("row.link")}
             </a>
           )}
         </div>
-        {e.note && <p className="mt-0.5 text-xs text-slate-500">{e.note}</p>}
+        {e.note && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{e.note}</p>}
         {e.images.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {e.images.map((im) => (
               <a key={im.id} href={expenseImageUrl(im.id, im.updated_at)} target="_blank" rel="noreferrer">
                 <img
                   src={expenseImageUrl(im.id, im.updated_at)}
-                  alt="領収書"
-                  className="h-12 w-12 rounded-md object-cover ring-1 ring-slate-200 transition hover:ring-cyan-400"
+                  alt={t("row.receiptAlt")}
+                  className="h-12 w-12 rounded-md object-cover ring-1 ring-slate-200 transition hover:ring-cyan-400 dark:ring-slate-700"
                 />
               </a>
             ))}
@@ -88,13 +92,23 @@ function ExpenseRow({
         )}
       </div>
       <div className="flex flex-col items-end gap-1">
-        <span className="whitespace-nowrap font-semibold tabular-nums text-slate-800">{money(e.amount, e.currency)}</span>
+        <span className="whitespace-nowrap font-semibold tabular-nums text-slate-800 dark:text-slate-100">
+          {money(e.amount, e.currency)}
+        </span>
         {edit && (
           <div className="no-print flex gap-1">
-            <button onClick={onEdit} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="編集">
+            <button
+              onClick={onEdit}
+              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              title={t("row.edit")}
+            >
               <FaPen className="text-xs" />
             </button>
-            <button onClick={onDelete} className="rounded p-1 text-rose-500 hover:bg-rose-50" title="削除">
+            <button
+              onClick={onDelete}
+              className="rounded p-1 text-rose-500 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+              title={t("row.delete")}
+            >
               <FaTrash className="text-xs" />
             </button>
           </div>
@@ -117,6 +131,7 @@ export default function Expenses({
   edit: boolean;
   reload: () => void;
 }) {
+  const { t } = useTranslation("budget");
   const [filter, setFilter] = useState<Filter>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -149,14 +164,16 @@ export default function Expenses({
 
   const tab = (f: Filter) =>
     `rounded-lg px-3 py-1 text-sm font-medium transition ${
-      filter === f ? "bg-cyan-600 text-white" : "text-slate-500 hover:bg-slate-100"
+      filter === f
+        ? "bg-cyan-600 text-white"
+        : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
     }`;
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-white/10">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800">
-          <FaReceipt className="text-cyan-700" /> 実費（請求）
+        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800 dark:text-slate-100">
+          <FaReceipt className="text-cyan-700 dark:text-cyan-400" /> {t("title")}
         </h2>
         <EditToggle />
       </div>
@@ -164,28 +181,33 @@ export default function Expenses({
       {/* 集計サマリー */}
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {[...byCurrency.entries()].map(([cur, agg]) => (
-          <Card key={cur} label={`${cur} 合計`} value={money(agg.total, cur)} />
+          <Card key={cur} label={t("summary.total", { currency: cur })} value={money(agg.total, cur)} />
         ))}
-        {expenses.length === 0 && <Card label="実費合計" value="—" />}
+        {expenses.length === 0 && <Card label={t("summary.emptyLabel")} value="—" />}
       </div>
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {[...byCurrency.entries()].map(([cur, agg]) => (
-          <Card key={cur} label={`${cur} 未払い`} value={money(agg.unpaid, cur)} tone={agg.unpaid > 0 ? "text-amber-600" : "text-slate-400"} />
+          <Card
+            key={cur}
+            label={t("summary.unpaid", { currency: cur })}
+            value={money(agg.unpaid, cur)}
+            tone={agg.unpaid > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-500"}
+          />
         ))}
       </div>
 
-      {/* フィルタ + 追加 */}
+      {/* フィルタ */}
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="no-print flex gap-1">
-          <button onClick={() => setFilter("all")} className={tab("all")}>すべて</button>
-          <button onClick={() => setFilter("unpaid")} className={tab("unpaid")}>未払い</button>
-          <button onClick={() => setFilter("paid")} className={tab("paid")}>支払済</button>
+          <button onClick={() => setFilter("all")} className={tab("all")}>{t("filter.all")}</button>
+          <button onClick={() => setFilter("unpaid")} className={tab("unpaid")}>{t("filter.unpaid")}</button>
+          <button onClick={() => setFilter("paid")} className={tab("paid")}>{t("filter.paid")}</button>
         </div>
       </div>
 
       {shown.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 py-8 text-center text-sm text-slate-400">
-          {expenses.length === 0 ? "まだ実費がありません。領収書のスクショから追加できます。" : "該当する実費はありません。"}
+        <div className="rounded-xl border border-dashed border-slate-300 py-8 text-center text-sm text-slate-400 dark:border-slate-600 dark:text-slate-500">
+          {expenses.length === 0 ? t("empty.none") : t("empty.filtered")}
         </div>
       ) : (
         <ul>
@@ -204,9 +226,9 @@ export default function Expenses({
       {edit && (
         <button
           onClick={openAdd}
-          className="no-print mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-cyan-300 py-2 text-sm font-medium text-cyan-700 hover:bg-cyan-50"
+          className="no-print mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-cyan-300 py-2 text-sm font-medium text-cyan-700 hover:bg-cyan-50 dark:border-cyan-500/40 dark:text-cyan-400 dark:hover:bg-cyan-500/10"
         >
-          <FaPlus className="text-xs" /> 実費を追加（領収書から取り込み可）
+          <FaPlus className="text-xs" /> {t("addButton")}
         </button>
       )}
 
@@ -218,8 +240,8 @@ export default function Expenses({
       />
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="実費を削除しますか？"
-        message={deleteTarget ? `「${deleteTarget.title}」を実費から削除します。この操作は取り消せません。` : undefined}
+        title={t("delete.title")}
+        message={deleteTarget ? t("delete.message", { title: deleteTarget.title }) : undefined}
         busy={deleting}
         onConfirm={remove}
         onCancel={() => setDeleteTarget(null)}

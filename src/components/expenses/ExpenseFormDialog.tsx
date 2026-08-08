@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { FaXmark, FaUpload, FaWandMagicSparkles, FaTrash, FaCheck } from "react-icons/fa6";
 import type { Expense, ExpenseExtraction } from "../../types";
 import { api, expenseImageUrl, type MemoImage } from "../../api";
@@ -8,7 +9,7 @@ import { CURRENCIES } from "../../lib/money";
 import type { AttachedImage } from "../../hooks/useSpotChat";
 import GmailImport from "./GmailImport";
 
-/** 実費の費目（budget の費目と揃える想定）。 */
+/** 実費の費目（budget の費目と揃える想定）。DB に保存する値なので翻訳せず日本語のまま扱う。 */
 export const EXPENSE_CATEGORIES = ["宿泊", "交通", "食事", "観光", "買い物", "その他"];
 
 const MAX_IMAGES = 8;
@@ -57,6 +58,7 @@ export default function ExpenseFormDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation("budget");
   const [draft, setDraft] = useState<Draft>(() => toDraft(expense));
   // 新規に添付した（まだ保存していない）領収書画像。
   const [attached, setAttached] = useState<AttachedImage[]>([]);
@@ -126,7 +128,7 @@ export default function ExpenseFormDialog({
       applyExtraction(x);
       if (w) setWarning(w);
     } catch (e) {
-      setError(`抽出に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      setError(t("form.error.extractFailed", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setExtracting(false);
     }
@@ -139,7 +141,7 @@ export default function ExpenseFormDialog({
 
   async function save() {
     if (!draft.title.trim()) {
-      setError("概要（タイトル）を入力してください。");
+      setError(t("form.error.titleRequired"));
       return;
     }
     setSaving(true);
@@ -164,7 +166,7 @@ export default function ExpenseFormDialog({
       onSaved();
       onClose();
     } catch (e) {
-      setError(`保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      setError(t("form.error.saveFailed", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setSaving(false);
     }
@@ -172,10 +174,13 @@ export default function ExpenseFormDialog({
 
   const busy = saving || extracting;
   const fieldCls =
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100";
+    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500";
+  const labelCls = "mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400";
   const chip = (active: boolean) =>
     `rounded-full px-3 py-1 text-sm font-medium transition ${
-      active ? "bg-cyan-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+      active
+        ? "bg-cyan-600 text-white"
+        : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
     }`;
 
   return createPortal(
@@ -186,12 +191,17 @@ export default function ExpenseFormDialog({
       <div
         role="dialog"
         aria-modal="true"
-        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-800 dark:ring-1 dark:ring-white/10"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-          <h3 className="text-base font-bold text-slate-800">{expense ? "実費を編集" : "実費を追加"}</h3>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 dark:border-slate-700">
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+            {expense ? t("form.editTitle") : t("form.addTitle")}
+          </h3>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+          >
             <FaXmark />
           </button>
         </div>
@@ -208,15 +218,15 @@ export default function ExpenseFormDialog({
               const files = Array.from(e.clipboardData.files);
               if (files.length) void addFiles(files);
             }}
-            className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3"
+            className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-900/40"
           >
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs text-slate-500">領収書・予約完了画面のスクショを貼り付け / ドロップ</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("form.upload.hint")}</p>
               <button
                 onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
+                className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700"
               >
-                <FaUpload className="text-[10px]" /> 画像を選択
+                <FaUpload className="text-[10px]" /> {t("form.upload.select")}
               </button>
               <input
                 ref={fileRef}
@@ -237,13 +247,13 @@ export default function ExpenseFormDialog({
                   <div key={im.id} className="group relative">
                     <img
                       src={expenseImageUrl(im.id, im.updated_at)}
-                      alt="領収書"
-                      className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200"
+                      alt={t("form.upload.attachedAlt")}
+                      className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700"
                     />
                     <button
                       onClick={() => void removeExisting(im.id)}
                       className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-white opacity-0 transition group-hover:opacity-100"
-                      title="この画像を削除"
+                      title={t("form.upload.removeImage")}
                     >
                       <FaTrash className="text-[9px]" />
                     </button>
@@ -251,11 +261,11 @@ export default function ExpenseFormDialog({
                 ))}
                 {attached.map((a, i) => (
                   <div key={i} className="group relative">
-                    <img src={a.dataUrl} alt="添付" className="h-16 w-16 rounded-lg object-cover ring-1 ring-cyan-300" />
+                    <img src={a.dataUrl} alt={t("form.upload.attachedAlt")} className="h-16 w-16 rounded-lg object-cover ring-1 ring-cyan-300 dark:ring-cyan-500/50" />
                     <button
                       onClick={() => setAttached((prev) => prev.filter((_, j) => j !== i))}
                       className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-white opacity-0 transition group-hover:opacity-100"
-                      title="添付を取り消す"
+                      title={t("form.upload.removeAttach")}
                     >
                       <FaXmark className="text-[9px]" />
                     </button>
@@ -270,21 +280,21 @@ export default function ExpenseFormDialog({
                 disabled={busy}
                 className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
               >
-                <FaWandMagicSparkles className="text-xs" /> {extracting ? "抽出中…" : "画像から情報を抽出"}
+                <FaWandMagicSparkles className="text-xs" /> {extracting ? t("form.upload.extracting") : t("form.upload.extract")}
               </button>
             )}
-            {warning && <p className="mt-2 text-xs text-amber-600">{warning}</p>}
+            {warning && <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{warning}</p>}
           </section>
 
           {/* Gmail から取り込む（購入/予約完了メール） */}
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">または Gmail のメールから取り込む</label>
+            <label className={labelCls}>{t("form.gmailLabel")}</label>
             <GmailImport onExtracted={applyExtraction} onWarning={setWarning} disabled={busy} />
           </div>
 
           {/* 費目 */}
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">費目</label>
+            <label className={labelCls}>{t("form.field.category")}</label>
             <div className="flex flex-wrap gap-1.5">
               {EXPENSE_CATEGORIES.map((cat) => (
                 <button key={cat} onClick={() => set("category", cat)} className={chip(draft.category === cat)}>
@@ -296,22 +306,22 @@ export default function ExpenseFormDialog({
 
           {/* 概要 */}
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">概要</label>
+            <label className={labelCls}>{t("form.field.title")}</label>
             <input
               className={fieldCls}
               value={draft.title}
-              placeholder="例: ◯◯ホテル 2泊 / ジュネーブ→ツェルマット 鉄道"
+              placeholder={t("form.field.titlePlaceholder")}
               onChange={(e) => set("title", e.target.value)}
             />
           </div>
 
           {/* 予約先 */}
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">予約先 / 店舗名</label>
+            <label className={labelCls}>{t("form.field.vendor")}</label>
             <input
               className={fieldCls}
               value={draft.vendor}
-              placeholder="例: Booking.com / SBB / レストラン◯◯"
+              placeholder={t("form.field.vendorPlaceholder")}
               onChange={(e) => set("vendor", e.target.value)}
             />
           </div>
@@ -319,7 +329,7 @@ export default function ExpenseFormDialog({
           {/* 金額 + 通貨 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="mb-1 block text-xs font-semibold text-slate-500">金額</label>
+              <label className={labelCls}>{t("form.field.amount")}</label>
               <input
                 type="number"
                 className={`${fieldCls} text-right tabular-nums`}
@@ -328,7 +338,7 @@ export default function ExpenseFormDialog({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-500">通貨</label>
+              <label className={labelCls}>{t("form.field.currency")}</label>
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {CURRENCIES.map((cur) => (
                   <button key={cur} onClick={() => set("currency", cur)} className={chip(draft.currency === cur)}>
@@ -342,18 +352,20 @@ export default function ExpenseFormDialog({
           {/* 支払状況 + 日付 */}
           <div className="flex items-end gap-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-500">支払状況</label>
+              <label className={labelCls}>{t("form.field.paidStatus")}</label>
               <button
                 onClick={() => set("paid", !draft.paid)}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                  draft.paid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                  draft.paid
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+                    : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
                 }`}
               >
-                {draft.paid ? "支払済" : "未払い"}
+                {draft.paid ? t("status.paid") : t("status.unpaid")}
               </button>
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-xs font-semibold text-slate-500">支払日 / 予約日</label>
+              <label className={labelCls}>{t("form.field.date")}</label>
               <input
                 type="date"
                 className={fieldCls}
@@ -365,7 +377,7 @@ export default function ExpenseFormDialog({
 
           {/* 参考リンク */}
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">参考リンク（予約サイト・完了メール）</label>
+            <label className={labelCls}>{t("form.field.sourceUrl")}</label>
             <input
               className={fieldCls}
               value={draft.source_url}
@@ -376,7 +388,7 @@ export default function ExpenseFormDialog({
 
           {/* メモ */}
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">メモ</label>
+            <label className={labelCls}>{t("form.field.note")}</label>
             <textarea
               className={`${fieldCls} min-h-[3rem] resize-y`}
               value={draft.note}
@@ -384,23 +396,23 @@ export default function ExpenseFormDialog({
             />
           </div>
 
-          {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</div>}
+          {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</div>}
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3 dark:border-slate-700">
           <button
             onClick={onClose}
             disabled={busy}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700"
           >
-            キャンセル
+            {t("form.cancel")}
           </button>
           <button
             onClick={() => void save()}
             disabled={busy}
             className="flex items-center gap-1.5 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-600 disabled:opacity-50"
           >
-            <FaCheck className="text-xs" /> {saving ? "保存中…" : "保存"}
+            <FaCheck className="text-xs" /> {saving ? t("form.saving") : t("form.save")}
           </button>
         </div>
       </div>

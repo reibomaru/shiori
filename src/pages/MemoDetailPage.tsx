@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaTrash } from "react-icons/fa6";
 import { PanelRightOpen } from "lucide-react";
 import { useMemoPages } from "../hooks/useMemoPages";
@@ -18,8 +19,9 @@ const OPEN_KEY = "memoChatOpen"; // AI 編集パネルの表示状態（オプ�
 
 /** メモの詳細・編集ページ（/memo/:id）。AI 編集パネルを既定で右側に表示する。 */
 export default function MemoDetailPage() {
+  const { t } = useTranslation("memo");
   const { id = "", projectId = "" } = useParams();
-  const memoBase = `/p/${projectId}/memo`;
+  const memoBase = `/projects/${projectId}/memo`;
   const { pages, loading, error, update, remove, reload } = useMemoPages();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -81,7 +83,7 @@ export default function MemoDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   return (
-    <div ref={containerRef} className="relative flex h-full bg-slate-100">
+    <div ref={containerRef} className="relative flex h-full bg-slate-100 dark:bg-slate-900">
       {/* 左: メモ本文（スクロール）。デスクトップで閉じているときは開くボタン分の余白を空ける。 */}
       <div
         className={`min-w-0 flex-1 overflow-y-auto p-5 pb-[calc(9rem+env(safe-area-inset-bottom))] md:pb-5 ${
@@ -92,9 +94,9 @@ export default function MemoDetailPage() {
           <div className="mb-4 flex items-center justify-between gap-2">
             <Link
               to={memoBase}
-              className="no-print flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+              className="no-print flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             >
-              <FaChevronLeft className="text-xs" /> メモ一覧
+              <FaChevronLeft className="text-xs" /> {t("detail.backToList")}
             </Link>
             {page && (
               <div className="no-print flex items-center gap-2">
@@ -104,13 +106,13 @@ export default function MemoDetailPage() {
                     onClick={() => setChatOpen(true)}
                     className="flex items-center gap-1.5 rounded-lg bg-cyan-700 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-cyan-600"
                   >
-                    <PanelRightOpen size={15} /> AI で編集
+                    <PanelRightOpen size={15} /> {t("detail.openAiEditMobile")}
                   </button>
                 )}
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  title="このメモを削除"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                  title={t("detail.deleteTitle")}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:text-slate-500 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
                 >
                   <FaTrash className="text-xs" />
                 </button>
@@ -118,18 +120,18 @@ export default function MemoDetailPage() {
             )}
           </div>
 
-          {error && <div className="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</div>}
+          {error && <div className="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</div>}
 
           {loading ? (
-            <div className="p-10 text-center text-sm text-slate-400">読み込み中…</div>
+            <div className="p-10 text-center text-sm text-slate-400 dark:text-slate-500">{t("common:state.loading")}</div>
           ) : !page ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-              <p className="text-sm text-slate-400">メモが見つかりませんでした。</p>
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-sm text-slate-400 dark:text-slate-500">{t("detail.notFound")}</p>
               <Link
                 to={memoBase}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-200"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700"
               >
-                <FaChevronLeft className="text-xs" /> 一覧へ戻る
+                <FaChevronLeft className="text-xs" /> {t("detail.backToListLink")}
               </Link>
             </div>
           ) : (
@@ -142,8 +144,8 @@ export default function MemoDetailPage() {
       {chatOpen && !isMobile && (
         <div
           onMouseDown={startDrag}
-          title="ドラッグで幅を調整"
-          className="no-print group relative w-1 shrink-0 cursor-col-resize bg-slate-200 transition-colors hover:bg-cyan-400"
+          title={t("detail.resizeHint")}
+          className="no-print group relative w-1 shrink-0 cursor-col-resize bg-slate-200 transition-colors hover:bg-cyan-400 dark:bg-slate-700"
         >
           <span className="absolute inset-y-0 -left-1.5 -right-1.5" />
         </div>
@@ -152,7 +154,7 @@ export default function MemoDetailPage() {
       {/* 右: AI 編集チャット。モバイルは全画面オーバーレイ。 */}
       {chatOpen && page && (
         <div
-          className={isMobile ? "fixed inset-0 z-[560] bg-white" : "no-print shrink-0"}
+          className={isMobile ? "fixed inset-0 z-[560] bg-white dark:bg-slate-900" : "no-print shrink-0"}
           style={isMobile ? undefined : { width: chatWidth }}
         >
           <div
@@ -168,9 +170,9 @@ export default function MemoDetailPage() {
       {!chatOpen && !isMobile && (
         <button
           onClick={() => setChatOpen(true)}
-          title="AI 編集を開く"
-          aria-label="AI 編集を開く"
-          className="no-print absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+          title={t("detail.openAiEdit")}
+          aria-label={t("detail.openAiEdit")}
+          className="no-print absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
         >
           <PanelRightOpen size={16} />
         </button>
@@ -178,8 +180,8 @@ export default function MemoDetailPage() {
 
       <ConfirmDialog
         open={confirmDelete}
-        title="メモページを削除しますか？"
-        message={page ? `「${page.title || "無題のメモ"}」を削除します。この操作は取り消せません。` : undefined}
+        title={t("confirm.deleteTitle")}
+        message={page ? t("confirm.deleteMessageDetail", { title: page.title || t("list.untitled") }) : undefined}
         busy={deleting}
         onConfirm={async () => {
           if (!page) return;

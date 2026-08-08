@@ -10,7 +10,7 @@ interface ProjectCtx {
 
 const Ctx = createContext<ProjectCtx | null>(null);
 
-/** アクティブプロジェクトの情報（/p/:projectId 配下でのみ有効）。 */
+/** アクティブプロジェクトの情報（/projects/:projectId 配下でのみ有効）。 */
 export function useProject(): ProjectCtx {
   const c = useContext(Ctx);
   if (!c) throw new Error("useProject must be used within ProjectProvider");

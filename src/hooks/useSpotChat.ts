@@ -52,6 +52,9 @@ export interface Usage {
 
 export type ProposalStatus = "pending" | "saved" | "dismissed";
 
+/** AI エラーの区別（BYOK 登録導線の出し分け用）。 */
+export type ChatErrorCode = "missing_key" | "limit_exceeded" | null;
+
 const EMPTY_USAGE: Usage = { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, costUSD: 0 };
 
 /** SSE のテキストを `{event, data}` の列へ分解しながら順に渡す。 */
@@ -92,6 +95,8 @@ export function useSpotChat() {
   const [usage, setUsage] = useState<Usage>(EMPTY_USAGE);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // AI キー未登録 / 上限超過はフロントで BYOK 登録導線を出すため区別する。
+  const [errorCode, setErrorCode] = useState<ChatErrorCode>(null);
   const [statuses, setStatuses] = useState<Record<string, ProposalStatus>>({});
 
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
@@ -166,6 +171,7 @@ export function useSpotChat() {
       const message = text.trim();
       if ((!message && images.length === 0) || streaming) return;
       setError(null);
+      setErrorCode(null);
       setMessages((prev) => [
         ...prev,
         { role: "user", text: message, tools: [], proposals: [], images: images.map((i) => i.dataUrl) },
@@ -214,6 +220,7 @@ export function useSpotChat() {
               break;
             case "error":
               setError(String(d.message ?? "不明なエラー"));
+              setErrorCode((d.code as ChatErrorCode) ?? null);
               break;
           }
         });
@@ -245,6 +252,7 @@ export function useSpotChat() {
     setUsage(EMPTY_USAGE);
     setStatuses({});
     setError(null);
+    setErrorCode(null);
   }, []);
 
   /** 既存セッションを開いて履歴を復元（resume）。 */
@@ -256,6 +264,7 @@ export function useSpotChat() {
       setMessages([]);
       setStatuses({});
       setError(null);
+      setErrorCode(null);
       setUsage({ ...EMPTY_USAGE, costUSD: summary.cost_usd });
       setLoadingHistory(true);
       try {
@@ -287,6 +296,7 @@ export function useSpotChat() {
     usage,
     streaming,
     error,
+    errorCode,
     statuses,
     sessions,
     activeId,

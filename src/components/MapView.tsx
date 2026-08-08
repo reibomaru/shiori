@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import DeckGL from "@deck.gl/react";
 import { WebMercatorViewport, FlyToInterpolator, type PickingInfo } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
@@ -20,7 +21,6 @@ const MODE_RGB: Record<string, RGB> = {
   flight: [37, 99, 235],
   walk: [22, 163, 74],
 };
-const MODE_LABEL: Record<string, string> = { train: "鉄道", bus: "バス・登山", car: "車", flight: "飛行機", walk: "徒歩" };
 const BORDER_RGB: RGB = [220, 38, 38];
 // 行きたいスポット候補（都市・ルートと色を差別化：マゼンタ系）
 const SPOT_RGB: RGB = [219, 39, 119];
@@ -44,28 +44,25 @@ const MAX_ARC_HEIGHT = 0.35;
 
 // ベースマップ（地図タイル）の種類
 type BaseId = "osm" | "satellite" | "topo" | "light";
-const BASEMAPS: Record<BaseId, { label: string; url: string; maxZoom: number; attribution: string; dark?: boolean }> = {
+// label は i18n（map.json の basemap.<id>）で表示するためここには持たない
+const BASEMAPS: Record<BaseId, { url: string; maxZoom: number; attribution: string; dark?: boolean }> = {
   osm: {
-    label: "標準",
     url: "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
     maxZoom: 19,
     attribution: "© OpenStreetMap contributors",
   },
   satellite: {
-    label: "衛星",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     maxZoom: 19,
     attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
     dark: true,
   },
   topo: {
-    label: "地形",
     url: "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
     maxZoom: 17,
     attribution: "© OpenTopoMap (CC-BY-SA) · © OpenStreetMap contributors",
   },
   light: {
-    label: "白黒",
     url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
     maxZoom: 19,
     attribution: "© CARTO · © OpenStreetMap contributors",
@@ -100,6 +97,8 @@ export default function MapView({
   showSpots?: boolean; // 候補スポットのピン表示/非表示（パネルのチェックで切替）
   itineraryLegOrder?: string[]; // 旅程に組み込まれた leg id を旅程順に並べた配列。指定時はこれだけを順番表示
 }) {
+  const { t } = useTranslation("map");
+  const modeLabel = (m: string) => t(`mode.${m}`, { defaultValue: m });
   const [base, setBase] = useState<BaseId>("osm");
   const containerRef = useRef<HTMLDivElement>(null);
   const lastVisibleKey = useRef<string>("");
@@ -379,6 +378,9 @@ export default function MapView({
       getSize: 12, getColor: [30, 41, 59], getPixelOffset: [0, -16],
       getTextAnchor: "middle", getAlignmentBaseline: "bottom",
       fontFamily: '"Hiragino Sans", system-ui, sans-serif',
+      // 既定の characterSet は ASCII のみで全角（日本語・約物）が描画されない。
+      // "auto" にすると出現した文字を動的にフォントアトラスへ追加する。
+      characterSet: "auto",
       outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },
     }),
     // 行きたいスポット候補：Google マップ保存リスト風のピン。表示/非表示は凡例のチェックで切替。
@@ -405,6 +407,9 @@ export default function MapView({
         getSize: 11, getColor: SPOT_RGB, getPixelOffset: [0, 14],
         getTextAnchor: "middle", getAlignmentBaseline: "top",
         fontFamily: '"Hiragino Sans", system-ui, sans-serif',
+        // 既定の characterSet は ASCII のみで全角（日本語・約物）が描画されない。
+        // "auto" にすると出現した文字を動的にフォントアトラスへ追加する。
+        characterSet: "auto",
         outlineWidth: 3, outlineColor: [255, 255, 255], fontSettings: { sdf: true },
       }),
   ].filter(Boolean) as any[];
@@ -415,13 +420,13 @@ export default function MapView({
     if (layer?.id === "rail") {
       const p = (object as Feature).properties ?? {};
       const n = ((object as any).geometry?.coordinates?.length) ?? 0;
-      html = `<b>${p.from ?? ""} → ${p.to ?? ""}</b><br>${MODE_LABEL[p.mode] ?? p.mode}（GeoJSON詳細・${n}点）${p.note ? "<br>" + p.note : ""}`;
+      html = `<b>${p.from ?? ""} → ${p.to ?? ""}</b><br>${modeLabel(p.mode)}（${t("tooltip.geojsonDetail", { count: n })}）${p.note ? "<br>" + p.note : ""}`;
     } else if (layer?.id === "arcs") {
       const o = object as any;
-      html = `<b>${o.fromName} → ${o.toName}</b><br>${MODE_LABEL[o.mode] ?? o.mode}（直線）`;
+      html = `<b>${o.fromName} → ${o.toName}</b><br>${modeLabel(o.mode)}（${t("tooltip.straight")}）`;
     } else if (layer?.id === "borders") {
       const p = (object as Feature).properties ?? {};
-      html = `<b>${p.name_ja ?? p.name ?? ""}</b>（国境）`;
+      html = `<b>${p.name_ja ?? p.name ?? ""}</b>${t("tooltip.border")}`;
     } else if (layer?.id === "cities" || layer?.id === "labels") {
       const o = object as any;
       html = `<b>${o.index + 1}. ${o.name}</b>${o.note ? "<br>" + o.note : ""}`;
@@ -437,7 +442,7 @@ export default function MapView({
   };
 
   return (
-    <div ref={containerRef} className="relative h-full w-full bg-slate-200">
+    <div ref={containerRef} className="relative h-full w-full bg-slate-200 dark:bg-slate-900">
       <DeckGL
         viewState={viewState}
         onViewStateChange={(e: any) => setViewState(e.viewState)}
@@ -464,17 +469,19 @@ export default function MapView({
 
       {/* レイヤー切替 + 表示操作（左上） */}
       <div className="pointer-events-auto absolute left-3 top-3 flex flex-col items-start gap-2">
-        <div className="inline-flex overflow-hidden rounded-lg bg-white/90 shadow-sm backdrop-blur ring-1 ring-black/5">
+        <div className="inline-flex overflow-hidden rounded-lg bg-white/90 shadow-sm backdrop-blur ring-1 ring-black/5 dark:bg-slate-800/90 dark:ring-white/10">
           {BASE_ORDER.map((id) => (
             <button
               key={id}
               type="button"
               onClick={() => setBase(id)}
               className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                base === id ? "bg-cyan-700 text-white" : "text-slate-700 hover:bg-slate-100"
+                base === id
+                  ? "bg-cyan-700 text-white"
+                  : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
               }`}
             >
-              {BASEMAPS[id].label}
+              {t(`basemap.${id}`)}
             </button>
           ))}
         </div>
@@ -482,48 +489,48 @@ export default function MapView({
           <button
             type="button"
             onClick={toggle3D}
-            className="rounded-lg bg-white/90 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-slate-100"
+            className="rounded-lg bg-white/90 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-slate-100 dark:bg-slate-800/90 dark:text-slate-300 dark:ring-white/10 dark:hover:bg-slate-700"
           >
-            {is3D ? "2D表示" : "3D表示"}
+            {is3D ? t("controls.view2d") : t("controls.view3d")}
           </button>
           <button
             type="button"
             onClick={resetView}
-            className="rounded-lg bg-white/90 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-slate-100"
+            className="rounded-lg bg-white/90 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-slate-100 dark:bg-slate-800/90 dark:text-slate-300 dark:ring-white/10 dark:hover:bg-slate-700"
           >
-            全体表示
+            {t("controls.resetView")}
           </button>
         </div>
 
         {/* 凡例（操作群の下にまとめる） */}
-        <div className="max-w-[15rem] rounded-xl bg-white/85 px-3 py-2 text-xs text-slate-600 shadow-sm backdrop-blur">
+        <div className="max-w-[15rem] rounded-xl bg-white/85 px-3 py-2 text-xs text-slate-600 shadow-sm backdrop-blur dark:bg-slate-800/85 dark:text-slate-300">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {usedModes.map((m) => (
               <span key={m} className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-0.5 w-5 rounded" style={{ background: cssColor(rgb(m)) }} />
-                {MODE_LABEL[m] ?? m}
+                {modeLabel(m)}
               </span>
             ))}
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-1 w-5 rounded" style={{ background: cssColor(BORDER_RGB) }} />
-              国境
+              {t("legend.border")}
             </span>
             {showSpots && spots.length > 0 && (
               <span className="inline-flex items-center gap-1">
                 <span className="text-sm leading-none">📍</span>
-                候補スポット
+                {t("legend.spots")}
               </span>
             )}
           </div>
           {showSpots && spotsMissingCoords > 0 && (
-            <p className="mt-1 text-[11px] text-slate-400">
-              座標未設定のため非表示: {spotsMissingCoords} 件
+            <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+              {t("legend.missingCoords", { count: spotsMissingCoords })}
             </p>
           )}
         </div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 rounded bg-white/70 px-1.5 text-[10px] text-slate-500">
+      <div className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 rounded bg-white/70 px-1.5 text-[10px] text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">
         {cfg.attribution}
       </div>
     </div>

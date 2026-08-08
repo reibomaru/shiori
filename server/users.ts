@@ -108,6 +108,84 @@ export async function upsertUserOnLogin(
   return toUserRecord(sub, { ...data, ...patch });
 }
 
+// ============================================================
+//  BYOK（ユーザー自身の Gemini API キー）の利用量・上限（#93）。
+//
+//  API キー本体は Secret Manager 等に置き（server/apiKeys.ts）、ここでは
+//  「BYOK 登録の有無フラグ」と「共有キー利用時の月次コスト集計・上限」だけを
+//  users ドキュメントで管理する。集計は per-user・月次（UTC）で、共有キーを
+//  使ったときだけ加算する（BYOK 利用時はコストがユーザー負担のため対象外）。
+// ============================================================
+
+/** AI 利用状態（BYOK 有無・当月の消費・上限）。 */
+export interface AiUsageState {
+  /** BYOK（自分の API キー）を登録済みか。 */
+  hasByokKey: boolean;
+  /** 集計が記録されている月（"YYYY-MM"・UTC）。 */
+  usageMonth: string;
+  /** usageMonth の共有キー利用の累計コスト（USD）。上限判定に使う。 */
+  usageCostUsd: number;
+  /** usageMonth の BYOK 利用の累計コスト（USD）。表示のみ（上限は適用しない）。 */
+  byokUsageCostUsd: number;
+  /** ユーザーごとの月次上限の上書き（未設定は null → 環境変数の既定を使う）。 */
+  limitUsd: number | null;
+}
+
+/** 現在の集計対象月（"YYYY-MM"・UTC）。月初(UTC)に自然にリセットされる。 */
+export function currentUsageMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+/** users ドキュメントから BYOK 利用状態を読む（未登録・未集計は 0 として返す）。 */
+export async function getAiUsageState(sub: string): Promise<AiUsageState> {
+  const snap = await firestore().collection(COLLECTION).doc(sub).get();
+  const x = (snap.exists ? snap.data() : {}) ?? {};
+  return {
+    hasByokKey: x.hasByokKey === true,
+    usageMonth: typeof x.usageMonth === "string" ? x.usageMonth : "",
+    usageCostUsd: typeof x.usageCostUsd === "number" ? x.usageCostUsd : 0,
+    byokUsageCostUsd: typeof x.byokUsageCostUsd === "number" ? x.byokUsageCostUsd : 0,
+    limitUsd: typeof x.sharedKeyMonthlyLimitUsd === "number" ? x.sharedKeyMonthlyLimitUsd : null,
+  };
+}
+
+/** BYOK 登録の有無フラグを立てる/降ろす（キー本体の保存は apiKeys.ts）。 */
+export async function setByokKeyFlag(sub: string, has: boolean): Promise<void> {
+  await firestore()
+    .collection(COLLECTION)
+    .doc(sub)
+    .set({ hasByokKey: has, updatedAt: new Date().toISOString() }, { merge: true });
+}
+
+/**
+ * AI 利用コストを当月の集計へ加算する（トランザクションで月替わりも処理）。
+ * 共有キー(shared)分と BYOK(byok)分を別々のフィールドに積む。usageMonth が当月と
+ * 異なれば両方を 0 にリセットしてから当月ぶんとして記録し直す（片方だけ古い値が
+ * 残らないよう、書き込むフィールド以外もリセットする）。
+ */
+export async function recordAiUsage(sub: string, costUsd: number, source: "shared" | "byok"): Promise<void> {
+  if (!(costUsd > 0)) return;
+  const ref = firestore().collection(COLLECTION).doc(sub);
+  const month = currentUsageMonth();
+  await firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const x = (snap.exists ? snap.data() : {}) ?? {};
+    const sameMonth = x.usageMonth === month;
+    const shared = sameMonth && typeof x.usageCostUsd === "number" ? x.usageCostUsd : 0;
+    const byok = sameMonth && typeof x.byokUsageCostUsd === "number" ? x.byokUsageCostUsd : 0;
+    tx.set(
+      ref,
+      {
+        usageMonth: month,
+        usageCostUsd: shared + (source === "shared" ? costUsd : 0),
+        byokUsageCostUsd: byok + (source === "byok" ? costUsd : 0),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+  });
+}
+
 /** 本人のプロフィール（表示名・アバター等）を取得する。未登録は null。 */
 export async function getUserProfile(sub: string): Promise<UserRecord | null> {
   const snap = await firestore().collection(COLLECTION).doc(sub).get();

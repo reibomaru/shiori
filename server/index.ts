@@ -25,6 +25,14 @@ import {
   requireProjectMember,
 } from "./projects.ts";
 import { updateOwnProfile, avatarUrlOf } from "./users.ts";
+import {
+  getByokStatus,
+  setUserApiKey,
+  deleteUserApiKey,
+  resolveAiKey,
+  recordUsage,
+  UsageLimitExceededError,
+} from "./apiKeys.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
 import * as memoRepo from "../db/memo-repo.ts";
 import * as expensesRepo from "../db/expenses-repo.ts";
@@ -38,8 +46,8 @@ import {
 } from "./agent/extract.ts";
 import * as gmail from "./gmail.ts";
 import { normalizeImageForWeb } from "./agent/images.ts";
-import { MissingApiKeyError } from "./agent/runner.ts";
-import type { AgentImage } from "./agent/runner.ts";
+import { MissingApiKeyError } from "./apiKeys.ts";
+import type { AgentImage, TurnUsage } from "./agent/runner.ts";
 import { sanitizeHtml, htmlToText } from "./agent/html.ts";
 import type {
   TripMeta,
@@ -261,6 +269,28 @@ app.get("/api/gmail/oauth/callback", async (c) => {
   return closingPage(`Gmail 連携が完了しました${email ? `（${email}）` : ""}。このウィンドウを閉じてください。`);
 });
 
+// ---- BYOK（自分の Gemini API キー）----------------------------
+// プロジェクトに依存しないユーザー本人の設定なので、プロジェクトスコープの前
+// （X-Project-Id 不要）に置く。キー本体は Secret Manager 等（server/apiKeys.ts）に
+// 保管し、DB/Firestore には平文で持たない。利用量・上限は users で per-user 集計。
+app.get("/api/byok", async (c) => c.json(await getByokStatus(c.get("userId"))));
+
+app.put("/api/byok", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { apiKey?: unknown };
+  const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
+  if (!apiKey) return c.json({ error: "apiKey が必要です。" }, 400);
+  const ok = await setUserApiKey(c.get("userId"), apiKey);
+  if (!ok) {
+    return c.json({ error: "API キーが無効です。Google AI Studio で発行した有効な Gemini API キーを入力してください。" }, 400);
+  }
+  return c.json(await getByokStatus(c.get("userId")));
+});
+
+app.delete("/api/byok", async (c) => {
+  await deleteUserApiKey(c.get("userId"));
+  return c.json(await getByokStatus(c.get("userId")));
+});
+
 // ---- 以降のドメインルートはプロジェクトスコープ（X-Project-Id 必須）------
 app.use("/api/*", requireProjectMember);
 
@@ -436,22 +466,38 @@ app.post("/api/expenses/extract", async (c) => {
     : [];
   if (images.length === 0) return c.json({ error: "画像が指定されていません。" }, 400);
   const normalized = await Promise.all(images.map(normalizeImageForWeb));
+
+  const emptyExtraction = {
+    title: null, vendor: null, amount: null, currency: null,
+    paid: null, incurred_on: null, category: null, note: null,
+  };
+
+  // AI 抽出のキー解決（BYOK 優先・共有キーは上限チェック）。解決できなければ
+  // 空の抽出結果 + 警告を 200 で返し、手入力に切り替えられるようにする。
+  let resolved;
   try {
-    const extraction = await extractReceiptFromImages({ images: normalized });
+    resolved = await resolveAiKey(c.get("userId"));
+  } catch (err) {
+    return c.json({ extraction: emptyExtraction, warning: err instanceof Error ? err.message : String(err) });
+  }
+
+  let extractCost = 0;
+  try {
+    const extraction = await extractReceiptFromImages({
+      apiKey: resolved.apiKey,
+      images: normalized,
+      onUsage: (u) => { extractCost += u.costUSD; },
+    });
     return c.json({ extraction });
   } catch (err) {
-    // 抽出に失敗しても空の抽出結果 + warning を 200 で返し、手入力に切り替えられるようにする。
     const warning =
       err instanceof MissingApiKeyError
         ? err.message
         : `情報の抽出に失敗しました: ${err instanceof Error ? err.message : String(err)}`;
-    return c.json({
-      extraction: {
-        title: null, vendor: null, amount: null, currency: null,
-        paid: null, incurred_on: null, category: null, note: null,
-      },
-      warning,
-    });
+    return c.json({ extraction: emptyExtraction, warning });
+  } finally {
+    // 共有キー利用時のみ、抽出の消費コストをユーザーの月次集計へ加算する。
+    await recordUsage(c.get("userId"), resolved.source, extractCost);
   }
 });
 
@@ -537,6 +583,7 @@ app.delete("/api/memo/images/:id", (c) => c.json(memoRepo.deleteMemoImage(c.get(
 app.post("/api/memo/pages/:id/extract", async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
+  const userId = c.get("userId");
   const page = memoRepo.getMemoPage(db, id);
   if (!page) return c.json({ error: "メモページが見つかりません。" }, 404);
 
@@ -554,11 +601,30 @@ app.post("/api/memo/pages/:id/extract", async (c) => {
   // 先に元画像を保存する（抽出が失敗・空でも原本は残す）。
   memoRepo.addMemoImages(db, id, normalized);
 
+  // AI 抽出のキー解決（BYOK 優先・共有キーは上限チェック）。解決できなければ
+  // 元画像だけ残し、警告を添えて返す（抽出はスキップ）。
+  let resolved;
+  try {
+    resolved = await resolveAiKey(userId);
+  } catch (err) {
+    const updated = memoRepo.getMemoPage(db, id);
+    const message = err instanceof Error ? err.message : String(err);
+    const warningCode =
+      err instanceof UsageLimitExceededError ? "limit_exceeded" : err instanceof MissingApiKeyError ? "missing_key" : undefined;
+    return c.json({ ...updated, warning: `${message}（元画像は保存しました）`, warningCode });
+  }
+
+  // 共有キー利用時の集計用に、両抽出の usage を合算する。
+  let extractCost = 0;
+  const onUsage = (u: TurnUsage) => {
+    extractCost += u.costUSD;
+  };
+
   // HTML（表・チャート等）とグラフ構造（フローチャート・相関図等）を並行で抽出する。
   // グラフは付加価値なので、失敗しても HTML 側には影響させない。
   const [htmlRes, graphRes] = await Promise.allSettled([
-    extractHtmlFromImages({ images: normalized }),
-    extractGraphFromImages({ images: normalized }),
+    extractHtmlFromImages({ apiKey: resolved.apiKey, images: normalized, onUsage }),
+    extractGraphFromImages({ apiKey: resolved.apiKey, images: normalized, onUsage }),
   ]);
 
   let html = "";
@@ -589,6 +655,8 @@ app.post("/api/memo/pages/:id/extract", async (c) => {
   if (Object.keys(patch).length > 0) {
     memoRepo.updateMemoPage(db, id, patch);
   }
+  // 共有キー利用時のみ、抽出の消費コストをユーザーの月次集計へ加算する。
+  await recordUsage(userId, resolved.source, extractCost);
   // 画像メタを反映した最新ページを返す。
   const updated = memoRepo.getMemoPage(db, id);
   return c.json(warning ? { ...updated, warning } : updated);
@@ -846,9 +914,25 @@ app.get("/api/gmail/search", async (c) => {
 app.post("/api/gmail/extract", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { messageId?: unknown };
   if (typeof body.messageId !== "string") return c.json({ error: "messageId が必要です。" }, 400);
+  const userId = c.get("userId");
+
+  // AI 抽出のキー解決（BYOK 優先・共有キーは上限チェック）。
+  let resolved;
+  try {
+    resolved = await resolveAiKey(userId);
+  } catch (err) {
+    return c.json({ warning: err instanceof Error ? err.message : String(err) });
+  }
+
+  let extractCost = 0;
   try {
     const msg = await gmail.getMessage(c.get("db"), body.messageId);
-    const extraction = await extractReceiptFromText({ subject: msg.subject, text: msg.text });
+    const extraction = await extractReceiptFromText({
+      apiKey: resolved.apiKey,
+      subject: msg.subject,
+      text: msg.text,
+      onUsage: (u) => { extractCost += u.costUSD; },
+    });
     // 参考リンクとして Gmail の該当メールを開ける URL を付ける。
     const source_url = `https://mail.google.com/mail/u/0/#all/${body.messageId}`;
     return c.json({
@@ -859,6 +943,9 @@ app.post("/api/gmail/extract", async (c) => {
     const warning =
       e instanceof MissingApiKeyError ? e.message : `メールの取り込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`;
     return c.json({ warning });
+  } finally {
+    // 共有キー利用時のみ、抽出の消費コストをユーザーの月次集計へ加算する。
+    await recordUsage(userId, resolved.source, extractCost);
   }
 });
 

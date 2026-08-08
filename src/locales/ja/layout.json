@@ -1,0 +1,8 @@
+{
+  "period": "{{start}} 〜 {{end}}",
+  "party": "{{travelers}}（{{count}}名）",
+  "perPerson": "1人 {{amount}}",
+  "apiError": "API に接続できません: {{error}}",
+  "apiErrorHint": "別ターミナルで <0>pnpm dev</0> を起動してください。",
+  "mapLoading": "地図を読み込み中…"
+}

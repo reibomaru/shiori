@@ -2,8 +2,11 @@ import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import "./index.css";
+import i18n from "./i18n";
+import { ThemeProvider } from "./theme";
 import { TripProvider } from "./store";
 import { AuthGate } from "./components/AuthGate";
+import { OnboardingProvider } from "./components/onboarding/OnboardingProvider";
 import { ProjectProvider } from "./project";
 import Layout from "./components/Layout";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -16,7 +19,7 @@ import MemoDetailPage from "./pages/MemoDetailPage";
 // 地図(deck.gl)は重いので必要時のみ遅延ロード
 const MapPage = lazy(() => import("./pages/MapPage"));
 
-/** /p/:projectId 配下: アクティブプロジェクトを設定し、旅程データと Layout を提供する。
+/** /projects/:projectId 配下: アクティブプロジェクトを設定し、旅程データと Layout を提供する。
  *  key={projectId} 相当の再マウントで、プロジェクト切替時に子が再ロードされる。 */
 function ProjectShell() {
   const { projectId = "" } = useParams();
@@ -31,18 +34,20 @@ function ProjectShell() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthGate>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthGate>
+        <OnboardingProvider>
         <Routes>
           {/* ログイン後のトップ: プロジェクト一覧 */}
           <Route path="/" element={<ProjectsPage />} />
           {/* プロジェクト配下（共有テナント） */}
-          <Route path="/p/:projectId" element={<ProjectShell />}>
+          <Route path="/projects/:projectId" element={<ProjectShell />}>
             <Route index element={<Navigate to="itinerary" replace />} />
             <Route
               path="map"
               element={
-                <Suspense fallback={<div className="p-10 text-center text-slate-400">地図を読み込み中…</div>}>
+                <Suspense fallback={<div className="p-10 text-center text-slate-400 dark:text-slate-500">{i18n.t("layout:mapLoading")}</div>}>
                   <MapPage />
                 </Suspense>
               }
@@ -55,7 +60,9 @@ createRoot(document.getElementById("root")!).render(
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </AuthGate>
-    </BrowserRouter>
+        </OnboardingProvider>
+        </AuthGate>
+      </BrowserRouter>
+    </ThemeProvider>
   </StrictMode>
 );

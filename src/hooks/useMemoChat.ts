@@ -7,7 +7,7 @@ import { useSearchParams } from "react-router-dom";
 import type { MemoPage } from "../types";
 import { api, projectHeader, type ChatSessionSummary } from "../api";
 import { uuid } from "../uuid";
-import type { AttachedImage, ProposalOp, ProposalStatus, ToolChip, Usage } from "./useSpotChat";
+import type { AttachedImage, ChatErrorCode, ProposalOp, ProposalStatus, ToolChip, Usage } from "./useSpotChat";
 
 export interface MemoProposal {
   tempId: string;
@@ -70,6 +70,8 @@ export function useMemoChat() {
   const [usage, setUsage] = useState<Usage>(EMPTY_USAGE);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // AI キー未登録 / 上限超過はフロントで BYOK 登録導線を出すため区別する。
+  const [errorCode, setErrorCode] = useState<ChatErrorCode>(null);
   const [statuses, setStatuses] = useState<Record<string, ProposalStatus>>({});
 
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
@@ -139,6 +141,7 @@ export function useMemoChat() {
       const message = text.trim();
       if ((!message && images.length === 0) || streaming) return;
       setError(null);
+      setErrorCode(null);
       setMessages((prev) => [
         ...prev,
         { role: "user", text: message, tools: [], proposals: [], images: images.map((i) => i.dataUrl) },
@@ -188,6 +191,7 @@ export function useMemoChat() {
               break;
             case "error":
               setError(String(d.message ?? "不明なエラー"));
+              setErrorCode((d.code as ChatErrorCode) ?? null);
               break;
           }
         });
@@ -217,6 +221,7 @@ export function useMemoChat() {
     setUsage(EMPTY_USAGE);
     setStatuses({});
     setError(null);
+    setErrorCode(null);
   }, []);
 
   const selectSession = useCallback(async (summary: ChatSessionSummary) => {
@@ -226,6 +231,7 @@ export function useMemoChat() {
     setMessages([]);
     setStatuses({});
     setError(null);
+    setErrorCode(null);
     setUsage({ ...EMPTY_USAGE, costUSD: summary.cost_usd });
     setLoadingHistory(true);
     try {
@@ -255,6 +261,7 @@ export function useMemoChat() {
     usage,
     streaming,
     error,
+    errorCode,
     statuses,
     sessions,
     activeId,

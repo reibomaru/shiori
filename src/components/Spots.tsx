@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { FaCompass, FaTableCellsLarge, FaList, FaLink, FaInstagram } from "react-icons/fa6";
 import type { Spot } from "../types";
 import { api, type SpotRating } from "../api";
@@ -26,6 +27,7 @@ function loadViewMode(): ViewMode {
  * 下に収まらなければ上開きにフォールバックする。
  */
 function IconPicker({ spot, reload }: { spot: Spot; reload: () => void }) {
+  const { t } = useTranslation("spots");
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
@@ -74,8 +76,8 @@ function IconPicker({ spot, reload }: { spot: Spot; reload: () => void }) {
         ref={btnRef}
         type="button"
         onClick={toggle}
-        title="地図ピンのアイコンを変更"
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-lg leading-none ring-1 ring-slate-200 transition-colors hover:bg-slate-200"
+        title={t("iconPicker.change")}
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-lg leading-none ring-1 ring-slate-200 transition-colors hover:bg-slate-200 dark:bg-slate-700 dark:ring-slate-600 dark:hover:bg-slate-600"
       >
         {current.emoji}
       </button>
@@ -86,7 +88,7 @@ function IconPicker({ spot, reload }: { spot: Spot; reload: () => void }) {
             <div className="fixed inset-0 z-[450]" onClick={() => setOpen(false)} />
             <div
               style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom }}
-              className="z-[460] max-h-[60vh] w-44 overflow-y-auto rounded-xl bg-white p-2 shadow-lg ring-1 ring-slate-200"
+              className="z-[460] max-h-[60vh] w-44 overflow-y-auto rounded-xl bg-white p-2 shadow-lg ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700"
             >
               <div className="grid grid-cols-4 gap-1">
                 {SPOT_ICONS.map((d) => (
@@ -95,8 +97,8 @@ function IconPicker({ spot, reload }: { spot: Spot; reload: () => void }) {
                     type="button"
                     onClick={() => pick(d.key)}
                     title={d.label}
-                    className={`flex h-8 w-8 items-center justify-center rounded-lg text-lg leading-none transition-colors hover:bg-slate-100 ${
-                      spot.icon === d.key ? "bg-cyan-100 ring-1 ring-cyan-500" : ""
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg text-lg leading-none transition-colors hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                      spot.icon === d.key ? "bg-cyan-100 ring-1 ring-cyan-500 dark:bg-cyan-500/20" : ""
                     }`}
                   >
                     {d.emoji}
@@ -106,9 +108,9 @@ function IconPicker({ spot, reload }: { spot: Spot; reload: () => void }) {
               <button
                 type="button"
                 onClick={() => pick(null)}
-                className="mt-1 w-full rounded-lg px-2 py-1 text-left text-xs text-slate-500 hover:bg-slate-100"
+                className="mt-1 w-full rounded-lg px-2 py-1 text-left text-xs text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
               >
-                カテゴリ既定に戻す（{spot.category || "なし"}）
+                {t("iconPicker.resetToCategory", { category: spot.category || t("iconPicker.none") })}
               </button>
             </div>
           </>,
@@ -128,6 +130,7 @@ export default function Spots({
   /** 見出し右（件数バッジの隣）に置くアクション。モバイルのチャット開くボタン等。 */
   headerAction?: React.ReactNode;
 }) {
+  const { t } = useTranslation("spots");
   const [openId, setOpenId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Spot | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -201,27 +204,27 @@ export default function Spots({
     <div ref={rootRef} className="mx-auto max-w-5xl">
       <ConfirmDialog
         open={pendingDelete !== null}
-        title="候補を削除しますか？"
-        message={pendingDelete ? `「${pendingDelete.name}」を候補から削除します。この操作は取り消せません。` : undefined}
+        title={t("delete.title")}
+        message={pendingDelete ? t("delete.message", { name: pendingDelete.name }) : undefined}
         busy={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       />
       <div className="mb-1 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800">
-          <FaCompass className="text-cyan-700" /> 行きたいスポット候補
+        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800 dark:text-slate-100">
+          <FaCompass className="text-cyan-700 dark:text-cyan-400" /> {t("title")}
         </h2>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{spots.length} 件</span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t("count", { count: spots.length })}</span>
           {spots.length > 0 && (
-            <div className="no-print flex items-center rounded-lg bg-slate-100 p-0.5" role="group" aria-label="表示切り替え">
+            <div className="no-print flex items-center rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800" role="group" aria-label={t("view.group")}>
               <button
                 type="button"
                 onClick={() => changeView("card")}
                 aria-pressed={view === "card"}
-                title="カード表示"
+                title={t("view.card")}
                 className={`flex h-7 w-7 items-center justify-center rounded-md text-sm transition-colors ${
-                  view === "card" ? "bg-white text-cyan-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  view === "card" ? "bg-white text-cyan-700 shadow-sm dark:bg-slate-700 dark:text-cyan-400" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                 }`}
               >
                 <FaTableCellsLarge />
@@ -230,9 +233,9 @@ export default function Spots({
                 type="button"
                 onClick={() => changeView("list")}
                 aria-pressed={view === "list"}
-                title="リスト表示"
+                title={t("view.list")}
                 className={`flex h-7 w-7 items-center justify-center rounded-md text-sm transition-colors ${
-                  view === "list" ? "bg-white text-cyan-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  view === "list" ? "bg-white text-cyan-700 shadow-sm dark:bg-slate-700 dark:text-cyan-400" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                 }`}
               >
                 <FaList />
@@ -242,12 +245,12 @@ export default function Spots({
           {headerAction}
         </div>
       </div>
-      <p className="mb-3 text-xs text-slate-400">
-        ガイドブックを見ながらチャットで登録した候補。カードをクリックすると詳細と Instagram を表示します。
+      <p className="mb-3 text-xs text-slate-400 dark:text-slate-500">
+        {t("description")}
       </p>
       {spots.length === 0 ? (
-        <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-sm text-slate-400">
-          まだ候補がありません。チャットから登録してみましょう。
+        <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-sm text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+          {t("empty")}
         </p>
       ) : view === "card" ? (
         <ul className="flex flex-wrap gap-3">
@@ -255,7 +258,7 @@ export default function Spots({
             <li
               key={s.id}
               onClick={() => setOpenId(s.id)}
-              className="flex min-w-0 basis-full max-w-md cursor-pointer flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-colors hover:border-cyan-300 hover:bg-slate-50 sm:basis-[calc(50%-0.375rem)]"
+              className="flex min-w-0 basis-full max-w-md cursor-pointer flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-colors hover:border-cyan-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-cyan-500/50 dark:hover:bg-slate-700/50 sm:basis-[calc(50%-0.375rem)]"
             >
               <SpotCard
                 spot={s}
@@ -267,16 +270,16 @@ export default function Spots({
                   </div>
                 }
                 onLinkClick={(e) => e.stopPropagation()}
-                footerTrailing={<span className="ml-auto text-cyan-700">詳細 ›</span>}
+                footerTrailing={<span className="ml-auto text-cyan-700 dark:text-cyan-400">{t("detail")}</span>}
                 trailing={
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setPendingDelete(s);
                     }}
-                    className="shrink-0 rounded px-2 py-1 text-xs text-rose-600 hover:bg-rose-50"
+                    className="shrink-0 rounded px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
                   >
-                    削除
+                    {t("common:actions.delete")}
                   </button>
                 }
               />
@@ -284,7 +287,7 @@ export default function Spots({
           ))}
         </ul>
       ) : (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800">
           {spots.map((s) => {
             const cover = ratings[s.id]?.photoUrls?.[0];
             const rating = ratings[s.id];
@@ -293,7 +296,7 @@ export default function Spots({
               <li
                 key={s.id}
                 onClick={() => setOpenId(s.id)}
-                className="flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-slate-50"
+                className="flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50"
               >
                 {/* サムネ（なければ種別アイコン）。 */}
                 {cover ? (
@@ -305,20 +308,20 @@ export default function Spots({
                     className="h-10 w-10 shrink-0 rounded-md object-cover"
                   />
                 ) : (
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-lg leading-none ring-1 ring-slate-200">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-lg leading-none ring-1 ring-slate-200 dark:bg-slate-700 dark:ring-slate-600">
                     {resolveSpotIcon(s).emoji}
                   </span>
                 )}
                 {/* 名称・英名 */}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold text-slate-800">
+                  <div className="truncate font-semibold text-slate-800 dark:text-slate-100">
                     {s.name}
-                    {s.name_en && <span className="ml-1 text-xs font-normal text-slate-400">{s.name_en}</span>}
+                    {s.name_en && <span className="ml-1 text-xs font-normal text-slate-400 dark:text-slate-500">{s.name_en}</span>}
                   </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
                     {s.country && <span>{s.country}</span>}
                     {s.city && <span>· {s.city}</span>}
-                    {s.category && <span className="rounded bg-slate-100 px-1.5 py-0.5">{s.category}</span>}
+                    {s.category && <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-700">{s.category}</span>}
                     {rating && <RatingBadge rating={rating.rating} count={rating.userRatingCount} />}
                   </div>
                 </div>
@@ -333,9 +336,9 @@ export default function Spots({
                       target="_blank"
                       rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="hidden items-center gap-1 font-medium text-cyan-700 hover:underline sm:inline-flex"
+                      className="hidden items-center gap-1 font-medium text-cyan-700 hover:underline dark:text-cyan-400 sm:inline-flex"
                     >
-                      <FaLink className="text-[10px]" /> リンク
+                      <FaLink className="text-[10px]" /> {t("links.link")}
                     </a>
                   )}
                   {igCount > 0 && (
@@ -343,15 +346,15 @@ export default function Spots({
                       <FaInstagram /> {igCount}
                     </span>
                   )}
-                  <span className="text-cyan-700">詳細 ›</span>
+                  <span className="text-cyan-700 dark:text-cyan-400">{t("detail")}</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setPendingDelete(s);
                     }}
-                    className="rounded px-2 py-1 text-rose-600 hover:bg-rose-50"
+                    className="rounded px-2 py-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
                   >
-                    削除
+                    {t("common:actions.delete")}
                   </button>
                 </div>
               </li>

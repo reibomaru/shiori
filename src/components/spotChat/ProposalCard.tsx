@@ -1,35 +1,38 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FaPlus, FaPen, FaTrash, FaCheck, FaXmark, FaEye } from "react-icons/fa6";
 import type { Proposal, ProposalStatus } from "../../hooks/useSpotChat";
 import { api, type SpotRating } from "../../api";
 import SpotCard, { type SpotCardData } from "../SpotCard";
 
+// ラベルは i18n（proposal.fields.*）で解決するため、ここでは配色・アイコンのみ持つ。
 const OP_META = {
-  create: { label: "追加の提案", Icon: FaPlus, color: "text-emerald-700", ring: "ring-emerald-200", bg: "bg-emerald-50" },
-  update: { label: "更新の提案", Icon: FaPen, color: "text-cyan-700", ring: "ring-cyan-200", bg: "bg-cyan-50" },
-  delete: { label: "削除の提案", Icon: FaTrash, color: "text-rose-700", ring: "ring-rose-200", bg: "bg-rose-50" },
+  create: { Icon: FaPlus, color: "text-emerald-700 dark:text-emerald-300", ring: "ring-emerald-200 dark:ring-emerald-500/20", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
+  update: { Icon: FaPen, color: "text-cyan-700 dark:text-cyan-300", ring: "ring-cyan-200 dark:ring-cyan-500/20", bg: "bg-cyan-50 dark:bg-cyan-500/10" },
+  delete: { Icon: FaTrash, color: "text-rose-700 dark:text-rose-300", ring: "ring-rose-200 dark:ring-rose-500/20", bg: "bg-rose-50 dark:bg-rose-500/10" },
 } as const;
 
 /** 編集フォームで扱うフィールド（文字列で保持し、保存時に数値へ変換）。 */
 type Draft = Record<string, string>;
 
-const TEXT_FIELDS: { key: string; label: string; wide?: boolean }[] = [
-  { key: "name", label: "名称" },
-  { key: "name_en", label: "英語名" },
-  { key: "category", label: "カテゴリ" },
-  { key: "city", label: "都市" },
-  { key: "country", label: "国" },
-  { key: "url", label: "URL", wide: true },
-  { key: "google_maps_url", label: "Google マップ URL", wide: true },
-  { key: "source", label: "出典", wide: true },
+// ラベルは i18n の proposal.fields.<key> で引く。
+const TEXT_FIELDS: { key: string; wide?: boolean }[] = [
+  { key: "name" },
+  { key: "name_en" },
+  { key: "category" },
+  { key: "city" },
+  { key: "country" },
+  { key: "url", wide: true },
+  { key: "google_maps_url", wide: true },
+  { key: "source", wide: true },
 ];
 
-/** 差分表示の見出し（変更前→変更後）。 */
-const DIFF_FIELDS: { key: string; label: string }[] = [
-  ...TEXT_FIELDS.map((f) => ({ key: f.key, label: f.label })),
-  { key: "note", label: "メモ" },
-  { key: "lat", label: "緯度" },
-  { key: "lng", label: "経度" },
+/** 差分表示の対象フィールド（変更前→変更後）。ラベルは i18n で解決。 */
+const DIFF_FIELDS: { key: string }[] = [
+  ...TEXT_FIELDS.map((f) => ({ key: f.key })),
+  { key: "note" },
+  { key: "lat" },
+  { key: "lng" },
 ];
 
 function toDraft(p: Proposal): Draft {
@@ -104,6 +107,7 @@ export default function ProposalCard({
   onSave: (body: Record<string, unknown>) => void;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation("spotChat");
   const meta = OP_META[proposal.op];
   const [draft, setDraft] = useState<Draft>(() => toDraft(proposal));
   // 既定は「保存したらこう表示される」プレビュー。細かく直すときだけ編集へ。
@@ -147,9 +151,9 @@ export default function ProposalCard({
     <div className={`mt-2 rounded-xl ${meta.bg} p-3 ring-1 ${meta.ring}`}>
       <div className="mb-2 flex items-center justify-between">
         <span className={`flex items-center gap-1.5 text-xs font-bold ${meta.color}`}>
-          <meta.Icon className="text-xs" /> {meta.label}
+          <meta.Icon className="text-xs" /> {t(`proposal.${proposal.op}`)}
           {proposal.op !== "create" && proposal.current && (
-            <span className="font-normal text-slate-500">（{proposal.current.name}）</span>
+            <span className="font-normal text-slate-500 dark:text-slate-400">{t("proposal.target", { name: proposal.current.name })}</span>
           )}
         </span>
         <div className="flex items-center gap-2">
@@ -157,81 +161,81 @@ export default function ProposalCard({
           {!isDelete && (
             <button
               onClick={() => setEditing((v) => !v)}
-              className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-200/60"
+              className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:bg-slate-700/60"
             >
-              {editing ? <><FaEye /> プレビュー</> : <><FaPen /> 編集</>}
+              {editing ? <><FaEye /> {t("proposal.preview")}</> : <><FaPen /> {t("proposal.edit")}</>}
             </button>
           )}
-          {status === "saved" && <span className="text-xs font-semibold text-emerald-600">✓ 反映済み</span>}
-          {status === "dismissed" && <span className="text-xs text-slate-400">破棄しました</span>}
+          {status === "saved" && <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{t("proposal.saved")}</span>}
+          {status === "dismissed" && <span className="text-xs text-slate-400">{t("proposal.dismissed")}</span>}
         </div>
       </div>
 
       {isDelete ? (
-        <p className="text-sm text-slate-700">
-          「{proposal.current?.name}」を候補から削除します。よろしいですか？
+        <p className="text-sm text-slate-700 dark:text-slate-200">
+          {t("proposal.deleteConfirm", { name: proposal.current?.name })}
         </p>
       ) : editing ? (
         <div className="grid grid-cols-2 gap-2">
           {TEXT_FIELDS.map((f) => (
             <label key={f.key} className={f.wide ? "col-span-2" : ""}>
-              <span className="block text-[10px] font-medium text-slate-500">{f.label}</span>
+              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">{t(`proposal.fields.${f.key}`)}</span>
               <input
                 value={draft[f.key] ?? ""}
                 disabled={resolved}
                 onChange={(e) => set(f.key, e.target.value)}
-                className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+                className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
               />
             </label>
           ))}
           <label>
-            <span className="block text-[10px] font-medium text-slate-500">緯度 (lat)</span>
+            <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">{t("proposal.fields.latInput")}</span>
             <input
               value={draft.lat ?? ""}
               disabled={resolved}
               onChange={(e) => set("lat", e.target.value)}
-              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
             />
           </label>
           <label>
-            <span className="block text-[10px] font-medium text-slate-500">経度 (lng)</span>
+            <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">{t("proposal.fields.lngInput")}</span>
             <input
               value={draft.lng ?? ""}
               disabled={resolved}
               onChange={(e) => set("lng", e.target.value)}
-              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
             />
           </label>
           <label className="col-span-2">
-            <span className="block text-[10px] font-medium text-slate-500">メモ</span>
+            <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">{t("proposal.fields.note")}</span>
             <textarea
               value={draft.note ?? ""}
               disabled={resolved}
               rows={2}
               onChange={(e) => set("note", e.target.value)}
-              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
             />
           </label>
         </div>
       ) : (
         <>
           {/* 保存後の一覧カードに近い見た目のプレビュー（写真・評価は Google マップから）。 */}
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
             <SpotCard spot={toPreview(draft, proposal)} photoUrls={photoUrls} rating={rating} />
           </div>
           {/* update は変更前→変更後の差分も示す。 */}
           {proposal.op === "update" && (
             <div className="mt-2 text-xs">
               {diffs.length === 0 ? (
-                <p className="text-slate-400">変更点はありません。</p>
+                <p className="text-slate-400">{t("proposal.noChanges")}</p>
               ) : (
                 <ul className="space-y-0.5">
                   {diffs.map((d) => (
                     <li key={d.key} className="flex flex-wrap items-baseline gap-1">
-                      <span className="font-medium text-slate-500">{d.label}:</span>
-                      <span className="text-slate-400 line-through">{d.before || "（空）"}</span>
+                      <span className="font-medium text-slate-500 dark:text-slate-400">{t(`proposal.fields.${d.key}`)}:</span>
+                      <span className="text-slate-400 line-through">{d.before || t("proposal.empty")}</span>
                       <span className="text-slate-400">→</span>
-                      <span className="font-medium text-cyan-700">{d.after || "（空）"}</span>
+                      <span className="font-medium text-cyan-700 dark:text-cyan-400">{d.after || t("proposal.empty")}</span>
                     </li>
                   ))}
                 </ul>
@@ -246,9 +250,9 @@ export default function ProposalCard({
           <button
             onClick={onDismiss}
             disabled={busy}
-            className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-200/60 disabled:opacity-50"
+            className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-200/60 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700/60"
           >
-            <FaXmark /> 破棄
+            <FaXmark /> {t("proposal.dismiss")}
           </button>
           <button
             onClick={() => onSave(isDelete ? {} : toBody(draft))}
@@ -257,7 +261,7 @@ export default function ProposalCard({
               isDelete ? "bg-rose-600 hover:bg-rose-500" : "bg-cyan-700 hover:bg-cyan-600"
             }`}
           >
-            {isDelete ? <><FaTrash /> 削除する</> : <><FaCheck /> 保存する</>}
+            {isDelete ? <><FaTrash /> {t("proposal.doDelete")}</> : <><FaCheck /> {t("proposal.doSave")}</>}
           </button>
         </div>
       )}

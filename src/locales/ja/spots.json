@@ -1,0 +1,56 @@
+{
+  "title": "行きたいスポット候補",
+  "count": "{{count}} 件",
+  "description": "ガイドブックを見ながらチャットで登録した候補。カードをクリックすると詳細と Instagram を表示します。",
+  "empty": "まだ候補がありません。チャットから登録してみましょう。",
+  "detail": "詳細 ›",
+  "view": {
+    "group": "表示切り替え",
+    "card": "カード表示",
+    "list": "リスト表示"
+  },
+  "chat": {
+    "open": "チャットを開く"
+  },
+  "splitter": "ドラッグで幅を調整",
+  "iconPicker": {
+    "change": "地図ピンのアイコンを変更",
+    "resetToCategory": "カテゴリ既定に戻す（{{category}}）",
+    "none": "なし"
+  },
+  "delete": {
+    "title": "候補を削除しますか？",
+    "message": "「{{name}}」を候補から削除します。この操作は取り消せません。"
+  },
+  "links": {
+    "link": "リンク",
+    "googleMaps": "Google マップ"
+  },
+  "rating": {
+    "tooltip": "Google マップの評価（クチコミはリンク先で確認）"
+  },
+  "carousel": {
+    "prev": "前の写真",
+    "next": "次の写真",
+    "photoAlt": "{{name}} の写真 {{index}}",
+    "goTo": "{{index}} 枚目へ"
+  },
+  "detailContent": {
+    "close": "閉じる",
+    "source": "出典: {{source}}",
+    "googlePhotos": "Google の写真",
+    "mapTitle": "{{name}} の Google マップ",
+    "reviewHint": "星評価・写真はカード内に表示されます。クチコミ本文は <0>Google マップ</0> で確認できます。",
+    "reviewHintPlain": "星評価・写真はカード内に表示されます。クチコミ本文は Google マップ で確認できます。"
+  },
+  "instagram": {
+    "editorLabel": "Instagram 投稿 URL（{{count}}）",
+    "invalidUrl": "Instagram 投稿の URL（…/p/…, /reel/…, /tv/…）を入力してください",
+    "delete": "削除",
+    "placeholder": "https://www.instagram.com/p/...",
+    "add": "追加",
+    "empty": "関連する Instagram 投稿はまだありません。",
+    "showMore": "他 {{count}} 件を表示",
+    "close": "閉じる"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "profile": {
+    "title": "Profile",
+    "aria": "Edit profile",
+    "uploadImage": "Upload image",
+    "changeImage": "Change image",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "Display name",
+    "displayNameHint": "If left blank, your account name ({{account}}) will be used.",
+    "imageError": "This image could not be loaded. Please try another image (PNG / JPEG)."
+  },
+  "members": {
+    "title": "Members — {{name}}",
+    "invitePlaceholder": "Email address to invite",
+    "invite": "Invite",
+    "owner": "Owner",
+    "removeMember": "Remove member",
+    "inviteError": "Failed to invite. Please check the email address.",
+    "removeError": "Failed to remove.",
+    "ownerOnly": "Only the owner can add or remove members.",
+    "confirmTitle": "Remove this member?",
+    "confirmMessage": "{{email}} will be removed from this project."
+  },
+  "rename": {
+    "title": "Rename project",
+    "aria": "Rename project"
+  },
+  "byok": {
+    "title": "AI key (BYOK)",
+    "loading": "Loading…",
+    "loadError": "Failed to load status.",
+    "registered": "Your API key is registered",
+    "usingShared": "Using the shared key",
+    "usageLabel": "This month: ${{cost}} / ${{limit}}",
+    "overLimit": "You've reached this month's free usage limit. Register your own API key to keep using AI features.",
+    "sharedNotConfigured": "No shared key is configured. Please register your own API key.",
+    "benefit": "Register your own key to use AI features without a limit (you pay for usage).",
+    "keyPlaceholder": "Paste your Gemini API key",
+    "getKeyLink": "Get an API key",
+    "register": "Register",
+    "update": "Save changes",
+    "replace": "Use a different key",
+    "remove": "Remove key",
+    "saved": "API key registered.",
+    "invalid": "Invalid API key. Please enter a valid Gemini API key from Google AI Studio.",
+    "removeError": "Failed to remove the key.",
+    "confirmRemoveTitle": "Remove your API key?",
+    "confirmRemoveMessage": "You'll fall back to the shared key (with a monthly limit)."
+  }
+}

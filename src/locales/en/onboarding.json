@@ -1,0 +1,26 @@
+{
+  "progress": "{{current}} / {{total}}",
+  "skip": "Skip",
+  "next": "Next",
+  "done": "Get started",
+  "create-project": {
+    "title": "Start by creating a project",
+    "body": "Enter a trip name and press Create to start planning your journey."
+  },
+  "search-spots": {
+    "title": "Search for spots",
+    "body": "Open “Spots” in the sidebar to look for places you want to visit."
+  },
+  "chat-spot": {
+    "title": "Add a spot by chatting",
+    "body": "Ask the chat something like “What do you recommend in ○○?” and the AI will suggest candidates. Save the ones you like to add them."
+  },
+  "map-spots": {
+    "title": "Check them on the map",
+    "body": "Saved spots appear as pins on the “Map”. Take a look at where they are."
+  },
+  "itinerary-dnd": {
+    "title": "Build your itinerary by drag & drop",
+    "body": "On “Itinerary”, drag spots and travel legs from the parts palette on the right onto each day to build your plan."
+  }
+}

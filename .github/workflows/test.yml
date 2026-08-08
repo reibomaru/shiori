@@ -1,0 +1,58 @@
+# 自動テスト（server の結合テスト）。
+#
+# AI 利用量の「月初リセット」などは Firestore エミュレータに対する結合テストで
+# 検証している（server/*.test.ts）。CI では firebase-tools の `emulators:exec` で
+# エミュレータを一時起動し、その中で `node --test` を実行してから自動停止する。
+#
+# 実行要件:
+#   - Node 26+（.ts をそのまま実行する型ストリップ機能を使う）
+#   - JDK 21+（Firestore エミュレータ本体が要求）
+#   - firebase.json の firestore ポート = 8085（ローカルの docker と揃えている）
+name: test
+
+on:
+  push:
+    branches: ["**"]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "infra/**"
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "infra/**"
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm を先に用意してから setup-node のキャッシュ(pnpm)を効かせる。
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: "pnpm"
+
+      # Firestore エミュレータ本体（Java 実装）に必要な JDK 21。
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # emulators:exec がエミュレータ起動 → 中で node --test 実行 → 自動停止。
+      # 接続先/プロジェクトはテスト対象コードが読む env で明示する。
+      - name: Run tests (Firestore emulator)
+        run: >
+          npx -y firebase-tools emulators:exec --only firestore --project demo
+          "FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 FIRESTORE_PROJECT_ID=demo node --test 'server/**/*.test.ts'"

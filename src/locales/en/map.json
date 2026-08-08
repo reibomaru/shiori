@@ -1,0 +1,45 @@
+{
+  "mode": {
+    "train": "Train",
+    "bus": "Bus / Cable car",
+    "car": "Car",
+    "flight": "Flight",
+    "walk": "Walk"
+  },
+  "basemap": {
+    "osm": "Standard",
+    "satellite": "Satellite",
+    "topo": "Terrain",
+    "light": "Light"
+  },
+  "controls": {
+    "view2d": "2D",
+    "view3d": "3D",
+    "resetView": "Fit all",
+    "openPanel": "Open route panel",
+    "closePanel": "Close panel",
+    "resizePanel": "Resize panel"
+  },
+  "legend": {
+    "border": "Border",
+    "spots": "Saved spots",
+    "missingCoords": "Hidden (no coordinates): {{count}}"
+  },
+  "tooltip": {
+    "geojsonDetail": "GeoJSON detail · {{count}} pts",
+    "straight": "Straight line",
+    "border": " (border)"
+  },
+  "panel": {
+    "legsTitle": "Route",
+    "legsHint": "Click a card to highlight the route on the map",
+    "spotsTitle": "Saved spots",
+    "spotsHint": "Click a card for details · toggle the checkbox to show/hide pins",
+    "backToSpots": "Back to saved spots",
+    "showSpotsOnMap": "Show saved spots on the map",
+    "segment": "Leg {{n}}",
+    "routePoints": "Route · {{count}} pts",
+    "straight": "Straight line",
+    "shownOnMap": "On map"
+  }
+}

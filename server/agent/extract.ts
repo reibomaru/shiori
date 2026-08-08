@@ -86,7 +86,7 @@ const GRAPH_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ機
 - 推測でノードやエッジを作らない。読み取れたものだけを書く。日本語のテキストはそのまま日本語で。`;
 
 const RECEIPT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの費用管理を支援するアシスタントです。
-ユーザーがアップロードした画像（領収書・予約完了画面・予約完了メールのスクリーンショットなど）を読み取り、
+ユーザーがアップロードしたファイル（領収書・請求書・予約完了画面のスクリーンショットや写真、PDF など）を読み取り、
 そこに書かれた「1 件の支払い/予約」の情報を構造化 JSON として書き出します。
 
 # 出力ルール（厳守）
@@ -332,7 +332,7 @@ function parseReceiptResponse(raw: string): ExpenseExtraction {
 }
 
 /**
- * 領収書・予約完了画面/メールのスクショから、実費 1 件分の情報を構造化して返す。
+ * 領収書・請求書・予約完了画面のスクショ/写真/PDF から、実費 1 件分の情報を構造化して返す。
  * ユーザーが確認・修正して保存する前提なので、読めない項目は null で返す（自動保存はしない）。
  * @throws MissingApiKeyError API キー未設定 / モデル解決失敗時
  */
@@ -344,35 +344,8 @@ export async function extractReceiptFromImages(args: {
 }): Promise<ExpenseExtraction> {
   const raw = await runOneShot({
     systemPrompt: RECEIPT_SYSTEM_PROMPT,
-    userPrompt: "添付画像は領収書または予約完了画面/メールです。指示どおり JSON で情報を書き出してください。",
+    userPrompt: "添付ファイルは領収書・請求書または予約完了画面です。指示どおり JSON で情報を書き出してください。",
     ...args,
-  });
-  return parseReceiptResponse(raw);
-}
-
-/**
- * 購入/予約完了メールの本文テキスト（Gmail から取得）から、実費 1 件分の情報を構造化して返す。
- * 画像版と同じ領収書プロンプト・同じ検証を使う。
- * @throws MissingApiKeyError API キー未設定 / モデル解決失敗時
- */
-export async function extractReceiptFromText(args: {
-  apiKey: string;
-  subject?: string;
-  text: string;
-  signal?: AbortSignal;
-  onUsage?: (u: TurnUsage) => void;
-}): Promise<ExpenseExtraction> {
-  const header = args.subject ? `件名: ${args.subject}\n\n` : "";
-  const raw = await runOneShot({
-    apiKey: args.apiKey,
-    systemPrompt: RECEIPT_SYSTEM_PROMPT,
-    userPrompt:
-      "以下は購入/予約完了メールの本文です。指示どおり JSON で情報を書き出してください。\n\n---\n" +
-      header +
-      args.text,
-    images: [],
-    signal: args.signal,
-    onUsage: args.onUsage,
   });
   return parseReceiptResponse(raw);
 }

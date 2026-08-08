@@ -33,15 +33,15 @@
     "editTitle": "実費を編集",
     "addTitle": "実費を追加",
     "upload": {
-      "hint": "領収書・予約完了画面のスクショを貼り付け / ドロップ",
-      "select": "画像を選択",
-      "extract": "画像から情報を抽出",
+      "hint": "領収書・請求書・予約完了画面の画像や PDF を貼り付け / ドロップ",
+      "select": "ファイルを選択",
+      "extract": "ファイルから情報を抽出",
       "extracting": "抽出中…",
-      "removeImage": "この画像を削除",
+      "removeImage": "このファイルを削除",
       "removeAttach": "添付を取り消す",
-      "attachedAlt": "添付"
+      "attachedAlt": "添付",
+      "openPdf": "PDF を開く"
     },
-    "gmailLabel": "または Gmail のメールから取り込む",
     "field": {
       "category": "費目",
       "title": "概要",
@@ -52,7 +52,7 @@
       "currency": "通貨",
       "paidStatus": "支払状況",
       "date": "支払日 / 予約日",
-      "sourceUrl": "参考リンク（予約サイト・完了メール）",
+      "sourceUrl": "参考リンク（予約サイト・請求書など）",
       "note": "メモ"
     },
     "error": {
@@ -63,16 +63,5 @@
     "cancel": "キャンセル",
     "save": "保存",
     "saving": "保存中…"
-  },
-  "gmail": {
-    "notConfigured": "Gmail 連携はサーバ側の設定（GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET）が必要です。",
-    "connect": "Gmail と連携して取り込む",
-    "awaiting": "連携を待っています…",
-    "connected": "連携済み",
-    "disconnect": "連携を解除",
-    "searchPlaceholder": "件名・差出人で検索（空欄で購入/予約完了メールを検索）",
-    "search": "検索",
-    "searching": "検索中…",
-    "importing": "取り込み中…"
   }
 }

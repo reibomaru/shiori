@@ -93,7 +93,7 @@ export interface Expense {
   currency: string; // 通貨コード（JPY / CHF / EUR など）
   paid: number; // 0=未払い / 1=支払済
   incurred_on: string | null; // 支払日 or 予約日（YYYY-MM-DD）
-  source_url: string | null; // 予約サイト・完了メールのリンク（参考）
+  source_url: string | null; // 予約サイト・請求書などのリンク（参考・任意）
   note: string | null;
   created_at: string;
   updated_at: string;
@@ -111,7 +111,7 @@ export interface ExpenseImageMeta {
   updated_at: string;
 }
 
-/** 領収書画像から抽出した実費情報（ユーザーが確認・修正してから保存する）。 */
+/** 領収書・請求書などのファイル（画像 / PDF）から抽出した実費情報（ユーザーが確認・修正してから保存する）。 */
 export interface ExpenseExtraction {
   title: string | null;
   vendor: string | null;
@@ -121,8 +121,6 @@ export interface ExpenseExtraction {
   incurred_on: string | null; // YYYY-MM-DD
   category: string | null;
   note: string | null;
-  /** 参考リンク（Gmail 取り込み時に該当メールの URL が入る。画像抽出では null）。 */
-  source_url?: string | null;
 }
 
 export interface Spot {

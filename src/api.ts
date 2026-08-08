@@ -1,15 +1,5 @@
 // API クライアント。Vite の proxy 経由で /api を叩きます。
 import type { TripPayload, MemoPage, MemoImageMeta, Expense, ExpenseExtraction } from "./types";
-
-/**
- * Gmail 連携（OAuth）を開始する URL。新しいウィンドウで開く。
- * OAuth はブラウザのトップレベル遷移で X-Project-Id ヘッダを付けられないため、
- * 対象プロジェクトを query（projectId）で明示する。
- */
-export function gmailOAuthStartUrl(): string {
-  const id = getActiveProject();
-  return `/api/gmail/oauth/start${id ? `?projectId=${encodeURIComponent(id)}` : ""}`;
-}
 import type { ChatMessage } from "./hooks/useSpotChat";
 import type { MemoChatMessage } from "./hooks/useMemoChat";
 
@@ -48,22 +38,6 @@ export interface SpotRating {
 export interface SpotRatingsResponse {
   configured: boolean; // GOOGLE_MAPS_API_KEY が設定されているか（未設定でもキャッシュは返る）
   ratings: Record<string, SpotRating | null>;
-}
-
-/** Gmail 連携の状態。 */
-export interface GmailStatus {
-  configured: boolean; // サーバに OAuth クライアント資格情報が設定されているか
-  connected: boolean; // リフレッシュトークンを保持済みか（連携済みか）
-  email: string | null; // 連携先アカウント（表示用）
-}
-
-/** Gmail 検索結果の 1 通。 */
-export interface GmailMessageSummary {
-  id: string;
-  subject: string;
-  from: string;
-  date: string;
-  snippet: string;
 }
 
 /** ジオコーディング結果（地名→座標）。 */
@@ -224,25 +198,9 @@ export const api = {
   addExpenseImages: (id: string, images: MemoImage[]) =>
     http<Expense>(`/api/expenses/${id}/images`, "POST", { images }),
   deleteExpenseImage: (id: string) => http(`/api/expenses/images/${id}`, "DELETE"),
-  // 領収書/予約完了画面のスクショから実費情報を抽出する（保存はしない）。
-  extractReceipt: (images: MemoImage[]) =>
-    http<{ extraction: ExpenseExtraction; warning?: string }>(`/api/expenses/extract`, "POST", { images }),
-
-  // ---- Gmail 連携（購入完了メール→実費） ----
-  getGmailStatus: () => http<GmailStatus>(`/api/gmail/status`, "GET"),
-  disconnectGmail: () => http(`/api/gmail`, "DELETE"),
-  searchGmail: (q?: string) =>
-    http<{ messages: GmailMessageSummary[]; error?: string }>(
-      `/api/gmail/search${q ? `?q=${encodeURIComponent(q)}` : ""}`,
-      "GET",
-    ),
-  // 指定メールの本文から実費情報を抽出する（保存はしない）。
-  extractGmail: (messageId: string) =>
-    http<{ extraction?: ExpenseExtraction; message?: { subject: string; from: string; date: string }; warning?: string }>(
-      `/api/gmail/extract`,
-      "POST",
-      { messageId },
-    ),
+  // 領収書・請求書/予約完了画面のスクショや PDF から実費情報を抽出する（保存はしない）。
+  extractReceipt: (files: MemoImage[]) =>
+    http<{ extraction: ExpenseExtraction; warning?: string }>(`/api/expenses/extract`, "POST", { images: files }),
 
   getSpotRatings: () => http<SpotRatingsResponse>(`/api/spots/ratings`, "GET"),
   // 提案プレビュー用: 保存前スポットの評価・写真を名称等のクエリで取得。

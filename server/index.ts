@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import { registerAuthRoutes, requireAuth } from "./auth.ts";
-import { closeAllProjectDbs, deleteProjectStorage, getProjectDb, sanitizeProjectId } from "./storage.ts";
+import { closeAllProjectDbs, deleteProjectStorage, getProjectDb } from "./storage.ts";
 import {
   addMember,
   createProject,
@@ -42,9 +42,7 @@ import {
   extractGraphFromImages,
   extractHtmlFromImages,
   extractReceiptFromImages,
-  extractReceiptFromText,
 } from "./agent/extract.ts";
-import * as gmail from "./gmail.ts";
 import { normalizeImageForWeb } from "./agent/images.ts";
 import { MissingApiKeyError } from "./apiKeys.ts";
 import type { AgentImage, TurnUsage } from "./agent/runner.ts";
@@ -200,73 +198,6 @@ app.patch("/api/profile", async (c) => {
     displayName: rec.displayName ?? null,
     avatarUrl: avatarUrlOf(rec),
   });
-});
-
-// ---- Gmail OAuth（同意画面リダイレクト / コールバック）--------------
-// これらはブラウザのトップレベル遷移（ポップアップ / Google からのリダイレクト）で
-// 呼ばれるため X-Project-Id ヘッダを付けられない。requireProjectMember の「前」に
-// 置き、対象プロジェクトは query / state で受け取ってハンドラ内で解決・メンバー確認する。
-// 連携トークンは各プロジェクトの DB（gmail_auth）に保存する（プロジェクトごとの連携）。
-//
-// state → projectId の対応表（単一利用・簡易 CSRF 対策）。使い捨て。
-const gmailOAuthStates = new Map<string, string>();
-
-// ログインユーザーがメンバーであるプロジェクトを解決する。だめなら null。
-async function resolveMemberProject(c: import("hono").Context, rawId: string) {
-  let id: string;
-  try {
-    id = sanitizeProjectId(rawId);
-  } catch {
-    return null;
-  }
-  const project = await getProject(id);
-  if (!project || !isMember(project, c.get("userEmail"))) return null;
-  return id;
-}
-
-// 同意画面へリダイレクト（access_type=offline で refresh_token を得る）。
-// ?projectId=... で対象プロジェクトを指定し、state に紐づけてコールバックへ引き継ぐ。
-app.get("/api/gmail/oauth/start", async (c) => {
-  if (!gmail.isConfigured()) {
-    return c.json({ error: "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET が未設定です。" }, 400);
-  }
-  const projectId = await resolveMemberProject(c, c.req.query("projectId") || "");
-  if (!projectId) return c.json({ error: "アクセス可能なプロジェクトを指定してください。" }, 403);
-  const origin = new URL(c.req.url).origin;
-  const state = randomUUID();
-  gmailOAuthStates.set(state, projectId);
-  return c.redirect(gmail.buildAuthUrl(origin, state));
-});
-
-// 認可コードをトークンに交換し、対象プロジェクトの DB に refresh_token を保存する。
-// 完了後ウィンドウを閉じる HTML を返す。Google からのリダイレクトなのでヘッダは付かない。
-app.get("/api/gmail/oauth/callback", async (c) => {
-  const code = c.req.query("code");
-  const state = c.req.query("state");
-  const closingPage = (msg: string) =>
-    c.html(
-      `<!doctype html><meta charset="utf-8"><body style="font-family:sans-serif;padding:2rem;color:#334155">
-       <p>${msg}</p><script>setTimeout(()=>window.close(),1200)</script></body>`,
-    );
-  const projectId = state ? gmailOAuthStates.get(state) : undefined;
-  if (state) gmailOAuthStates.delete(state);
-  if (!code || !state || !projectId) {
-    return closingPage("連携に失敗しました（不正なリクエスト）。このウィンドウを閉じてください。");
-  }
-  // 念のためメンバー確認をやり直す（state 発行後に権限が変わっている可能性に備える）。
-  if (!(await resolveMemberProject(c, projectId))) {
-    return closingPage("連携に失敗しました（アクセス権がありません）。このウィンドウを閉じてください。");
-  }
-  const origin = new URL(c.req.url).origin;
-  const tokens = await gmail.exchangeCode(code, origin);
-  if (!tokens.refresh_token) {
-    return closingPage(
-      `連携に失敗しました: ${tokens.error_description || tokens.error || "refresh_token が取得できませんでした"}。このウィンドウを閉じてください。`,
-    );
-  }
-  const email = tokens.access_token ? await gmail.fetchEmail(tokens.access_token) : null;
-  gmail.saveAuth(await getProjectDb(projectId), tokens.refresh_token, email);
-  return closingPage(`Gmail 連携が完了しました${email ? `（${email}）` : ""}。このウィンドウを閉じてください。`);
 });
 
 // ---- BYOK（自分の Gemini API キー）----------------------------
@@ -882,70 +813,6 @@ app.get("/api/geocode", async (c) => {
     return c.json({ results });
   } catch (e) {
     return c.json({ error: String(e), results: [] }, 502);
-  }
-});
-
-// ---- Gmail 連携（購入完了メール→実費の取り込み）------------
-// OAuth（オフライン）で連携し、購入/予約完了メールを検索→本文抽出して実費フォームに
-// 反映する。連携トークンはプロジェクトごとの DB（gmail_auth）に保存する。資格情報
-// 未設定なら configured:false を返す。OAuth の開始/コールバックは X-Project-Id を
-// 付けられないため requireProjectMember より前に登録している（上部参照）。
-app.get("/api/gmail/status", (c) => c.json(gmail.getStatus(c.get("db"))));
-
-// 連携を解除する。
-app.delete("/api/gmail", (c) => {
-  gmail.clearAuth(c.get("db"));
-  return c.json({ ok: true });
-});
-
-// 購入/予約完了メールを検索して一覧を返す。
-app.get("/api/gmail/search", async (c) => {
-  const q =
-    c.req.query("q") ||
-    "(予約 OR 確認 OR 領収 OR ご注文 OR receipt OR confirmation OR booking OR itinerary) newer_than:1y";
-  try {
-    return c.json({ messages: await gmail.searchMessages(c.get("db"), q) });
-  } catch (e) {
-    return c.json({ error: e instanceof Error ? e.message : String(e), messages: [] }, 400);
-  }
-});
-
-// 指定メールの本文から実費情報を抽出して返す（保存はしない）。
-app.post("/api/gmail/extract", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { messageId?: unknown };
-  if (typeof body.messageId !== "string") return c.json({ error: "messageId が必要です。" }, 400);
-  const userId = c.get("userId");
-
-  // AI 抽出のキー解決（BYOK 優先・共有キーは上限チェック）。
-  let resolved;
-  try {
-    resolved = await resolveAiKey(userId);
-  } catch (err) {
-    return c.json({ warning: err instanceof Error ? err.message : String(err) });
-  }
-
-  let extractCost = 0;
-  try {
-    const msg = await gmail.getMessage(c.get("db"), body.messageId);
-    const extraction = await extractReceiptFromText({
-      apiKey: resolved.apiKey,
-      subject: msg.subject,
-      text: msg.text,
-      onUsage: (u) => { extractCost += u.costUSD; },
-    });
-    // 参考リンクとして Gmail の該当メールを開ける URL を付ける。
-    const source_url = `https://mail.google.com/mail/u/0/#all/${body.messageId}`;
-    return c.json({
-      extraction: { ...extraction, source_url },
-      message: { subject: msg.subject, from: msg.from, date: msg.date },
-    });
-  } catch (e) {
-    const warning =
-      e instanceof MissingApiKeyError ? e.message : `メールの取り込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`;
-    return c.json({ warning });
-  } finally {
-    // 共有キー利用時のみ、抽出の消費コストをユーザーの月次集計へ加算する。
-    await recordUsage(userId, resolved.source, extractCost);
   }
 });
 

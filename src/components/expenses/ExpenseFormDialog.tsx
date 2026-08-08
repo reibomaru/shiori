@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { FaXmark, FaUpload, FaWandMagicSparkles, FaTrash, FaCheck } from "react-icons/fa6";
+import { FaXmark, FaUpload, FaWandMagicSparkles, FaTrash, FaCheck, FaFilePdf } from "react-icons/fa6";
 import type { Expense, ExpenseExtraction } from "../../types";
 import { api, expenseImageUrl, type MemoImage } from "../../api";
-import { readAttachedImage, isHeic } from "../../lib/readAttachedImage";
+import { readAttachedImage, isHeic, isPdf } from "../../lib/readAttachedImage";
 import { CURRENCIES } from "../../lib/money";
 import type { AttachedImage } from "../../hooks/useSpotChat";
-import GmailImport from "./GmailImport";
 
 /** 実費の費目（budget の費目と揃える想定）。DB に保存する値なので翻訳せず日本語のまま扱う。 */
 export const EXPENSE_CATEGORIES = ["宿泊", "交通", "食事", "観光", "買い物", "その他"];
@@ -93,7 +92,7 @@ export default function ExpenseFormDialog({
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
-  /** 抽出結果（画像 / Gmail 共通）をフォームに反映する（null 以外だけ上書き）。 */
+  /** 抽出結果をフォームに反映する（null 以外だけ上書き）。 */
   function applyExtraction(x: ExpenseExtraction) {
     setDraft((d) => ({
       ...d,
@@ -105,14 +104,15 @@ export default function ExpenseFormDialog({
       incurred_on: x.incurred_on ?? d.incurred_on,
       category: x.category ?? d.category,
       note: x.note ?? d.note,
-      source_url: x.source_url ?? d.source_url,
     }));
   }
 
   async function addFiles(files: File[]) {
-    const imgs = files.filter((f) => (f.type.startsWith("image/") || isHeic(f)) && f.size <= MAX_BYTES);
-    if (imgs.length === 0) return;
-    const read = await Promise.all(imgs.map(readAttachedImage));
+    const accepted = files.filter(
+      (f) => (f.type.startsWith("image/") || isHeic(f) || isPdf(f)) && f.size <= MAX_BYTES,
+    );
+    if (accepted.length === 0) return;
+    const read = await Promise.all(accepted.map(readAttachedImage));
     setAttached((prev) => [...prev, ...read].slice(0, MAX_IMAGES));
   }
 
@@ -231,7 +231,7 @@ export default function ExpenseFormDialog({
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*,.heic,.heif"
+                accept="image/*,.heic,.heif,application/pdf,.pdf"
                 multiple
                 className="hidden"
                 onChange={(e) => {
@@ -245,11 +245,24 @@ export default function ExpenseFormDialog({
               <div className="mt-3 flex flex-wrap gap-2">
                 {existing.map((im) => (
                   <div key={im.id} className="group relative">
-                    <img
-                      src={expenseImageUrl(im.id, im.updated_at)}
-                      alt={t("form.upload.attachedAlt")}
-                      className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700"
-                    />
+                    {im.mime_type === "application/pdf" ? (
+                      <a
+                        href={expenseImageUrl(im.id, im.updated_at)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-lg bg-white text-rose-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700"
+                        title={t("form.upload.openPdf")}
+                      >
+                        <FaFilePdf className="text-xl" />
+                        <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400">PDF</span>
+                      </a>
+                    ) : (
+                      <img
+                        src={expenseImageUrl(im.id, im.updated_at)}
+                        alt={t("form.upload.attachedAlt")}
+                        className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700"
+                      />
+                    )}
                     <button
                       onClick={() => void removeExisting(im.id)}
                       className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-white opacity-0 transition group-hover:opacity-100"
@@ -261,7 +274,14 @@ export default function ExpenseFormDialog({
                 ))}
                 {attached.map((a, i) => (
                   <div key={i} className="group relative">
-                    <img src={a.dataUrl} alt={t("form.upload.attachedAlt")} className="h-16 w-16 rounded-lg object-cover ring-1 ring-cyan-300 dark:ring-cyan-500/50" />
+                    {a.mimeType === "application/pdf" ? (
+                      <div className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-lg bg-white text-rose-500 ring-1 ring-cyan-300 dark:bg-slate-800 dark:ring-cyan-500/50">
+                        <FaFilePdf className="text-xl" />
+                        <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400">PDF</span>
+                      </div>
+                    ) : (
+                      <img src={a.dataUrl} alt={t("form.upload.attachedAlt")} className="h-16 w-16 rounded-lg object-cover ring-1 ring-cyan-300 dark:ring-cyan-500/50" />
+                    )}
                     <button
                       onClick={() => setAttached((prev) => prev.filter((_, j) => j !== i))}
                       className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-white opacity-0 transition group-hover:opacity-100"
@@ -285,12 +305,6 @@ export default function ExpenseFormDialog({
             )}
             {warning && <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{warning}</p>}
           </section>
-
-          {/* Gmail から取り込む（購入/予約完了メール） */}
-          <div>
-            <label className={labelCls}>{t("form.gmailLabel")}</label>
-            <GmailImport onExtracted={applyExtraction} onWarning={setWarning} disabled={busy} />
-          </div>
 
           {/* 費目 */}
           <div>

@@ -33,15 +33,15 @@
     "editTitle": "Edit expense",
     "addTitle": "Add expense",
     "upload": {
-      "hint": "Paste or drop a screenshot of a receipt or booking confirmation",
-      "select": "Choose image",
-      "extract": "Extract from image",
+      "hint": "Paste or drop an image or PDF of a receipt, invoice, or booking confirmation",
+      "select": "Choose file",
+      "extract": "Extract from file",
       "extracting": "Extracting…",
-      "removeImage": "Remove this image",
+      "removeImage": "Remove this file",
       "removeAttach": "Remove attachment",
-      "attachedAlt": "Attachment"
+      "attachedAlt": "Attachment",
+      "openPdf": "Open PDF"
     },
-    "gmailLabel": "Or import from a Gmail message",
     "field": {
       "category": "Category",
       "title": "Summary",
@@ -52,7 +52,7 @@
       "currency": "Currency",
       "paidStatus": "Payment status",
       "date": "Paid / booking date",
-      "sourceUrl": "Reference link (booking site / confirmation email)",
+      "sourceUrl": "Reference link (booking site / invoice, etc.)",
       "note": "Note"
     },
     "error": {
@@ -63,16 +63,5 @@
     "cancel": "Cancel",
     "save": "Save",
     "saving": "Saving…"
-  },
-  "gmail": {
-    "notConfigured": "Gmail integration requires server-side setup (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).",
-    "connect": "Connect Gmail to import",
-    "awaiting": "Waiting for authorization…",
-    "connected": "Connected",
-    "disconnect": "Disconnect",
-    "searchPlaceholder": "Search by subject or sender (blank searches purchase/booking emails)",
-    "search": "Search",
-    "searching": "Searching…",
-    "importing": "Importing…"
   }
 }

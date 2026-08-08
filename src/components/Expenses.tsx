@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FaReceipt, FaPlus, FaPen, FaTrash, FaLink } from "react-icons/fa6";
+import { FaReceipt, FaPlus, FaPen, FaTrash, FaLink, FaFilePdf } from "react-icons/fa6";
 import type { Expense } from "../types";
 import { money } from "../lib/money";
 import { api, expenseImageUrl } from "../api";
@@ -81,11 +81,18 @@ function ExpenseRow({
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {e.images.map((im) => (
               <a key={im.id} href={expenseImageUrl(im.id, im.updated_at)} target="_blank" rel="noreferrer">
-                <img
-                  src={expenseImageUrl(im.id, im.updated_at)}
-                  alt={t("row.receiptAlt")}
-                  className="h-12 w-12 rounded-md object-cover ring-1 ring-slate-200 transition hover:ring-cyan-400 dark:ring-slate-700"
-                />
+                {im.mime_type === "application/pdf" ? (
+                  <span className="flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-md bg-white text-rose-500 ring-1 ring-slate-200 transition hover:ring-cyan-400 dark:bg-slate-800 dark:ring-slate-700">
+                    <FaFilePdf className="text-base" />
+                    <span className="text-[8px] font-semibold text-slate-500 dark:text-slate-400">PDF</span>
+                  </span>
+                ) : (
+                  <img
+                    src={expenseImageUrl(im.id, im.updated_at)}
+                    alt={t("row.receiptAlt")}
+                    className="h-12 w-12 rounded-md object-cover ring-1 ring-slate-200 transition hover:ring-cyan-400 dark:ring-slate-700"
+                  />
+                )}
               </a>
             ))}
           </div>

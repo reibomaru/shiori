@@ -80,6 +80,23 @@ AI アシスタント（`.env`）で使う環境変数:
 | `WEBSEARCH_API_KEY` | （任意） | `web_search` 用（https://websearchapi.ai）。未設定だと web_search だけ無効 |
 | `GOOGLE_MAPS_API_KEY` | （任意） | スポットの Google 評価（★）・写真取得用。`spot_place_cache` に30日キャッシュ |
 
+## Development
+
+開発の始め方・日常コマンド・変更前チェックは [`CONTRIBUTING.md`](CONTRIBUTING.md) を参照。
+
+ブランチは `develop`（=ステージング）と `main`（=本番）の 2 常設運用:
+
+```mermaid
+flowchart LR
+  F["feature<br/>(feat/… fix/…)"] -->|PR + CI + review| D["develop"]
+  D -->|auto| S["ステージング<br/>(開発者のみ / Basic 認証)"]
+  D -->|"リリース PR + CI + review"| M["main"]
+  M -->|auto| P["本番デプロイ<br/>booklet-ai.com"]
+  P --> T["SemVer タグ + リリースノート"]
+```
+
+feature → `develop` の PR でステージングへ、`develop` → `main` の PR で本番へ届く（本番は成功後に SemVer タグ + リリースノートを自動発行）。詳細は [`CONTRIBUTING.md`](CONTRIBUTING.md#ブランチ運用とリリース)、環境の有効化手順は [`docs/dev-environment-runbook.md`](docs/dev-environment-runbook.md)。
+
 ## Documentation
 
 - [`.claude/skills/travel-plan/SKILL.md`](.claude/skills/travel-plan/SKILL.md) — データ編集 Skill と操作レシピ（`recipes/`）

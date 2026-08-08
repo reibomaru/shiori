@@ -131,7 +131,7 @@ gh variable set GCP_PROJECT_ID --env staging --body "shinbun-489215"
 # … 残りの変数も同様に設定
 ```
 
-- WIF（`google_iam_workload_identity_pool_provider.github`）は `reibomaru/travel-plans` リポジトリ全体を許可しているため、staging/production で SA を共用できる。
+- WIF（`google_iam_workload_identity_pool_provider.github`）は `reibomaru/shiori` リポジトリ全体を許可しているため、staging/production で SA を共用できる。
 - 必要なら `production` 環境に「required reviewers」等の保護ルールを付ける。
 
 ### 3-2. 初回の SemVer タグを打つ

@@ -39,4 +39,4 @@ template: |
 
   $CHANGES
 
-  **Full Changelog**: https://github.com/reibomaru/travel-plans/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+  **Full Changelog**: https://github.com/reibomaru/shiori/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

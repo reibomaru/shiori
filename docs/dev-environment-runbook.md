@@ -90,15 +90,21 @@ terraform output staging_service_url        # 例: https://shiori-staging-xxxx.a
 
 ### 2-4. staging の利用許可（Firestore）
 
-Basic 認証を通った後は本番同様 Google SSO でログインする。名前付き DB `staging` の `users` コレクションで開発者を承認する:
+Basic 認証を通った後は本番同様 Google SSO でログインする。まず一度ログインを試みると、名前付き DB `staging` の `users` コレクションに `allowed=false`（承認待ち）で JIT 登録される。その後、対象ドキュメントを `allowed=true` にして承認する。
+
+`gcloud` には Firestore ドキュメントを更新するコマンドが無いため、Firestore REST API（`databases/staging` を明示）を叩く:
 
 ```bash
 # 例: 対象ユーザーの Google sub をキーに allowed=true。
-gcloud firestore documents update \
-  "projects/shinbun-489215/databases/staging/documents/users/<GOOGLE_SUB>" \
-  --update-mask allowed --data '{"fields":{"allowed":{"booleanValue":true}}}'
+SUB="<GOOGLE_SUB>"
+curl -sS -X PATCH \
+  "https://firestore.googleapis.com/v1/projects/shinbun-489215/databases/staging/documents/users/${SUB}?updateMask.fieldPaths=allowed" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d '{"fields":{"allowed":{"booleanValue":true}}}'
 ```
 
+> GCP コンソールからでも可（Firestore で **データベース `staging` を選択** → `users` → 対象ドキュメントの `allowed` を `true` に）。
 > `dev-login` バイパスは staging（`NODE_ENV=production`）では無効。開発者は SSO でログインする。
 
 ### （将来オプション）`staging.booklet-ai.com`

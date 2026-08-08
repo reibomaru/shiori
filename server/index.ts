@@ -77,12 +77,15 @@ const PORT = Number(process.env.PORT || 8080);
 // Basic 認証を置く。本番（APP_ENV≠staging）では無効。ここはサーバ側 401 の壁で、
 // アプリ層の Google SSO や CLAUDE.md の UI 規約（ConfirmDialog）とは無関係。
 // Hono は「登録後のルート」に middleware を適用するため、他ルート登録より前に置く。
+// ただし /health は素通しにする（Cloud Run のプローブや外形監視が Basic 認証で
+// 401 になり「不健全」判定されるのを避ける。ヘルス応答に機微情報は無い）。
 if (process.env.APP_ENV === "staging") {
   const username = process.env.STAGING_BASIC_AUTH_USER;
   const password = process.env.STAGING_BASIC_AUTH_PASSWORD;
   if (username && password) {
-    app.use("*", basicAuth({ username, password }));
-    console.log("🔒 APP_ENV=staging: Basic 認証ゲートを有効化しました。");
+    const gate = basicAuth({ username, password });
+    app.use("*", (c, next) => (c.req.path === "/health" ? next() : gate(c, next)));
+    console.log("🔒 APP_ENV=staging: Basic 認証ゲートを有効化しました（/health は除外）。");
   } else {
     console.warn("⚠ APP_ENV=staging ですが STAGING_BASIC_AUTH_USER/PASSWORD が未設定のため Basic 認証ゲートは無効です。");
   }

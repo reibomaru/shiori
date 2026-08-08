@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #1f2937;
-  --alpine: #0e7490; /* スイスの湖・氷河 */
-  --azur: #2563eb; /* コートダジュール */
-  --gold: #d97706; /* 夕暮れ */
+  /* ===== shiori テッキーパレット =====
+     ダークベース + シアン/パープル（ロゴと同調）のネオンアクセント。 */
+  --ink: #0f172a; /* 本文（明るい面用の濃いスレート） */
+  --base: #0b1120; /* ダークベース（サイドバー・ヘッダー） */
+  --base-2: #0e1a2b; /* ベースの陰影 */
+  --accent: #22d3ee; /* シアン（主アクセント／ロゴ左） */
+  --accent-2: #a06bff; /* パープル（副アクセント／ロゴ右） */
+  --accent-neon: #34d399; /* ネオングリーン */
 }
 
 html {
@@ -14,10 +18,73 @@ html {
 body {
   margin: 0;
   color: var(--ink);
-  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
-    system-ui, -apple-system, sans-serif;
-  background: #f1f5f9;
+  /* ラテン文字は Ubuntu、日本語グリフは Noto Sans JP にフォールバック。 */
+  font-family: "Ubuntu", "Noto Sans JP", system-ui, -apple-system,
+    "Hiragino Sans", sans-serif;
+  background: #eef2f6;
   -webkit-font-smoothing: antialiased;
+}
+
+/* テッキーなアクセント用の等幅（ブランド表記・見出しなど）。 */
+.font-mono-tech {
+  font-family: "Ubuntu Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+    monospace;
+}
+
+/* ロゴと揃えたシアン→パープルのグラデーション文字（shiori ワードマーク等）。 */
+.brand-wordmark {
+  background-image: linear-gradient(120deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* テッキーなダーク面（サイドバー・ヘッダー・ログイン）の背景。
+   docs/logo-concepts.html と同じ語彙で、薄いグリッドメッシュ + シアン/パープルの
+   微光を重ねる。線は控えめ（薄め）にして主張しすぎないようにする。 */
+.tech-mesh {
+  background-color: var(--base);
+  background-image:
+    radial-gradient(
+      680px 340px at 100% -10%,
+      rgba(160, 107, 255, 0.1),
+      transparent 60%
+    ),
+    radial-gradient(
+      680px 340px at 0% 0%,
+      rgba(34, 211, 238, 0.08),
+      transparent 55%
+    ),
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    28px 28px,
+    28px 28px;
+}
+
+/* 明るいコンテンツ面向けの、ごく薄いグリッド（方眼紙のような質感）。
+   .tech-mesh とグリッド幅を揃え、線は極薄にして本文の可読性を損なわない。 */
+.mesh-light {
+  background-color: #eef2f6;
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+  background-size:
+    28px 28px,
+    28px 28px;
+}
+
+/* 半透明パネル（地図オーバーレイ等）向け。地色は既存の bg-* に任せ、
+   グリッド線だけを重ねるので下の地図が透けたまま方眼の質感を足せる。 */
+.mesh-overlay {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+  background-size:
+    28px 28px,
+    28px 28px;
 }
 
 /* deck.gl の canvas を角丸内に収める */
@@ -54,6 +121,13 @@ body {
   }
   body {
     background: #fff;
+  }
+  /* 印刷は白背景前提。薄いメッシュもオフにする。 */
+  .mesh-light {
+    background: #fff !important;
+  }
+  .mesh-overlay {
+    background-image: none !important;
   }
   .no-print {
     display: none !important;

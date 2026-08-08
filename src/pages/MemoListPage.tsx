@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { FaChevronRight, FaPlus, FaRegNoteSticky, FaTrash } from "react-icons/fa6";
 import { useMemoPages } from "../hooks/useMemoPages";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -13,6 +13,8 @@ function fmtDate(s: string): string {
 export default function MemoListPage() {
   const { pages, loading, error, create, remove } = useMemoPages();
   const navigate = useNavigate();
+  const { projectId } = useParams();
+  const base = `/p/${projectId}`;
   const [creating, setCreating] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -21,7 +23,7 @@ export default function MemoListPage() {
     setCreating(true);
     try {
       const p = await create();
-      if (p) navigate(`/memo/${p.id}`);
+      if (p) navigate(`${base}/memo/${p.id}`);
     } finally {
       setCreating(false);
     }
@@ -65,7 +67,7 @@ export default function MemoListPage() {
             <li key={p.id}>
               <div className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-cyan-300 hover:shadow">
                 <button
-                  onClick={() => navigate(`/memo/${p.id}`)}
+                  onClick={() => navigate(`${base}/memo/${p.id}`)}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-cyan-700">

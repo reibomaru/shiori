@@ -12,6 +12,11 @@ plan.pdf
 .env
 data/agent-sessions/
 
+# ユーザーごと storage 分離で作られる per-user データ（data/{userId}/travel.db・
+# agent-sessions/{userId}/）とグローバル DB。誤ってコミットしないよう除外する。
+data/*/
+data/global.db*
+
 # SQLite データ（seed で再生成可能）。
 # 編集内容をバージョン管理したい場合はこの行を消してください。
 data/*.db

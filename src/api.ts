@@ -1,8 +1,15 @@
 // API クライアント。Vite の proxy 経由で /api を叩きます。
 import type { TripPayload, MemoPage, MemoImageMeta, Expense, ExpenseExtraction } from "./types";
 
-/** Gmail 連携（OAuth）を開始する URL。新しいウィンドウで開く。 */
-export const gmailOAuthStartUrl = "/api/gmail/oauth/start";
+/**
+ * Gmail 連携（OAuth）を開始する URL。新しいウィンドウで開く。
+ * OAuth はブラウザのトップレベル遷移で X-Project-Id ヘッダを付けられないため、
+ * 対象プロジェクトを query（projectId）で明示する。
+ */
+export function gmailOAuthStartUrl(): string {
+  const id = getActiveProject();
+  return `/api/gmail/oauth/start${id ? `?projectId=${encodeURIComponent(id)}` : ""}`;
+}
 import type { ChatMessage } from "./hooks/useSpotChat";
 import type { MemoChatMessage } from "./hooks/useMemoChat";
 
@@ -77,12 +84,72 @@ export interface OsrmRoute {
   waypoints?: string[]; // 通過する町名（逆ジオコード）
 }
 
+/** ユーザーのロール。 */
+export type Role = "admin" | "user";
+
+/** ログイン中のユーザー情報（/auth/me）。 */
+export interface Me {
+  email: string;
+  name: string;
+  role: Role;
+  /** 本人が設定した表示名（未設定は null）。UI 表示は displayName ?? name。 */
+  displayName?: string | null;
+  /** アバター表示用 URL（アップロード or Google 写真、無ければ null）。 */
+  avatarUrl?: string | null;
+}
+
+/** 表示に使う名前を返す（displayName 優先、無ければ name、最後に email）。 */
+export const displayNameOf = (u: { displayName?: string | null; name?: string; email: string }) =>
+  u.displayName || u.name || u.email;
+
+/** プロジェクト（テナント）の一覧行。 */
+export interface Project {
+  id: string;
+  name: string;
+  ownerSub: string;
+  ownerEmail: string;
+  memberEmails: string[];
+}
+
+/** プロジェクトのメンバー情報。 */
+export interface ProjectMembers {
+  ownerEmail: string;
+  members: string[];
+}
+
+// アクティブプロジェクト（URL の /p/{id} から ProjectProvider が設定する）。
+// ドメイン API リクエストに X-Project-Id ヘッダとして付与する。
+let activeProjectId: string | null = null;
+export function setActiveProject(id: string | null): void {
+  activeProjectId = id;
+}
+export function getActiveProject(): string | null {
+  return activeProjectId;
+}
+/** SSE など fetch を直接呼ぶ箇所で使う X-Project-Id ヘッダ。 */
+export function projectHeader(): Record<string, string> {
+  return activeProjectId ? { "X-Project-Id": activeProjectId } : {};
+}
+
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body) headers["Content-Type"] = "application/json";
+  // ドメイン API（/api/trip 等）は対象プロジェクトをヘッダで指定する。
+  // プロジェクト管理 API（/api/projects*）はヘッダ不要（付いても無害）。
+  if (activeProjectId && url.startsWith("/api/") && !url.startsWith("/api/projects")) {
+    headers["X-Project-Id"] = activeProjectId;
+  }
   const res = await fetch(url, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: "same-origin", // 認証セッション Cookie を送る
   });
+  // セッション切れ（未認証）はリロードして認証ゲート（ログイン画面）に戻す。
+  if (res.status === 401) {
+    window.location.reload();
+    throw new Error("unauthenticated");
+  }
   if (!res.ok) throw new Error(`${method} ${url} -> ${res.status}`);
   // 空ボディ（Content-Length: 0 や 204）を res.json() に渡すと
   // "Unexpected end of JSON input" で落ちるため、テキストを見てから解釈する。
@@ -91,6 +158,30 @@ async function http<T>(url: string, method: string, body?: unknown): Promise<T> 
 }
 
 export const api = {
+  // ---- 認証 ----
+  // 現在のユーザーを取得。未ログインは null（認証ゲートがログイン画面を出す）。
+  me: async (): Promise<Me | null> => {
+    const res = await fetch("/auth/me", { credentials: "same-origin" });
+    if (res.status === 401) return null;
+    if (!res.ok) throw new Error(`/auth/me -> ${res.status}`);
+    return (await res.json()) as Me;
+  },
+  logout: () => fetch("/auth/logout", { method: "POST", credentials: "same-origin" }),
+  // 自分のプロフィール（表示名・アバター）を更新。avatar は data URL、null で削除、
+  // undefined は据え置き。更新後の Me を返す。
+  updateProfile: (patch: { displayName?: string | null; avatar?: string | null }) =>
+    http<Me>("/api/profile", "PATCH", patch),
+
+  // ---- プロジェクト（テナント）----
+  listProjects: () => http<Project[]>("/api/projects", "GET"),
+  createProject: (name: string) => http<Project>("/api/projects", "POST", { name }),
+  renameProject: (id: string, name: string) => http<Project>(`/api/projects/${id}`, "PATCH", { name }),
+  deleteProject: (id: string) => http(`/api/projects/${id}`, "DELETE"),
+  getMembers: (id: string) => http<ProjectMembers>(`/api/projects/${id}/members`, "GET"),
+  addMember: (id: string, email: string) => http<ProjectMembers>(`/api/projects/${id}/members`, "POST", { email }),
+  removeMember: (id: string, email: string) =>
+    http<ProjectMembers>(`/api/projects/${id}/members/${encodeURIComponent(email)}`, "DELETE"),
+
   getTrip: () => http<TripPayload>("/api/trip", "GET"),
 
   updateTrip: (patch: Record<string, unknown>) => http("/api/trip", "PUT", patch),

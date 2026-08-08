@@ -3,6 +3,23 @@
 しおりアプリ（React + Hono + SQLite）を GCP にデプロイするための設計。
 ホスティングは **Cloud Run**、アクセス制御は **Basic 認証**（アプリ層）を採用する。
 
+> **更新（マルチユーザー・共同編集 / #64・PR #65）**
+> 本ドキュメントの初版はシングルテナント（共有 DB・Basic 認証）前提だが、以下へ移行した:
+> - **認証**: Basic 認証 → **Google SSO（OIDC）+ 署名付き JWT Cookie**（`server/auth.ts`）。
+>   Secret は `BASIC_AUTH_*` を廃し `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `SESSION_SECRET` を追加。
+>   ログインは**許可制**（Firestore `users.allowed`。新規は承認待ち、`allowed=true` で利用可）。`requireAuth` は JWT 検証のみでステートレス。
+> - **テナント分離（per-project）**: 共有 `data/travel.db` → **プロジェクトごとに `data/{projectId}/travel.db` と
+>   `agent-sessions/{projectId}/`** に物理分離（`server/storage.ts`）。1 プロジェクトを複数ユーザーで共同編集する
+>   （変更はリロードで反映）。DB は open 時に `applyPending` で最新版へ追従（Cloud Run `max=1` 前提）。
+> - **メンバーシップ**: **Firestore**（`users` プロフィール / `projects` 名前・オーナー・`memberEmails`）で管理。
+>   参加は**メール招待**。リクエストは `X-Project-Id` ヘッダで対象を指定し、`requireProjectMember`（`server/projects.ts`）が
+>   メンバー確認の上で per-project DB を解決する。二段階のゲート: ①利用許可（`users.allowed`）②プロジェクトメンバーシップ。
+> - **永続化（per-project Litestream）**: アプリ（`server/litestream.ts`）が各プロジェクト DB を開くたびに
+>   `litestream restore`（GCS から復元）→ `litestream replicate`（子プロセスで常駐）を実行。`entrypoint.sh` は
+>   Node を直接起動し、graceful shutdown で全 replicate を最終同期する。会話 JSONL は GCS FUSE で永続。
+> - **後続整理**: 単一 DB 前提の `litestream.yml` / migrate Job（`TRAVEL_DB`）は用途消滅。残置だが後続で撤去する。
+> 以降の「Basic 認証」節は初版の記録として残す。
+
 ## 1. 現状のアーキテクチャ
 
 - **フロント**: React 19 + Vite + Tailwind 4 + deck.gl の SPA。`vite build` で静的 `dist/` を生成。

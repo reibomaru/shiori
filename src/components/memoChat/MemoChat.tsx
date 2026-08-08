@@ -97,7 +97,7 @@ export default function MemoChat({
   const activeTitle = sessions.find((s) => s.id === activeId)?.title ?? "この会話";
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="mesh-light flex h-full flex-col">
       <ConfirmDialog
         open={confirmDelete}
         title="会話を削除しますか？"

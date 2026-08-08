@@ -11,9 +11,17 @@ import {
   FaUserGroup,
   FaYenSign,
   FaBars,
+  FaArrowRightFromBracket,
 } from "react-icons/fa6";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
+import { useAuth } from "./AuthGate";
+import { useProject } from "../project";
+import { Logo } from "./Logo";
+import { Avatar } from "./Avatar";
+import { Tooltip } from "./Tooltip";
+import ProfileDialog from "./ProfileDialog";
+import { displayNameOf } from "../api";
 import { yen } from "../itemMeta";
 import type { Day, TripMeta } from "../types";
 
@@ -35,18 +43,19 @@ const NAV = [
 
 export default function Layout() {
   const { data, error } = useTrip();
+  const { me, logout } = useAuth();
+  const { projectId, project } = useProject();
   const { pathname } = useLocation();
+  // ナビの遷移先はプロジェクト配下（/p/{projectId}/...）。
+  const navItems = NAV;
   // 地図・候補・旅程（ビルダー）・メモ詳細（AI 編集パネル併設）は全画面（余白なし）。
   // メモ一覧(/memo)は従来どおり中央寄せ。詳細(/memo/:id)のみ全画面にする。
-  const fullBleed =
-    pathname.startsWith("/map") ||
-    pathname.startsWith("/spots") ||
-    pathname.startsWith("/itinerary") ||
-    pathname.startsWith("/memo/");
+  const fullBleed = /\/(map|spots|itinerary)$/.test(pathname) || /\/memo\/[^/]+$/.test(pathname);
   // navOpen: デスクトップ（md+）でのサイドバー折りたたみ。
   // mobileOpen: モバイル（md 未満）でのドロワー開閉。
   const [navOpen, setNavOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // ページ遷移したらモバイルのドロワーは閉じる。
   useEffect(() => {
@@ -54,9 +63,9 @@ export default function Layout() {
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="mesh-light flex min-h-screen">
       {/* ===== モバイル用トップバー（md 未満のみ・ハンバーガー） ===== */}
-      <header className="no-print fixed inset-x-0 top-0 z-[550] flex h-14 items-center gap-3 bg-gradient-to-r from-cyan-800 to-blue-900 px-4 text-white md:hidden">
+      <header className="tech-mesh no-print fixed inset-x-0 top-0 z-[550] flex h-14 items-center gap-3 border-b border-cyan-400/10 px-4 text-white md:hidden">
         <button
           onClick={() => setMobileOpen(true)}
           aria-label="メニューを開く"
@@ -64,7 +73,8 @@ export default function Layout() {
         >
           <FaBars size={18} />
         </button>
-        <h1 className="min-w-0 flex-1 truncate text-sm font-bold">{data?.trip?.title ?? "しおり"}</h1>
+        <Logo size={24} className="shrink-0 text-cyan-300" />
+        <h1 className="min-w-0 flex-1 truncate text-sm font-bold">{data?.trip?.title || project?.name || "しおり"}</h1>
         <button
           onClick={() => window.print()}
           aria-label="PDF出力"
@@ -79,7 +89,7 @@ export default function Layout() {
         <button
           onClick={() => setNavOpen(true)}
           aria-label="メニューを開く"
-          className="no-print fixed left-0 top-1/2 z-[600] hidden -translate-y-1/2 items-center rounded-r-lg bg-cyan-800 py-3 pl-1.5 pr-2 text-white shadow-lg transition-colors hover:bg-cyan-700 md:flex"
+          className="no-print fixed left-0 top-1/2 z-[600] hidden -translate-y-1/2 items-center rounded-r-lg bg-slate-900 py-3 pl-1.5 pr-2 text-cyan-300 shadow-lg ring-1 ring-cyan-400/20 transition-colors hover:bg-slate-800 md:flex"
         >
           <TbLayoutSidebarLeftExpand size={20} />
         </button>
@@ -96,7 +106,7 @@ export default function Layout() {
       {/* ===== 左サイドメニュー（印刷時は非表示） =====
           モバイル: 左からのドロワー（fixed + translate）。デスクトップ: 静的に横並び（navOpen で折りたたみ）。 */}
       <aside
-        className={`no-print fixed inset-y-0 left-0 z-[570] flex w-72 max-w-[80vw] flex-col overflow-hidden bg-gradient-to-b from-cyan-800 via-sky-800 to-blue-900 text-white transition-transform duration-200 md:sticky md:top-0 md:z-[500] md:h-screen md:max-w-none md:translate-x-0 md:transition-all ${
+        className={`tech-mesh no-print fixed inset-y-0 left-0 z-[570] flex w-72 max-w-[80vw] flex-col overflow-hidden text-white transition-transform duration-200 md:sticky md:top-0 md:z-[500] md:h-screen md:max-w-none md:translate-x-0 md:border-r md:border-cyan-400/10 md:transition-all ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${navOpen ? "md:flex md:w-60" : "md:hidden md:w-0"}`}
       >
@@ -107,14 +117,22 @@ export default function Layout() {
               setMobileOpen(false);
             }}
             aria-label="メニューを閉じる"
-            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-cyan-100/80 transition-colors hover:bg-white/10 hover:text-white"
+            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
           >
             <TbLayoutSidebarLeftCollapse size={20} />
           </button>
-          <p className="text-[10px] uppercase tracking-widest text-cyan-200/70">open-expedia</p>
-          <h1 className="mt-1 text-base font-bold leading-snug">{data?.trip?.title ?? "しおり"}</h1>
+          {/* ロゴ＝プロジェクト一覧へ戻る動線 */}
+          <NavLink
+            to="/"
+            title="プロジェクト一覧へ"
+            className="inline-flex items-center gap-2.5 rounded-lg transition-opacity hover:opacity-80"
+          >
+            <Logo size={30} className="text-cyan-300" />
+            <span className="brand-wordmark font-mono-tech text-lg font-bold lowercase tracking-wide">shiori</span>
+          </NavLink>
+          <h1 className="mt-1 text-base font-bold leading-snug text-slate-100">{data?.trip?.title || project?.name || "しおり"}</h1>
           {data?.trip && (
-            <dl className="mt-3 space-y-1.5 text-xs text-cyan-50/80">
+            <dl className="mt-3 space-y-1.5 text-xs text-slate-400">
               <div className="flex items-center gap-2">
                 <FaRegCalendar className="shrink-0 opacity-70" />
                 <span>{tripPeriod(data.days, data.trip)}</span>
@@ -132,13 +150,15 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {NAV.map(({ to, label, Icon }) => (
+          {navItems.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
-              to={to}
+              to={`/p/${projectId}${to}`}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                  isActive ? "bg-white/15 text-white shadow-sm" : "text-cyan-50/80 hover:bg-white/10"
+                  isActive
+                    ? "bg-cyan-400/10 text-cyan-300 shadow-sm ring-1 ring-inset ring-cyan-400/20"
+                    : "text-slate-400 hover:bg-white/5 hover:text-white"
                 }`
               }
             >
@@ -151,13 +171,36 @@ export default function Layout() {
         <div className="space-y-2 border-t border-white/10 px-3 py-4">
           <button
             onClick={() => window.print()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-cyan-800 hover:bg-cyan-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-400"
           >
             <FaPrint />
             PDF出力
           </button>
+
+          {/* ログイン中のユーザー（クリックでプロフィール編集）+ ログアウト */}
+          <div className="flex items-center gap-1 rounded-lg bg-white/5 px-1.5 py-1.5 ring-1 ring-inset ring-white/5">
+            <button
+              onClick={() => setProfileOpen(true)}
+              title="プロフィールを編集"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left transition-colors hover:bg-white/10"
+            >
+              <Avatar src={me.avatarUrl} name={me.displayName ?? me.name} email={me.email} size={28} />
+              <span className="min-w-0 flex-1 truncate text-xs text-slate-300">{displayNameOf(me)}</span>
+            </button>
+            <Tooltip label="ログアウト" side="top">
+              <button
+                onClick={() => void logout()}
+                aria-label="ログアウト"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <FaArrowRightFromBracket size={14} />
+              </button>
+            </Tooltip>
+          </div>
         </div>
       </aside>
+
+      <ProfileDialog open={profileOpen} onClose={() => setProfileOpen(false)} />
 
       {/* ===== メイン（ページ） =====
           モバイルは固定トップバー（h-14）分だけ下げ、余白も控えめにする。 */}

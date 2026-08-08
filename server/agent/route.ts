@@ -76,12 +76,13 @@ function memoContextPreamble(db: DatabaseSync, pageId: string): string {
 const WEBSEARCH_API_KEY = process.env.WEBSEARCH_API_KEY ?? "";
 
 /** Hono アプリにチャット関連ルートを登録する。 */
-export function registerSpotChatRoute(app: Hono, db: DatabaseSync): void {
+export function registerSpotChatRoute(app: Hono): void {
   // ---- セッション一覧 -------------------------------------
-  app.get("/api/spots/chat/sessions", (c) => c.json(listSessions(db)));
+  app.get("/api/spots/chat/sessions", (c) => c.json(listSessions(c.get("db"))));
 
   // ---- 履歴（resume 時に表示する会話を JSONL から復元）------
   app.get("/api/spots/chat/sessions/:id/messages", (c) => {
+    const db = c.get("db");
     const id = c.req.param("id");
     const file = getSessionFile(db, id);
     return c.json(readSessionMessages(db, file, getResolutions(db, id)));
@@ -94,12 +95,13 @@ export function registerSpotChatRoute(app: Hono, db: DatabaseSync): void {
     const proposalId = typeof body.proposalId === "string" ? body.proposalId : "";
     const status = body.status === "saved" || body.status === "dismissed" ? body.status : null;
     if (!proposalId || !status) return c.json({ error: "proposalId と status（saved/dismissed）が必要です。" }, 400);
-    recordResolution(db, c.req.param("id"), proposalId, status);
+    recordResolution(c.get("db"), c.req.param("id"), proposalId, status);
     return c.json({ ok: true });
   });
 
   // ---- セッション削除（行 + JSONL ファイル）----------------
   app.delete("/api/spots/chat/sessions/:id", (c) => {
+    const db = c.get("db");
     const id = c.req.param("id");
     const session = getSession(db, id);
     if (session?.session_file && existsSync(session.session_file)) {
@@ -115,6 +117,8 @@ export function registerSpotChatRoute(app: Hono, db: DatabaseSync): void {
 
   // ---- 会話（SSE）-----------------------------------------
   app.post("/api/spots/chat", async (c) => {
+    const db = c.get("db");
+    const sessionDir = c.get("sessionDir");
     const body = (await c.req.json().catch(() => ({}))) as {
       sessionId?: unknown;
       message?: unknown;
@@ -165,6 +169,7 @@ export function registerSpotChatRoute(app: Hono, db: DatabaseSync): void {
           systemPrompt: SPOT_SYSTEM_PROMPT,
           resumeSessionFile: getSessionFile(db, sessionId),
           customTools: tools,
+          sessionDir,
           emit,
           images: modelImages,
           signal: controller.signal,
@@ -183,12 +188,13 @@ export function registerSpotChatRoute(app: Hono, db: DatabaseSync): void {
 }
 
 /** Hono アプリにメモ編集チャット関連ルートを登録する。 */
-export function registerMemoChatRoute(app: Hono, db: DatabaseSync): void {
+export function registerMemoChatRoute(app: Hono): void {
   // ---- セッション一覧（memo のみ）-------------------------
-  app.get("/api/memo/chat/sessions", (c) => c.json(listSessions(db, "memo")));
+  app.get("/api/memo/chat/sessions", (c) => c.json(listSessions(c.get("db"), "memo")));
 
   // ---- 履歴（resume 時に表示する会話を JSONL から復元）------
   app.get("/api/memo/chat/sessions/:id/messages", (c) => {
+    const db = c.get("db");
     const id = c.req.param("id");
     const file = getSessionFile(db, id);
     return c.json(readSessionMessages(db, file, getResolutions(db, id), "memo"));
@@ -200,12 +206,13 @@ export function registerMemoChatRoute(app: Hono, db: DatabaseSync): void {
     const proposalId = typeof body.proposalId === "string" ? body.proposalId : "";
     const status = body.status === "saved" || body.status === "dismissed" ? body.status : null;
     if (!proposalId || !status) return c.json({ error: "proposalId と status（saved/dismissed）が必要です。" }, 400);
-    recordResolution(db, c.req.param("id"), proposalId, status);
+    recordResolution(c.get("db"), c.req.param("id"), proposalId, status);
     return c.json({ ok: true });
   });
 
   // ---- セッション削除（行 + JSONL ファイル）----------------
   app.delete("/api/memo/chat/sessions/:id", (c) => {
+    const db = c.get("db");
     const id = c.req.param("id");
     const session = getSession(db, id);
     if (session?.session_file && existsSync(session.session_file)) {
@@ -221,6 +228,8 @@ export function registerMemoChatRoute(app: Hono, db: DatabaseSync): void {
 
   // ---- 会話（SSE）-----------------------------------------
   app.post("/api/memo/chat", async (c) => {
+    const db = c.get("db");
+    const sessionDir = c.get("sessionDir");
     const body = (await c.req.json().catch(() => ({}))) as {
       sessionId?: unknown;
       message?: unknown;
@@ -274,6 +283,7 @@ export function registerMemoChatRoute(app: Hono, db: DatabaseSync): void {
           systemPrompt: MEMO_SYSTEM_PROMPT,
           resumeSessionFile: getSessionFile(db, sessionId),
           customTools: tools,
+          sessionDir,
           emit,
           images: modelImages,
           signal: controller.signal,

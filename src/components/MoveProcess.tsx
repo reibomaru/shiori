@@ -81,7 +81,7 @@ export default function MoveProcess({
   }, [detailSpotId]);
 
   return (
-    <aside className="flex h-full min-w-0 flex-1 flex-col bg-white/45 shadow-[-8px_0_24px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+    <aside className="mesh-overlay flex h-full min-w-0 flex-1 flex-col bg-white/45 shadow-[-8px_0_24px_rgba(15,23,42,0.06)] backdrop-blur-sm">
       {/* パネルの開閉トグルはカテゴリより一段上に置く */}
       {onClose && (
         <div className="flex px-3 pt-3">

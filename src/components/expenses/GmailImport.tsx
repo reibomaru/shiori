@@ -56,7 +56,7 @@ export default function GmailImport({
   }, [awaitingAuth]);
 
   function connect() {
-    window.open(gmailOAuthStartUrl, "gmail-oauth", "width=520,height=640");
+    window.open(gmailOAuthStartUrl(), "gmail-oauth", "width=520,height=640");
     setAwaitingAuth(true);
   }
 

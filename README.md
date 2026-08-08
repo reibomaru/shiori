@@ -1,6 +1,6 @@
-# 🗺️ Travel Plans
+# 🗺️ shiori
 
-[![deploy](https://github.com/reibomaru/travel-plans/actions/workflows/deploy.yml/badge.svg)](https://github.com/reibomaru/travel-plans/actions/workflows/deploy.yml)
+[![deploy](https://github.com/reibomaru/shiori/actions/workflows/deploy.yml/badge.svg)](https://github.com/reibomaru/shiori/actions/workflows/deploy.yml)
 
 AI と一緒に旅行計画を作る、セルフホストの旅のしおりアプリ。[`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi/tree/main/packages/coding-agent) を使い、ブラウザで AI に話しかけながら、移動ルート・日ごとの旅程・行きたいスポット・予算・旅のメモを **1つの SQLite** にまとめて編集し、そのまま PDF に出力できる。
 
@@ -24,8 +24,8 @@ AI と一緒に旅行計画を作る、セルフホストの旅のしおりア�
 ### 1. Install
 
 ```bash
-git clone https://github.com/reibomaru/travel-plans.git
-cd travel-plans
+git clone https://github.com/reibomaru/shiori.git
+cd shiori
 pnpm install
 ```
 

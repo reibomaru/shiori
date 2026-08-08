@@ -1,0 +1,42 @@
+# SemVer 採番 + リリースノート生成の設定（deploy-production.yml の release ジョブが使う）。
+# bump は PR ラベル（release:major/minor/patch）で判定し、無ければ patch。
+# 初回のみ手動で v1.0.0 タグを打っておく（Runbook 参照）。以降はここから bump する。
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+
+version-resolver:
+  major:
+    labels:
+      - "release:major"
+  minor:
+    labels:
+      - "release:minor"
+  patch:
+    labels:
+      - "release:patch"
+  default: patch
+
+categories:
+  - title: "🚀 Features"
+    labels:
+      - "feature"
+      - "enhancement"
+  - title: "🐛 Bug Fixes"
+    labels:
+      - "fix"
+      - "bug"
+  - title: "🧹 Maintenance"
+    labels:
+      - "chore"
+
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+change-title-escapes: '\<*_&'
+exclude-labels:
+  - "skip-changelog"
+
+template: |
+  ## 変更点
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/reibomaru/shiori/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

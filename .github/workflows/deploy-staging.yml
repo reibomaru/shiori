@@ -1,22 +1,22 @@
-# しおりアプリの本番デプロイ（イメージのビルド → push → Cloud Run 更新）。
+# しおりアプリのステージングデプロイ（develop への push で発火）。
 #
-# スキーマ変更（db/migrations/ の差分）を含む push のときだけ、デプロイ前に
-# 「単一ライタ窓での migrate」を自動で挟む:
-#   通常の push          : build → deploy（無停止でイメージ差し替え）
-#   スキーマ変更ありの push: build → 退避(min=0) → バックアップ → migrate Job → deploy(min=1)
-# 未適用のまま deploy すると本番がフェイルファストで起動拒否になるため、この順序を守る。
+# 本番（deploy-production.yml）と同じビルド → (必要なら migrate) → deploy ロジックを、
+# GitHub Environment `staging` の Variables（SERVICE_NAME=shiori-staging など）に向けて
+# 流用する。イメージは本番と同じ Artifact Registry リポジトリ（環境非依存・env は Cloud Run 側）。
+# SemVer タグ / リリースノートは本番のみで、ここでは発行しない。
 #
-# 事前に設定する GitHub Variables（Settings → Secrets and variables → Actions → Variables）:
+# GitHub Environment `staging` に設定する Variables:
 #   GCP_PROJECT_ID                … GCP プロジェクト ID
 #   GCP_REGION                    … asia-northeast1
 #   GCP_WORKLOAD_IDENTITY_PROVIDER… terraform output workload_identity_provider
 #   GCP_DEPLOY_SA                 … terraform output deployer_service_account
-#   SERVICE_NAME                  … shiori
-name: deploy
+#   SERVICE_NAME                  … shiori-staging
+#   ARTIFACT_REPO                 … （任意）イメージの Artifact Registry リポジトリ名。未設定なら shiori。
+name: deploy-staging
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
     paths-ignore:
       - "docs/**"
       - "**/*.md"
@@ -29,11 +29,11 @@ on:
         default: "false"
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-staging-${{ github.ref }}
   cancel-in-progress: false
 
 env:
-  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.SERVICE_NAME }}/app
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REPO || 'shiori' }}/app
 
 jobs:
   # ---- ゲート: スキーマ変更(db/migrations/ 差分)の有無を判定する ----
@@ -66,6 +66,7 @@ jobs:
   deploy:
     needs: guard
     runs-on: ubuntu-latest
+    environment: staging
     permissions:
       contents: read
       id-token: write # Workload Identity 連携に必須
@@ -90,9 +91,9 @@ jobs:
       - name: Build & push image
         run: |
           set -euo pipefail
-          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:staging" .
           docker push "$IMAGE:${{ github.sha }}"
-          docker push "$IMAGE:latest"
+          docker push "$IMAGE:staging"
 
       - name: Sync migrate job image
         run: |
@@ -139,7 +140,6 @@ jobs:
             --region "$REGION" --quiet
 
       # ==== 失敗時の保険: 退避したまま落ちないよう可用性を復帰 ====
-      # migrate 失敗などでデプロイに到達しなかった場合、旧リビジョンを min=1 に戻す。
       - name: Restore availability on failure
         if: failure() && env.SCHEMA_CHANGED == 'true'
         run: |

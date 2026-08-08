@@ -1,0 +1,171 @@
+# しおりアプリの本番デプロイ（イメージのビルド → push → Cloud Run 更新 → リリース）。
+#
+# main への push（= develop → main のリリース PR マージ）で発火する。
+# スキーマ変更（db/migrations/ の差分）を含む push のときだけ、デプロイ前に
+# 「単一ライタ窓での migrate」を自動で挟む:
+#   通常の push          : build → deploy（無停止でイメージ差し替え）
+#   スキーマ変更ありの push: build → 退避(min=0) → バックアップ → migrate Job → deploy(min=1)
+# 未適用のまま deploy すると本番がフェイルファストで起動拒否になるため、この順序を守る。
+# デプロイ成功後にのみ SemVer タグ + GitHub Release を発行する（release ジョブ）。
+#
+# GitHub Environment `production`（Settings → Environments）に設定する Variables:
+#   GCP_PROJECT_ID                … GCP プロジェクト ID
+#   GCP_REGION                    … asia-northeast1
+#   GCP_WORKLOAD_IDENTITY_PROVIDER… terraform output workload_identity_provider
+#   GCP_DEPLOY_SA                 … terraform output deployer_service_account
+#   SERVICE_NAME                  … shiori
+#   ARTIFACT_REPO                 … （任意）イメージの Artifact Registry リポジトリ名。未設定なら shiori。
+name: deploy-production
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "infra/**"
+  workflow_dispatch:
+    inputs:
+      run_migration:
+        description: "手動実行時にマイグレーションも行う（true/false）"
+        required: false
+        default: "false"
+
+concurrency:
+  group: deploy-production-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # イメージは環境非依存（env は Cloud Run 側で注入）なので staging と同じ AR リポジトリを使う。
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REPO || 'shiori' }}/app
+
+jobs:
+  # ---- ゲート: スキーマ変更(db/migrations/ 差分)の有無を判定する ----
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      schema_changed: ${{ steps.detect.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 2 コミット間の差分を取るため全履歴を取得
+      - id: detect
+        run: |
+          set -euo pipefail
+          # 手動実行時は入力 run_migration に従う。
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "changed=${{ github.event.inputs.run_migration }}" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          BEFORE="${{ github.event.before }}"
+          case "$BEFORE" in ""|0000000000000000000000000000000000000000)
+            BEFORE="$(git rev-parse HEAD^ 2>/dev/null || true)" ;;
+          esac
+          if [ -n "$BEFORE" ] && git diff --name-only "$BEFORE" "${{ github.sha }}" -- db/migrations/ | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::db/migrations/ に変更を検出。デプロイ前にマイグレーションを実行します。"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # Workload Identity 連携に必須
+    env:
+      REGION: ${{ vars.GCP_REGION }}
+      SERVICE: ${{ vars.SERVICE_NAME }}
+      SCHEMA_CHANGED: ${{ needs.guard.outputs.schema_changed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build & push image
+        run: |
+          set -euo pipefail
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - name: Sync migrate job image
+        run: |
+          set -euo pipefail
+          # マイグレーション Job を先に新イメージへ更新（この後の実行に備える）。
+          gcloud run jobs update "${SERVICE}-migrate" \
+            --image "$IMAGE:${{ github.sha }}" --region "$REGION" --quiet
+
+      # ==== スキーマ変更時のみ: 単一ライタ窓で migrate ====
+      - name: (schema) Retreat service to single-writer window
+        if: env.SCHEMA_CHANGED == 'true'
+        run: |
+          set -euo pipefail
+          gcloud run services update "$SERVICE" --min-instances=0 --region "$REGION" --quiet
+          echo "現行インスタンスの撤退を待機 (90s)…"
+          sleep 90
+
+      - name: (schema) Backup Litestream replica
+        if: env.SCHEMA_CHANGED == 'true'
+        run: |
+          set -euo pipefail
+          BUCKET="${{ vars.GCP_PROJECT_ID }}-${SERVICE}-state"
+          TS="$(date -u +%Y%m%dT%H%M%SZ)"
+          if gcloud storage ls "gs://$BUCKET/litestream" >/dev/null 2>&1; then
+            echo "バックアップ: gs://$BUCKET/backups/$TS/litestream"
+            gcloud storage cp --recursive "gs://$BUCKET/litestream" "gs://$BUCKET/backups/$TS/litestream"
+          else
+            echo "レプリカ未作成のためバックアップをスキップ。"
+          fi
+
+      - name: (schema) Run migration job
+        if: env.SCHEMA_CHANGED == 'true'
+        run: |
+          set -euo pipefail
+          gcloud run jobs execute "${SERVICE}-migrate" --region "$REGION" --wait
+
+      # ==== デプロイ（常に）。min=1 を明示し、撤退していても復帰させる ====
+      - name: Deploy Cloud Run service
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE:${{ github.sha }}" \
+            --min-instances=1 \
+            --region "$REGION" --quiet
+
+      # ==== 失敗時の保険: 退避したまま落ちないよう可用性を復帰 ====
+      # migrate 失敗などでデプロイに到達しなかった場合、旧リビジョンを min=1 に戻す。
+      - name: Restore availability on failure
+        if: failure() && env.SCHEMA_CHANGED == 'true'
+        run: |
+          set -euo pipefail
+          gcloud run services update "$SERVICE" --min-instances=1 --region "$REGION" --quiet
+
+  # ---- リリース: デプロイ成功後にのみ SemVer タグ + リリースノートを発行する ----
+  # 直近タグ以降にマージされた PR のラベル（release:major/minor/patch）で bump を判定し、
+  # release-drafter が バージョン採番 + タグ打ち（v$RESOLVED_VERSION）+ GitHub Release を一括で行う。
+  # ラベル無しは既定 patch（.github/release-drafter.yml）。デプロイ失敗時は needs で自動スキップ。
+  release:
+    needs: deploy
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # タグ / Release の作成に必須
+      pull-requests: read # マージ済み PR とラベルの読み取り
+    steps:
+      - uses: release-drafter/release-drafter@v6
+        with:
+          publish: true # ドラフトではなく公開リリース + タグを発行する
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

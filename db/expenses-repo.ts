@@ -18,6 +18,7 @@ export const EXPENSE_FIELDS: readonly string[] = [
   "paid",
   "incurred_on",
   "source_url",
+  "item_id",
   "note",
 ];
 
@@ -66,8 +67,8 @@ export function createExpense(db: DatabaseSync, body: ExpenseBody): Expense | nu
   const id = body.id ?? randomUUID();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM expenses").get() as { m: number }).m;
   db.prepare(
-    `INSERT INTO expenses (id, sort_order, category, title, vendor, amount, currency, paid, incurred_on, source_url, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO expenses (id, sort_order, category, title, vendor, amount, currency, paid, incurred_on, source_url, item_id, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     body.sort_order ?? maxOrder + 1,
@@ -79,6 +80,7 @@ export function createExpense(db: DatabaseSync, body: ExpenseBody): Expense | nu
     body.paid ? 1 : 0,
     body.incurred_on ?? null,
     body.source_url ?? null,
+    body.item_id ?? null,
     body.note ?? null,
   );
   return getExpense(db, id);

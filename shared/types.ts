@@ -94,6 +94,7 @@ export interface Expense {
   paid: number; // 0=未払い / 1=支払済
   incurred_on: string | null; // 支払日 or 予約日（YYYY-MM-DD）
   source_url: string | null; // 予約サイト・請求書などのリンク（参考・任意）
+  item_id: string | null; // 紐づく旅程の予定（items.id）。未紐づけなら null
   note: string | null;
   created_at: string;
   updated_at: string;

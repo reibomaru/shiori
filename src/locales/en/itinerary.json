@@ -43,7 +43,14 @@
     "urlPlaceholder": "https://… a link to save",
     "urlLabelPlaceholder": "Link label",
     "newItem": "New item",
-    "untitled": "(Untitled)"
+    "untitled": "(Untitled)",
+    "expense": {
+      "label": "Link expenses",
+      "add": "Link an expense",
+      "unlink": "Unlink",
+      "none": "Add expenses on the Costs page to link them to this item.",
+      "allLinked": "No expenses available to link (all are linked to other items)."
+    }
   },
   "itemType": {
     "flight": "Travel (flight)",

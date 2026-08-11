@@ -33,7 +33,7 @@ import {
   FaGripVertical,
 } from "react-icons/fa6";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
-import type { Day, LegFeature, RoutePoint, Spot } from "../../types";
+import type { Day, Expense, LegFeature, RoutePoint, Spot } from "../../types";
 import { yen } from "../../itemMeta";
 import { api, type SpotRating } from "../../api";
 import { useTrip } from "../../store";
@@ -189,9 +189,12 @@ function DayHeader({
 
 function DayColumn({
   day,
+  expenses,
   onTimeChange,
   onTimeCommit,
   onSave,
+  onLinkExpense,
+  onUnlinkExpense,
   onRemove,
   onOpenDetail,
   onAddManual,
@@ -199,9 +202,12 @@ function DayColumn({
   onDayDelete,
 }: {
   day: BuilderDay;
+  expenses: Expense[];
   onTimeChange: (uid: string, v: string) => void;
   onTimeCommit: (uid: string, v: string) => void;
   onSave: (uid: string, patch: BlockPatch) => void;
+  onLinkExpense: (expenseId: string, itemId: string) => void;
+  onUnlinkExpense: (expenseId: string) => void;
   onRemove: (uid: string) => void;
   onOpenDetail: (spotId: string) => void;
   onAddManual: () => void;
@@ -252,9 +258,12 @@ function DayColumn({
               <BlockCard
                 key={b.id}
                 block={b}
+                expenses={expenses}
                 onTimeChange={(v) => onTimeChange(b.id, v)}
                 onTimeCommit={(v) => onTimeCommit(b.id, v)}
                 onSave={(patch) => onSave(b.id, patch)}
+                onLinkExpense={(expenseId) => onLinkExpense(expenseId, b.id)}
+                onUnlinkExpense={onUnlinkExpense}
                 onRemove={() => onRemove(b.id)}
                 onOpenDetail={b.spot_id != null ? () => onOpenDetail(b.spot_id!) : undefined}
               />
@@ -296,11 +305,13 @@ export default function ItineraryBuilder({
   spots,
   legs,
   route,
+  expenses,
 }: {
   days: Day[];
   spots: Spot[];
   legs: LegFeature[];
   route: RoutePoint[];
+  expenses: Expense[];
 }) {
   const { t } = useTranslation(["itinerary", "common"]);
   const { reload } = useTrip();
@@ -457,6 +468,19 @@ export default function ItineraryBuilder({
       savedIds.current.delete(id);
     }
     reload();
+  }
+
+  // ---- 実費（expenses）との紐づけ -----------------------------------------
+  /** 既存の実費をこの予定（item）に紐づける。 */
+  async function linkExpense(expenseId: string, itemId: string) {
+    if (!savedIds.current.has(itemId)) return; // 未保存の予定には紐づけない
+    await api.updateExpense(expenseId, { item_id: itemId });
+    await reload();
+  }
+  /** 実費の紐づけを外す。 */
+  async function unlinkExpense(expenseId: string) {
+    await api.updateExpense(expenseId, { item_id: null });
+    await reload();
   }
 
   // ---- 日（days）の操作 ---------------------------------------------------
@@ -669,9 +693,12 @@ export default function ItineraryBuilder({
                     {i === 0 && <InsertDayRow onClick={() => insertDayAt(0)} />}
                     <DayColumn
                       day={d}
+                      expenses={expenses}
                       onTimeChange={setTimeLocal}
                       onTimeCommit={commitTime}
                       onSave={saveBlock}
+                      onLinkExpense={linkExpense}
+                      onUnlinkExpense={unlinkExpense}
                       onRemove={(id) => {
                         const b = d.blocks.find((x) => x.id === id);
                         setPendingRemove({ id, title: b?.title ?? "" });

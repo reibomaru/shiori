@@ -18,7 +18,9 @@
     "link": "リンク",
     "edit": "編集",
     "delete": "削除",
-    "receiptAlt": "領収書"
+    "receiptAlt": "領収書",
+    "dayLabel": "Day{{day}}",
+    "linkedItem": "旅程 Day{{day}}・{{title}} に紐づけ"
   },
   "empty": {
     "none": "まだ実費がありません。領収書のスクショから追加できます。",

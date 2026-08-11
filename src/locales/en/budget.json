@@ -18,7 +18,9 @@
     "link": "Link",
     "edit": "Edit",
     "delete": "Delete",
-    "receiptAlt": "Receipt"
+    "receiptAlt": "Receipt",
+    "dayLabel": "Day {{day}}",
+    "linkedItem": "Linked to itinerary Day {{day}} · {{title}}"
   },
   "empty": {
     "none": "No expenses yet. You can add one from a receipt screenshot.",

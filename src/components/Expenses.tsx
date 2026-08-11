@@ -1,12 +1,38 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FaReceipt, FaPlus, FaPen, FaTrash, FaLink, FaFilePdf } from "react-icons/fa6";
-import type { Expense } from "../types";
+import type { Expense, ItemType } from "../types";
 import { money } from "../lib/money";
+import { ITEM_META } from "../itemMeta";
 import { api, expenseImageUrl } from "../api";
+import { useTrip } from "../store";
 import EditToggle from "./EditToggle";
 import ConfirmDialog from "./ConfirmDialog";
 import ExpenseFormDialog from "./expenses/ExpenseFormDialog";
+
+/** 実費に紐づく旅程の予定（表示用の最小情報）。 */
+interface LinkedItem {
+  dayNo: number;
+  title: string;
+  type: ItemType;
+}
+
+/** 紐づく旅程予定を示すチップ（種別アイコン＋Day 番号＋予定名）。 */
+function ItemChip({ item }: { item: LinkedItem }) {
+  const { t } = useTranslation("budget");
+  const meta = ITEM_META[item.type] ?? ITEM_META.spot;
+  return (
+    <span
+      className="inline-flex max-w-[16rem] items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+      style={{ background: `${meta.color}1a`, color: meta.color }}
+      title={t("row.linkedItem", { day: item.dayNo, title: item.title })}
+    >
+      <meta.Icon className="shrink-0 text-[9px]" />
+      <span className="shrink-0">{t("row.dayLabel", { day: item.dayNo })}</span>
+      <span className="min-w-0 truncate">{item.title}</span>
+    </span>
+  );
+}
 
 type Filter = "all" | "paid" | "unpaid";
 
@@ -34,11 +60,13 @@ function Card({ label, value, tone }: { label: string; value: string; tone?: str
 
 function ExpenseRow({
   e,
+  item,
   edit,
   onEdit,
   onDelete,
 }: {
   e: Expense;
+  item?: LinkedItem;
   edit: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -75,6 +103,7 @@ function ExpenseRow({
               <FaLink className="text-[10px]" /> {t("row.link")}
             </a>
           )}
+          {item && <ItemChip item={item} />}
         </div>
         {e.note && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{e.note}</p>}
         {e.images.length > 0 && (
@@ -139,6 +168,7 @@ export default function Expenses({
   reload: () => void;
 }) {
   const { t } = useTranslation("budget");
+  const { data } = useTrip();
   const [filter, setFilter] = useState<Filter>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -146,6 +176,14 @@ export default function Expenses({
   const [deleting, setDeleting] = useState(false);
 
   const byCurrency = useMemo(() => aggregate(expenses), [expenses]);
+
+  // item_id → 紐づく旅程予定（Day 番号・タイトル・種別）の索引。
+  const itemIndex = useMemo(() => {
+    const m = new Map<string, LinkedItem>();
+    for (const d of data?.days ?? [])
+      for (const it of d.items) m.set(it.id, { dayNo: d.day_no, title: it.title, type: it.type });
+    return m;
+  }, [data?.days]);
 
   const shown = expenses.filter((e) => (filter === "paid" ? e.paid : filter === "unpaid" ? !e.paid : true));
 
@@ -222,6 +260,7 @@ export default function Expenses({
             <ExpenseRow
               key={e.id}
               e={e}
+              item={e.item_id ? itemIndex.get(e.item_id) : undefined}
               edit={edit}
               onEdit={() => openEdit(e)}
               onDelete={() => setDeleteTarget(e)}

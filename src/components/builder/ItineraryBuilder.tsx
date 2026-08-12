@@ -750,7 +750,7 @@ export default function ItineraryBuilder({
         <DragOverlay>
           {activeBlock && (
             <div className="flex items-center gap-2 rounded-xl border border-cyan-300 bg-white p-2.5 shadow-xl dark:border-cyan-500/40 dark:bg-slate-900">
-              <BlockBody block={activeBlock} />
+              <BlockBody block={activeBlock} linked={expenses.filter((e) => e.item_id === activeBlock.id)} />
             </div>
           )}
           {activeDay && (

@@ -102,11 +102,12 @@ export interface Expense {
   images: ExpenseImageMeta[];
 }
 
-/** 実費に紐づく領収書画像のメタ情報（実体 data は含まない）。配信は /api/expenses/images/:id。 */
+/** 実費に紐づく領収書ファイル（画像/PDF）のメタ情報（実体 data は含まない）。配信は /api/expenses/images/:id。 */
 export interface ExpenseImageMeta {
   id: string;
   expense_id: string;
   mime_type: string;
+  filename: string | null; // アップロード時の元ファイル名（旧データは null）
   sort_order: number;
   created_at: string;
   updated_at: string;

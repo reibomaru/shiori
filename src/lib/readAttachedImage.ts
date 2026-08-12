@@ -45,12 +45,12 @@ export async function readAttachedImage(file: File): Promise<AttachedImage> {
       if (res.ok) {
         const out = (await res.json()) as { data: string; mimeType: string };
         if (out.data) {
-          return { dataUrl: `data:${out.mimeType};base64,${out.data}`, base64: out.data, mimeType: out.mimeType };
+          return { dataUrl: `data:${out.mimeType};base64,${out.data}`, base64: out.data, mimeType: out.mimeType, name: file.name };
         }
       }
     } catch {
       /* 変換失敗時は元データのまま（プレビューは崩れるが送信は試みる） */
     }
   }
-  return { dataUrl, base64, mimeType };
+  return { dataUrl, base64, mimeType, name: file.name };
 }

@@ -1,5 +1,5 @@
 // API クライアント。Vite の proxy 経由で /api を叩きます。
-import type { TripPayload, MemoPage, MemoImageMeta } from "./types";
+import type { TripPayload, MemoPage, MemoImageMeta, Expense, ExpenseExtraction } from "./types";
 import type { ChatMessage } from "./hooks/useSpotChat";
 import type { MemoChatMessage } from "./hooks/useMemoChat";
 
@@ -12,6 +12,10 @@ export interface MemoImage {
 /** 取り込んだ元画像の配信 URL。version（updated_at）を付けて回転後のキャッシュを更新する。 */
 export const memoImageUrl = (id: string, version?: string) =>
   `/api/memo/images/${id}${version ? `?v=${encodeURIComponent(version)}` : ""}`;
+
+/** 領収書画像の配信 URL。version（updated_at）を付けてキャッシュを更新する。 */
+export const expenseImageUrl = (id: string, version?: string) =>
+  `/api/expenses/images/${id}${version ? `?v=${encodeURIComponent(version)}` : ""}`;
 
 /** チャットセッション一覧の 1 行（サーバの chat_sessions より）。 */
 export interface ChatSessionSummary {
@@ -185,6 +189,18 @@ export const api = {
   updateBudget: (id: string, patch: Record<string, unknown>) => http(`/api/budget/${id}`, "PUT", patch),
   createBudget: (body: Record<string, unknown>) => http(`/api/budget`, "POST", body),
   deleteBudget: (id: string) => http(`/api/budget/${id}`, "DELETE"),
+
+  // ---- 実費（確定した予約・領収書） ----
+  createExpense: (body: Record<string, unknown>) => http<Expense>(`/api/expenses`, "POST", body),
+  updateExpense: (id: string, patch: Record<string, unknown>) => http<Expense>(`/api/expenses/${id}`, "PUT", patch),
+  deleteExpense: (id: string) => http(`/api/expenses/${id}`, "DELETE"),
+  // 領収書画像を実費に追加保存し、更新後の実費を返す。
+  addExpenseImages: (id: string, images: MemoImage[]) =>
+    http<Expense>(`/api/expenses/${id}/images`, "POST", { images }),
+  deleteExpenseImage: (id: string) => http(`/api/expenses/images/${id}`, "DELETE"),
+  // 領収書・請求書/予約完了画面のスクショや PDF から実費情報を抽出する（保存はしない）。
+  extractReceipt: (files: MemoImage[]) =>
+    http<{ extraction: ExpenseExtraction; warning?: string }>(`/api/expenses/extract`, "POST", { images: files }),
 
   getSpotRatings: () => http<SpotRatingsResponse>(`/api/spots/ratings`, "GET"),
   // 提案プレビュー用: 保存前スポットの評価・写真を名称等のクエリで取得。

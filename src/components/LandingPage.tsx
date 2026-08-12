@@ -95,7 +95,7 @@ type FlowStep = {
  * - 02 プランニング: 01 と行き来しながら効率の良い旅程を組む
  * - 03 予約・費用の管理: 予約と費用をまとめて把握する
  * - 04 しおりづくり: 旅のしおりを仕上げる
- * 入力元（ネット検索・OCR・Gmail・請求書）と出力元（PDF・HTML）は
+ * 入力元（ネット検索・書類/領収書/請求書の OCR）と出力元（PDF・HTML）は
  * サービス外のものとして FLOW_INPUTS / FLOW_OUTPUTS に分ける。
  */
 const FLOW_STEPS: FlowStep[] = [
@@ -137,7 +137,7 @@ const FLOW_CONTAINER = { x: 40, y: 100, w: 1120, h: 180 };
 const FLOW_INPUTS = [
   { label: "ネット検索", w: 104, cx: 135, tx: 168 },
   { label: "書類 OCR", w: 96, cx: 243, tx: 208 },
-  { label: "予約メール", w: 104, cx: 678, tx: 705 },
+  { label: "領収書 OCR", w: 104, cx: 678, tx: 705 },
   { label: "請求書 OCR", w: 110, cx: 793, tx: 768 },
 ];
 
@@ -191,7 +191,7 @@ function FlowPulse({
 /**
  * 機能紹介の主役。旅づくりを 4 フェーズのフローチャートで表現する。
  * 1〜4 のノードは shiori のサービス内空間を表す枠で囲む。
- * 入力元（ネット検索・書類 OCR・Gmail の予約メール・請求書）は枠の外から矢印で取り込み、
+ * 入力元（ネット検索・書類 OCR・領収書/請求書 OCR）は枠の外から矢印で取り込み、
  * 出力元（PDF・HTML）は枠の外へ矢印で書き出す。01⇄02 は行き来しながら固める。
  */
 function FlowChart() {
@@ -222,7 +222,7 @@ function FlowChart() {
       viewBox="0 0 1200 348"
       className="h-auto w-full"
       role="img"
-      aria-label="shiori のサービス内空間で、ディスカバリー・プランニング・予約と費用の管理・しおりづくりの 4 フェーズが進む。ネット検索や書類 OCR、Gmail の予約メールや請求書はサービス外の入力として取り込み、PDF・HTML はサービス外への出力として書き出す。"
+      aria-label="shiori のサービス内空間で、ディスカバリー・プランニング・予約と費用の管理・しおりづくりの 4 フェーズが進む。ネット検索や書類 OCR、領収書や請求書の OCR はサービス外の入力として取り込み、PDF・HTML はサービス外への出力として書き出す。"
     >
       <defs>
         <marker id="flow-arrow-cyan" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
@@ -570,7 +570,7 @@ export function LandingPage() {
               見つけて、組んで、しおりにする
             </h2>
             <p className="mt-4 text-slate-300">
-              AI エージェントがネット検索や書類の読み取りから、歴史・食・文化・自然まで下調べ。見つけたスポットを効率の良い旅程に落とし込み、予約メールや請求書まで取り込んで管理。仕上げは PDF・HTML のしおりに。
+              AI エージェントがネット検索や書類の読み取りから、歴史・食・文化・自然まで下調べ。見つけたスポットを効率の良い旅程に落とし込み、領収書や請求書まで取り込んで管理。仕上げは PDF・HTML のしおりに。
             </p>
           </div>
 

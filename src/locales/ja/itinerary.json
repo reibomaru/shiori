@@ -43,7 +43,14 @@
     "urlPlaceholder": "https://… 保存したいリンク",
     "urlLabelPlaceholder": "リンク表示名",
     "newItem": "新しい予定",
-    "untitled": "（無題）"
+    "untitled": "（無題）",
+    "expense": {
+      "label": "実費と紐づけ",
+      "add": "実費を紐づける",
+      "unlink": "紐づけを外す",
+      "none": "費用ページで実費を追加すると、この予定に紐づけられます。",
+      "allLinked": "紐づけられる実費がありません（すべて他の予定に紐づけ済み）。"
+    }
   },
   "itemType": {
     "flight": "移動（飛行機）",

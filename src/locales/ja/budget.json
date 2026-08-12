@@ -1,17 +1,69 @@
 {
-  "title": "予算計画（1人あたり）",
-  "col": {
-    "category": "費目",
-    "perPerson": "1人あたり"
+  "title": "実費（請求）",
+  "summary": {
+    "total": "{{currency}} 合計",
+    "unpaid": "{{currency}} 未払い",
+    "emptyLabel": "実費合計"
   },
-  "notePlaceholder": "メモ",
-  "perPersonTotal": "1人あたり合計",
-  "grandTotal": "{{count}}名 総額",
-  "addItem": "費目を追加",
-  "newItemName": "新しい費目",
-  "empty": "費目がまだありません",
-  "confirmDelete": {
-    "title": "費目を削除しますか？",
-    "message": "「{{category}}」を予算から削除します。この操作は取り消せません。"
+  "filter": {
+    "all": "すべて",
+    "unpaid": "未払い",
+    "paid": "支払済"
+  },
+  "status": {
+    "paid": "支払済",
+    "unpaid": "未払い"
+  },
+  "row": {
+    "link": "リンク",
+    "edit": "編集",
+    "delete": "削除",
+    "receiptAlt": "領収書",
+    "dayLabel": "Day{{day}}",
+    "linkedItem": "旅程 Day{{day}}・{{title}} に紐づけ"
+  },
+  "empty": {
+    "none": "まだ実費がありません。領収書のスクショから追加できます。",
+    "filtered": "該当する実費はありません。"
+  },
+  "addButton": "実費を追加（領収書から取り込み可）",
+  "delete": {
+    "title": "実費を削除しますか？",
+    "message": "「{{title}}」を実費から削除します。この操作は取り消せません。"
+  },
+  "form": {
+    "editTitle": "実費を編集",
+    "addTitle": "実費を追加",
+    "upload": {
+      "hint": "領収書・請求書・予約完了画面の画像や PDF を貼り付け / ドロップ",
+      "select": "ファイルを選択",
+      "extract": "ファイルから情報を抽出",
+      "extracting": "抽出中…",
+      "removeImage": "このファイルを削除",
+      "removeAttach": "添付を取り消す",
+      "attachedAlt": "添付",
+      "openPdf": "PDF を開く"
+    },
+    "field": {
+      "category": "費目",
+      "title": "概要",
+      "titlePlaceholder": "例: ◯◯ホテル 2泊 / ジュネーブ→ツェルマット 鉄道",
+      "vendor": "予約先 / 店舗名",
+      "vendorPlaceholder": "例: Booking.com / SBB / レストラン◯◯",
+      "amount": "金額",
+      "currency": "通貨",
+      "paidStatus": "支払状況",
+      "date": "支払日 / 予約日",
+      "sourceUrl": "参考リンク（予約サイト・請求書など）",
+      "note": "メモ"
+    },
+    "error": {
+      "titleRequired": "概要（タイトル）を入力してください。",
+      "extractFailed": "抽出に失敗しました: {{msg}}",
+      "saveFailed": "保存に失敗しました: {{msg}}"
+    },
+    "cancel": "キャンセル",
+    "save": "保存",
+    "saving": "保存中…"
   }
 }

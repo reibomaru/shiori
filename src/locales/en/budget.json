@@ -1,17 +1,69 @@
 {
-  "title": "Budget plan (per person)",
-  "col": {
-    "category": "Item",
-    "perPerson": "Per person"
+  "title": "Actual costs",
+  "summary": {
+    "total": "{{currency}} total",
+    "unpaid": "{{currency}} unpaid",
+    "emptyLabel": "Total"
   },
-  "notePlaceholder": "Note",
-  "perPersonTotal": "Per-person total",
-  "grandTotal": "Total for {{count}}",
-  "addItem": "Add item",
-  "newItemName": "New item",
-  "empty": "No budget items yet",
-  "confirmDelete": {
-    "title": "Delete this item?",
-    "message": "\"{{category}}\" will be removed from the budget. This action cannot be undone."
+  "filter": {
+    "all": "All",
+    "unpaid": "Unpaid",
+    "paid": "Paid"
+  },
+  "status": {
+    "paid": "Paid",
+    "unpaid": "Unpaid"
+  },
+  "row": {
+    "link": "Link",
+    "edit": "Edit",
+    "delete": "Delete",
+    "receiptAlt": "Receipt",
+    "dayLabel": "Day {{day}}",
+    "linkedItem": "Linked to itinerary Day {{day}} · {{title}}"
+  },
+  "empty": {
+    "none": "No expenses yet. You can add one from a receipt screenshot.",
+    "filtered": "No matching expenses."
+  },
+  "addButton": "Add expense (import from a receipt)",
+  "delete": {
+    "title": "Delete this expense?",
+    "message": "\"{{title}}\" will be removed from expenses. This action cannot be undone."
+  },
+  "form": {
+    "editTitle": "Edit expense",
+    "addTitle": "Add expense",
+    "upload": {
+      "hint": "Paste or drop an image or PDF of a receipt, invoice, or booking confirmation",
+      "select": "Choose file",
+      "extract": "Extract from file",
+      "extracting": "Extracting…",
+      "removeImage": "Remove this file",
+      "removeAttach": "Remove attachment",
+      "attachedAlt": "Attachment",
+      "openPdf": "Open PDF"
+    },
+    "field": {
+      "category": "Category",
+      "title": "Summary",
+      "titlePlaceholder": "e.g. Hotel XX, 2 nights / Geneva→Zermatt by rail",
+      "vendor": "Vendor / store",
+      "vendorPlaceholder": "e.g. Booking.com / SBB / Restaurant XX",
+      "amount": "Amount",
+      "currency": "Currency",
+      "paidStatus": "Payment status",
+      "date": "Paid / booking date",
+      "sourceUrl": "Reference link (booking site / invoice, etc.)",
+      "note": "Note"
+    },
+    "error": {
+      "titleRequired": "Please enter a summary (title).",
+      "extractFailed": "Extraction failed: {{msg}}",
+      "saveFailed": "Failed to save: {{msg}}"
+    },
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…"
   }
 }

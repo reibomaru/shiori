@@ -21,7 +21,7 @@ import {
 import { getModel } from "@earendil-works/pi-ai/compat";
 import { MissingApiKeyError } from "./runner.ts";
 import type { AgentImage, TurnUsage } from "./runner.ts";
-import type { MemoGraph } from "../../shared/types.ts";
+import type { MemoGraph, ExpenseExtraction } from "../../shared/types.ts";
 
 /** turn_end メッセージから 1 ターン分の usage を取り出す（runner.ts と同形）。 */
 function extractUsage(message: unknown): TurnUsage {
@@ -84,6 +84,25 @@ const GRAPH_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ機
 - 矢印がある向きは from→to にする。矢印の無い（向きのない）つながりは "undirected": true を付ける。線の脇に関係名があれば label に入れる。
 - グラフ構造の図が画像に無い場合は、必ず {"nodes":[],"edges":[]} だけを出力する。
 - 推測でノードやエッジを作らない。読み取れたものだけを書く。日本語のテキストはそのまま日本語で。`;
+
+const RECEIPT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの費用管理を支援するアシスタントです。
+ユーザーがアップロードしたファイル（領収書・請求書・予約完了画面のスクリーンショットや写真、PDF など）を読み取り、
+そこに書かれた「1 件の支払い/予約」の情報を構造化 JSON として書き出します。
+
+# 出力ルール（厳守）
+- 出力は JSON オブジェクトのみ。前置き・説明・コードフェンス(\`\`\`)は一切付けない。
+- スキーマ:
+  {"title": string|null,        // 予約/支払いの概要（例: "◯◯ホテル 2泊", "ジュネーブ→ツェルマット 鉄道"）
+   "vendor": string|null,       // 予約先/店舗名（ホテル名・航空会社・予約サイト・店名など）
+   "amount": number|null,       // 合計金額の数値のみ（通貨記号・カンマ・小数は除く。整数に丸める）
+   "currency": string|null,     // 通貨コード（"JPY" / "CHF" / "EUR" / "USD" など。¥→JPY, CHF→CHF, €→EUR, $→USD）
+   "paid": boolean|null,        // 支払済みが読み取れれば true、未払い/請求予定なら false、不明なら null
+   "incurred_on": string|null,  // 支払日 or 予約日を "YYYY-MM-DD" 形式で。時刻は不要。不明なら null
+   "category": string|null,     // 次のいずれか: "宿泊" / "交通" / "食事" / "観光" / "買い物" / "その他"
+   "note": string|null}         // 補足（内訳・人数・チェックイン/アウト・便名など、短く）
+- 画像から実際に読み取れた事実だけを入れる。推測で埋めない。読めない項目は null にする。
+- 金額は税込み合計（total）を優先する。複数通貨が併記されている場合は主たる請求通貨を採用する。
+- 日本語で読み取り、title / vendor / note は日本語でよい。`;
 
 interface OneShotOptions {
   /** 解決済みの API キー（BYOK or 共有キー。呼び出し側が resolveAiKey で渡す）。 */
@@ -263,4 +282,70 @@ export async function extractGraphFromImages(args: {
     ...args,
   });
   return parseGraphResponse(raw);
+}
+
+const VALID_CATEGORIES = ["宿泊", "交通", "食事", "観光", "買い物", "その他"];
+
+/** モデル出力（JSON）を検証済みの ExpenseExtraction に整える。読めない/不正な項目は null。 */
+function parseReceiptResponse(raw: string): ExpenseExtraction {
+  const empty: ExpenseExtraction = {
+    title: null,
+    vendor: null,
+    amount: null,
+    currency: null,
+    paid: null,
+    incurred_on: null,
+    category: null,
+    note: null,
+  };
+  let data: unknown;
+  try {
+    data = JSON.parse(stripJsonFence(raw));
+  } catch {
+    return empty;
+  }
+  const o = data as Record<string, unknown>;
+  const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+  // 金額は数値でも "12,300円" のような文字列でも受け取り、数字だけを取り出す。
+  let amount: number | null = null;
+  if (typeof o.amount === "number" && Number.isFinite(o.amount)) amount = Math.round(o.amount);
+  else if (typeof o.amount === "string") {
+    const digits = o.amount.replace(/[^\d.]/g, "");
+    if (digits) amount = Math.round(Number(digits));
+  }
+
+  const currency = str(o.currency)?.toUpperCase() ?? null;
+  const date = str(o.incurred_on);
+  const category = VALID_CATEGORIES.includes(str(o.category) ?? "") ? (o.category as string) : null;
+
+  return {
+    title: str(o.title),
+    vendor: str(o.vendor),
+    amount,
+    currency: currency && /^[A-Z]{3}$/.test(currency) ? currency : null,
+    paid: typeof o.paid === "boolean" ? o.paid : null,
+    incurred_on: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
+    category,
+    note: str(o.note),
+  };
+}
+
+/**
+ * 領収書・請求書・予約完了画面のスクショ/写真/PDF から、実費 1 件分の情報を構造化して返す。
+ * ユーザーが確認・修正して保存する前提なので、読めない項目は null で返す（自動保存はしない）。
+ * @throws MissingApiKeyError API キー未設定 / モデル解決失敗時
+ */
+export async function extractReceiptFromImages(args: {
+  apiKey: string;
+  images: AgentImage[];
+  signal?: AbortSignal;
+  onUsage?: (u: TurnUsage) => void;
+}): Promise<ExpenseExtraction> {
+  const raw = await runOneShot({
+    systemPrompt: RECEIPT_SYSTEM_PROMPT,
+    userPrompt: "添付ファイルは領収書・請求書または予約完了画面です。指示どおり JSON で情報を書き出してください。",
+    ...args,
+  });
+  return parseReceiptResponse(raw);
 }

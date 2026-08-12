@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { FaGripVertical, FaXmark, FaPen, FaLink, FaCompass, FaRoute, FaCheck } from "react-icons/fa6";
+import { FaGripVertical, FaXmark, FaPen, FaLink, FaCompass, FaRoute, FaCheck, FaReceipt, FaPlus } from "react-icons/fa6";
 import type { Block, BlockPatch } from "./builderModel";
-import type { ItemType } from "../../types";
+import type { Expense, ItemType } from "../../types";
 import { ITEM_META, yen } from "../../itemMeta";
+import { money } from "../../lib/money";
 
 // 編集パネルで種別を切り替えられるのは「スポット由来（spot_id あり）」のブロックのみ。
 // spot/meal/hotel はいずれも spot_id を持つため相互に切り替えても CHECK 制約を満たす。
@@ -68,14 +69,110 @@ export function BlockBody({ block }: { block: Block }) {
 const fieldCls =
   "rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-cyan-500 focus:outline-none dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500";
 
+/** この予定に紐づく実費（金額チップ＋解除）と、未紐づけ実費を選んで紐づける自前ピッカー。 */
+function ExpenseLink({
+  block,
+  expenses,
+  onLink,
+  onUnlink,
+}: {
+  block: Block;
+  expenses: Expense[];
+  onLink: (expenseId: string) => void;
+  onUnlink: (expenseId: string) => void;
+}) {
+  const { t } = useTranslation("itinerary");
+  const [open, setOpen] = useState(false);
+  const linked = expenses.filter((e) => e.item_id === block.id);
+  const available = expenses.filter((e) => e.item_id == null);
+
+  return (
+    <div className="rounded-lg bg-white p-2 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        <FaReceipt className="text-cyan-600 dark:text-cyan-400" /> {t("block.expense.label")}
+      </div>
+
+      {linked.length > 0 && (
+        <ul className="mb-1.5 space-y-1">
+          {linked.map((e) => (
+            <li
+              key={e.id}
+              className="flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-xs dark:bg-emerald-500/10"
+            >
+              <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{e.title}</span>
+              <span className="shrink-0 font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                {money(e.amount, e.currency)}
+              </span>
+              <button
+                type="button"
+                onClick={() => onUnlink(e.id)}
+                className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400"
+                aria-label={t("block.expense.unlink")}
+              >
+                <FaXmark className="text-[10px]" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {expenses.length === 0 ? (
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">{t("block.expense.none")}</p>
+      ) : available.length === 0 ? (
+        linked.length === 0 && <p className="text-[11px] text-slate-400 dark:text-slate-500">{t("block.expense.allLinked")}</p>
+      ) : (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-cyan-300 py-1 text-[11px] font-medium text-cyan-700 hover:bg-cyan-50 dark:border-cyan-500/40 dark:text-cyan-400 dark:hover:bg-cyan-500/10"
+          >
+            <FaPlus className="text-[9px]" /> {t("block.expense.add")}
+          </button>
+          {open && (
+            <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+              {available.map((e) => (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onLink(e.id);
+                      setOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                      {e.category}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{e.title}</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+                      {money(e.amount, e.currency)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 詳細編集パネル（種別はアイコンボタンの自前ピッカー＝<select> は使わない）。 */
 function Editor({
   block,
+  expenses,
   onSave,
+  onLinkExpense,
+  onUnlinkExpense,
   onClose,
 }: {
   block: Block;
+  expenses: Expense[];
   onSave: (patch: BlockPatch) => void;
+  onLinkExpense: (expenseId: string) => void;
+  onUnlinkExpense: (expenseId: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation(["itinerary", "common"]);
@@ -140,6 +237,7 @@ function Editor({
         placeholder={t("block.notePlaceholder")}
         onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
       />
+      <ExpenseLink block={block} expenses={expenses} onLink={onLinkExpense} onUnlink={onUnlinkExpense} />
       <div className="flex flex-wrap items-center gap-2">
         <input
           className={`${fieldCls} min-w-[8rem] flex-1`}
@@ -177,16 +275,22 @@ function Editor({
 
 export default function BlockCard({
   block,
+  expenses,
   onTimeChange,
   onTimeCommit,
   onSave,
+  onLinkExpense,
+  onUnlinkExpense,
   onRemove,
   onOpenDetail,
 }: {
   block: Block;
+  expenses: Expense[];
   onTimeChange: (v: string) => void;
   onTimeCommit: (v: string) => void;
   onSave: (patch: BlockPatch) => void;
+  onLinkExpense: (expenseId: string) => void;
+  onUnlinkExpense: (expenseId: string) => void;
   onRemove: () => void;
   // スポット由来（spot_id あり）のカード本体クリックで詳細モーダルを開く。
   // 自由項目・移動区間では undefined（開く手段を出さない）。
@@ -267,7 +371,14 @@ export default function BlockCard({
       </div>
       {editing && (
         <div className="no-print">
-          <Editor block={block} onSave={onSave} onClose={() => setEditing(false)} />
+          <Editor
+            block={block}
+            expenses={expenses}
+            onSave={onSave}
+            onLinkExpense={onLinkExpense}
+            onUnlinkExpense={onUnlinkExpense}
+            onClose={() => setEditing(false)}
+          />
         </div>
       )}
     </li>

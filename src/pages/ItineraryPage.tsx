@@ -7,7 +7,7 @@ export default function ItineraryPage() {
   if (!data) return null;
   return (
     <div className="h-full p-4 md:p-6">
-      <ItineraryBuilder days={data.days} spots={data.spots} legs={data.legs} route={data.route} />
+      <ItineraryBuilder days={data.days} spots={data.spots} legs={data.legs} route={data.route} expenses={data.expenses} />
     </div>
   );
 }

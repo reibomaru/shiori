@@ -35,9 +35,14 @@ import {
 } from "./apiKeys.ts";
 import * as spotsRepo from "../db/spots-repo.ts";
 import * as memoRepo from "../db/memo-repo.ts";
+import * as expensesRepo from "../db/expenses-repo.ts";
 import { getSpotRatings, invalidateSpotCache, previewPlace } from "./places.ts";
 import { registerSpotChatRoute, registerMemoChatRoute } from "./agent/route.ts";
-import { extractGraphFromImages, extractHtmlFromImages } from "./agent/extract.ts";
+import {
+  extractGraphFromImages,
+  extractHtmlFromImages,
+  extractReceiptFromImages,
+} from "./agent/extract.ts";
 import { normalizeImageForWeb } from "./agent/images.ts";
 import { MissingApiKeyError } from "./apiKeys.ts";
 import type { AgentImage, TurnUsage } from "./agent/runner.ts";
@@ -261,8 +266,9 @@ app.get("/api/trip", (c) => {
   // legs: GeoJSON Feature の配列として返す（フロントはそのまま <GeoJSON> で描画）
   const legs = (db.prepare("SELECT * FROM legs ORDER BY order_index").all() as unknown as LegRow[]).map(legToFeature);
   const budget = db.prepare("SELECT * FROM budget ORDER BY sort_order, id").all() as unknown as BudgetItem[];
+  const expenses = expensesRepo.listExpenses(db);
   const spots = spotsRepo.listSpots(db);
-  return c.json({ trip, days, route, legs, budget, spots });
+  return c.json({ trip, days, route, legs, budget, expenses, spots });
 });
 
 // ---- trip メタ --------------------------------------------
@@ -343,6 +349,87 @@ app.put("/api/budget/:id", async (c) => {
 app.delete("/api/budget/:id", (c) => {
   c.get("db").prepare("DELETE FROM budget WHERE id = ?").run(c.req.param("id"));
   return c.json({ ok: true });
+});
+
+// ---- expenses（実費＝確定した予約・領収書）-----------------
+// db はハンドラ内で c.get("db")（プロジェクトスコープ解決ミドルウェア）から取得する。
+app.post("/api/expenses", async (c) => c.json(expensesRepo.createExpense(c.get("db"), await c.req.json())));
+app.put("/api/expenses/:id", async (c) =>
+  c.json(expensesRepo.updateExpense(c.get("db"), c.req.param("id"), await c.req.json())),
+);
+app.delete("/api/expenses/:id", (c) => c.json(expensesRepo.deleteExpense(c.get("db"), c.req.param("id"))));
+
+// 領収書画像を実費に追加保存する（HEIC/HEIF → PNG に正規化してから保存）。追加後の実費を返す。
+app.post("/api/expenses/:id/images", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+  if (!expensesRepo.getExpense(db, id)) return c.json({ error: "実費が見つかりません。" }, 404);
+  const body = (await c.req.json().catch(() => ({}))) as { images?: unknown };
+  const images: AgentImage[] = Array.isArray(body.images)
+    ? (body.images as Array<{ data?: unknown; mimeType?: unknown }>)
+        .filter((im): im is AgentImage => !!im && typeof im.data === "string" && typeof im.mimeType === "string")
+        .slice(0, 8)
+    : [];
+  if (images.length === 0) return c.json({ error: "画像が指定されていません。" }, 400);
+  const normalized = await Promise.all(images.map(normalizeImageForWeb));
+  expensesRepo.addExpenseImages(db, id, normalized);
+  return c.json(expensesRepo.getExpense(db, id));
+});
+
+// 領収書画像の配信（BLOB をそのまま返す）。内容は不変なので長期キャッシュ可。
+app.get("/api/expenses/images/:id", (c) => {
+  const img = expensesRepo.getExpenseImageData(c.get("db"), c.req.param("id"));
+  if (!img) return c.json({ error: "画像が見つかりません。" }, 404);
+  return new Response(img.data, {
+    headers: { "Content-Type": img.mime_type, "Cache-Control": "private, max-age=31536000, immutable" },
+  });
+});
+app.delete("/api/expenses/images/:id", (c) => c.json(expensesRepo.deleteExpenseImage(c.get("db"), c.req.param("id"))));
+
+// 領収書/予約完了画面のスクショから実費情報を抽出して返す（保存はしない）。
+// ユーザーがフォームで確認・修正してから /api/expenses で保存する想定。
+app.post("/api/expenses/extract", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { images?: unknown };
+  const images: AgentImage[] = Array.isArray(body.images)
+    ? (body.images as Array<{ data?: unknown; mimeType?: unknown }>)
+        .filter((im): im is AgentImage => !!im && typeof im.data === "string" && typeof im.mimeType === "string")
+        .slice(0, 4)
+    : [];
+  if (images.length === 0) return c.json({ error: "画像が指定されていません。" }, 400);
+  const normalized = await Promise.all(images.map(normalizeImageForWeb));
+
+  const emptyExtraction = {
+    title: null, vendor: null, amount: null, currency: null,
+    paid: null, incurred_on: null, category: null, note: null,
+  };
+
+  // AI 抽出のキー解決（BYOK 優先・共有キーは上限チェック）。解決できなければ
+  // 空の抽出結果 + 警告を 200 で返し、手入力に切り替えられるようにする。
+  let resolved;
+  try {
+    resolved = await resolveAiKey(c.get("userId"));
+  } catch (err) {
+    return c.json({ extraction: emptyExtraction, warning: err instanceof Error ? err.message : String(err) });
+  }
+
+  let extractCost = 0;
+  try {
+    const extraction = await extractReceiptFromImages({
+      apiKey: resolved.apiKey,
+      images: normalized,
+      onUsage: (u) => { extractCost += u.costUSD; },
+    });
+    return c.json({ extraction });
+  } catch (err) {
+    const warning =
+      err instanceof MissingApiKeyError
+        ? err.message
+        : `情報の抽出に失敗しました: ${err instanceof Error ? err.message : String(err)}`;
+    return c.json({ extraction: emptyExtraction, warning });
+  } finally {
+    // 共有キー利用時のみ、抽出の消費コストをユーザーの月次集計へ加算する。
+    await recordUsage(c.get("userId"), resolved.source, extractCost);
+  }
 });
 
 // ---- spots（行きたいスポット ライブラリ） ------------------

@@ -12,6 +12,11 @@ export function isHeic(file: File): boolean {
   return HEIC_RE.test(file.type) || /\.hei[cf]$/i.test(file.name);
 }
 
+/** MIME か拡張子のどちらかで PDF を判定する（請求書 PDF などの取り込み用）。 */
+export function isPdf(file: File): boolean {
+  return file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+}
+
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -22,8 +27,8 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 /**
- * 添付画像を AttachedImage（プレビュー用 dataUrl + 送信用 base64）へ読み込む。
- * HEIC/HEIF はサーバで PNG へ変換する。変換に失敗した場合は元データのまま返す。
+ * 添付ファイル（画像 / PDF）を AttachedImage（プレビュー用 dataUrl + 送信用 base64）へ読み込む。
+ * HEIC/HEIF はサーバで PNG へ変換する。PDF や通常画像はそのまま返す。
  */
 export async function readAttachedImage(file: File): Promise<AttachedImage> {
   const dataUrl = await blobToDataUrl(file);

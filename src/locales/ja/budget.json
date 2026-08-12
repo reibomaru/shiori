@@ -14,6 +14,11 @@
     "paid": "支払済",
     "unpaid": "未払い"
   },
+  "preview": {
+    "untitled": "ファイル",
+    "openNewTab": "新しいタブで開く",
+    "close": "閉じる"
+  },
   "row": {
     "link": "リンク",
     "edit": "編集",
@@ -42,7 +47,8 @@
       "removeImage": "このファイルを削除",
       "removeAttach": "添付を取り消す",
       "attachedAlt": "添付",
-      "openPdf": "PDF を開く"
+      "preview": "プレビュー",
+      "filenameFallback": "ファイル"
     },
     "field": {
       "category": "費目",

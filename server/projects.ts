@@ -143,7 +143,10 @@ export function invalidateProjectCache(id: string): void {
  * requireAuth の後段で使う（c.get("userEmail") が必要）。
  */
 export const requireProjectMember: MiddlewareHandler = async (c, next) => {
-  const projectId = c.req.header("X-Project-Id") || "";
+  // 通常は X-Project-Id ヘッダで指定する。ただし <img> / <iframe> のような
+  // ブラウザネイティブの GET はカスタムヘッダを付けられないため、?projectId= の
+  // クエリでも受け付ける（認証は Cookie、メンバー検証は下で行うため安全）。
+  const projectId = c.req.header("X-Project-Id") || c.req.query("projectId") || "";
   if (!projectId) return c.json({ error: "X-Project-Id ヘッダが必要です。" }, 400);
 
   let id: string;

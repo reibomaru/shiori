@@ -41,6 +41,8 @@ export interface AttachedImage {
   dataUrl: string;
   base64: string;
   mimeType: string;
+  /** 元のファイル名（費用の領収書/請求書で表示・保存に使う。チャット添付では未設定）。 */
+  name?: string;
 }
 
 export interface Usage {

@@ -14,6 +14,11 @@
     "paid": "Paid",
     "unpaid": "Unpaid"
   },
+  "preview": {
+    "untitled": "File",
+    "openNewTab": "Open in new tab",
+    "close": "Close"
+  },
   "row": {
     "link": "Link",
     "edit": "Edit",
@@ -42,7 +47,8 @@
       "removeImage": "Remove this file",
       "removeAttach": "Remove attachment",
       "attachedAlt": "Attachment",
-      "openPdf": "Open PDF"
+      "preview": "Preview",
+      "filenameFallback": "File"
     },
     "field": {
       "category": "Category",

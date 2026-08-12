@@ -16,10 +16,18 @@ import { money } from "../../lib/money";
 // 移動（鉄道/飛行機/バス等）は「移動タブ」の OSRM ルート作成に限定する（leg_id を伴う）。
 const EDITABLE_TYPES: ItemType[] = ["spot", "meal", "hotel"];
 
+/** 紐づく実費を通貨ごとに合計する（表示用）。 */
+function sumByCurrency(expenses: Expense[]): Array<[string, number]> {
+  const m = new Map<string, number>();
+  for (const e of expenses) m.set(e.currency, (m.get(e.currency) ?? 0) + e.amount);
+  return [...m.entries()];
+}
+
 /** ドラッグ中のオーバーレイや一覧で使う、ブロックの本体表示（アイコン＋タイトル＋費用＋由来）。 */
-export function BlockBody({ block }: { block: Block }) {
+export function BlockBody({ block, linked = [] }: { block: Block; linked?: Expense[] }) {
   const { t } = useTranslation("itinerary");
   const meta = ITEM_META[block.type] ?? ITEM_META.spot;
+  const actuals = sumByCurrency(linked);
   return (
     <>
       <span
@@ -29,13 +37,22 @@ export function BlockBody({ block }: { block: Block }) {
         <meta.Icon />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="truncate font-medium text-slate-800 dark:text-slate-100">{block.title}</span>
           {block.cost ? (
             <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
               {yen(block.cost)}
             </span>
           ) : null}
+          {actuals.map(([cur, amt]) => (
+            <span
+              key={cur}
+              className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+              title={t("block.expense.actual")}
+            >
+              {money(amt, cur)}
+            </span>
+          ))}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-400 dark:text-slate-500">
           {block.spot_id != null && (
@@ -302,6 +319,7 @@ export default function BlockCard({
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const [editing, setEditing] = useState(false);
+  const linked = expenses.filter((e) => e.item_id === block.id);
 
   return (
     <li
@@ -343,11 +361,11 @@ export default function BlockCard({
             className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
             aria-label={t("block.viewDetail", { title: block.title })}
           >
-            <BlockBody block={block} />
+            <BlockBody block={block} linked={linked} />
           </div>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <BlockBody block={block} />
+            <BlockBody block={block} linked={linked} />
           </div>
         )}
         <button

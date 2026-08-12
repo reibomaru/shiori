@@ -6,9 +6,9 @@ import { money } from "../lib/money";
 import { ITEM_META } from "../itemMeta";
 import { api, expenseImageUrl } from "../api";
 import { useTrip } from "../store";
-import EditToggle from "./EditToggle";
 import ConfirmDialog from "./ConfirmDialog";
 import ExpenseFormDialog from "./expenses/ExpenseFormDialog";
+import FilePreview, { type PreviewFile } from "./expenses/FilePreview";
 
 /** 実費に紐づく旅程の予定（表示用の最小情報）。 */
 interface LinkedItem {
@@ -61,13 +61,13 @@ function Card({ label, value, tone }: { label: string; value: string; tone?: str
 function ExpenseRow({
   e,
   item,
-  edit,
+  onPreview,
   onEdit,
   onDelete,
 }: {
   e: Expense;
   item?: LinkedItem;
-  edit: boolean;
+  onPreview: (f: PreviewFile) => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -109,7 +109,12 @@ function ExpenseRow({
         {e.images.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {e.images.map((im) => (
-              <a key={im.id} href={expenseImageUrl(im.id, im.updated_at)} target="_blank" rel="noreferrer">
+              <button
+                key={im.id}
+                type="button"
+                onClick={() => onPreview({ src: expenseImageUrl(im.id, im.updated_at), mimeType: im.mime_type, name: im.filename })}
+                title={im.filename ?? t("form.upload.preview")}
+              >
                 {im.mime_type === "application/pdf" ? (
                   <span className="flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-md bg-white text-rose-500 ring-1 ring-slate-200 transition hover:ring-cyan-400 dark:bg-slate-800 dark:ring-slate-700">
                     <FaFilePdf className="text-base" />
@@ -122,7 +127,7 @@ function ExpenseRow({
                     className="h-12 w-12 rounded-md object-cover ring-1 ring-slate-200 transition hover:ring-cyan-400 dark:ring-slate-700"
                   />
                 )}
-              </a>
+              </button>
             ))}
           </div>
         )}
@@ -131,24 +136,22 @@ function ExpenseRow({
         <span className="whitespace-nowrap font-semibold tabular-nums text-slate-800 dark:text-slate-100">
           {money(e.amount, e.currency)}
         </span>
-        {edit && (
-          <div className="no-print flex gap-1">
-            <button
-              onClick={onEdit}
-              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-              title={t("row.edit")}
-            >
-              <FaPen className="text-xs" />
-            </button>
-            <button
-              onClick={onDelete}
-              className="rounded p-1 text-rose-500 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
-              title={t("row.delete")}
-            >
-              <FaTrash className="text-xs" />
-            </button>
-          </div>
-        )}
+        <div className="no-print flex gap-1">
+          <button
+            onClick={onEdit}
+            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+            title={t("row.edit")}
+          >
+            <FaPen className="text-xs" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="rounded p-1 text-rose-500 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+            title={t("row.delete")}
+          >
+            <FaTrash className="text-xs" />
+          </button>
+        </div>
       </div>
     </li>
   );
@@ -156,15 +159,14 @@ function ExpenseRow({
 
 /**
  * 実費（確定した予約・領収書）の一覧・集計。budget（概算）とは別レイヤー。
- * 追加・編集・削除は編集モード（EditToggle）でのみ操作できる（予算ページの規約に合わせる）。
+ * スポット候補ページと同様、編集モードは持たず追加・編集・削除を常時操作できる
+ * （削除は ConfirmDialog を挟む）。
  */
 export default function Expenses({
   expenses,
-  edit,
   reload,
 }: {
   expenses: Expense[];
-  edit: boolean;
   reload: () => void;
 }) {
   const { t } = useTranslation("budget");
@@ -174,6 +176,7 @@ export default function Expenses({
   const [editing, setEditing] = useState<Expense | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [preview, setPreview] = useState<PreviewFile | null>(null);
 
   const byCurrency = useMemo(() => aggregate(expenses), [expenses]);
 
@@ -220,7 +223,6 @@ export default function Expenses({
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800 dark:text-slate-100">
           <FaReceipt className="text-cyan-700 dark:text-cyan-400" /> {t("title")}
         </h2>
-        <EditToggle />
       </div>
 
       {/* 集計サマリー */}
@@ -261,7 +263,7 @@ export default function Expenses({
               key={e.id}
               e={e}
               item={e.item_id ? itemIndex.get(e.item_id) : undefined}
-              edit={edit}
+              onPreview={setPreview}
               onEdit={() => openEdit(e)}
               onDelete={() => setDeleteTarget(e)}
             />
@@ -269,14 +271,12 @@ export default function Expenses({
         </ul>
       )}
 
-      {edit && (
-        <button
-          onClick={openAdd}
-          className="no-print mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-cyan-300 py-2 text-sm font-medium text-cyan-700 hover:bg-cyan-50 dark:border-cyan-500/40 dark:text-cyan-400 dark:hover:bg-cyan-500/10"
-        >
-          <FaPlus className="text-xs" /> {t("addButton")}
-        </button>
-      )}
+      <button
+        onClick={openAdd}
+        className="no-print mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-cyan-300 py-2 text-sm font-medium text-cyan-700 hover:bg-cyan-50 dark:border-cyan-500/40 dark:text-cyan-400 dark:hover:bg-cyan-500/10"
+      >
+        <FaPlus className="text-xs" /> {t("addButton")}
+      </button>
 
       <ExpenseFormDialog
         open={formOpen}
@@ -292,6 +292,7 @@ export default function Expenses({
         onConfirm={remove}
         onCancel={() => setDeleteTarget(null)}
       />
+      <FilePreview file={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }

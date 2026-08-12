@@ -48,6 +48,7 @@
       "label": "Link expenses",
       "add": "Link an expense",
       "unlink": "Unlink",
+      "actual": "Linked expense",
       "none": "Add expenses on the Costs page to link them to this item.",
       "allLinked": "No expenses available to link (all are linked to other items)."
     }

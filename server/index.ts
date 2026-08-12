@@ -365,13 +365,24 @@ app.post("/api/expenses/:id/images", async (c) => {
   const id = c.req.param("id");
   if (!expensesRepo.getExpense(db, id)) return c.json({ error: "実費が見つかりません。" }, 404);
   const body = (await c.req.json().catch(() => ({}))) as { images?: unknown };
-  const images: AgentImage[] = Array.isArray(body.images)
-    ? (body.images as Array<{ data?: unknown; mimeType?: unknown }>)
-        .filter((im): im is AgentImage => !!im && typeof im.data === "string" && typeof im.mimeType === "string")
+  const uploads = Array.isArray(body.images)
+    ? (body.images as Array<{ data?: unknown; mimeType?: unknown; filename?: unknown }>)
+        .filter((im) => !!im && typeof im.data === "string" && typeof im.mimeType === "string")
         .slice(0, 8)
+        .map((im) => ({
+          data: im.data as string,
+          mimeType: im.mimeType as string,
+          filename: typeof im.filename === "string" ? im.filename : null,
+        }))
     : [];
-  if (images.length === 0) return c.json({ error: "画像が指定されていません。" }, 400);
-  const normalized = await Promise.all(images.map(normalizeImageForWeb));
+  if (uploads.length === 0) return c.json({ error: "ファイルが指定されていません。" }, 400);
+  // HEIC→PNG 等の正規化は data/mimeType のみ対象。ファイル名はそのまま保持する。
+  const normalized = await Promise.all(
+    uploads.map(async (u) => ({
+      ...(await normalizeImageForWeb({ data: u.data, mimeType: u.mimeType })),
+      filename: u.filename,
+    })),
+  );
   expensesRepo.addExpenseImages(db, id, normalized);
   return c.json(expensesRepo.getExpense(db, id));
 });

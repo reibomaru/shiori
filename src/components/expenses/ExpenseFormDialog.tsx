@@ -3,10 +3,19 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { FaXmark, FaUpload, FaWandMagicSparkles, FaTrash, FaCheck, FaFilePdf } from "react-icons/fa6";
 import type { Expense, ExpenseExtraction } from "../../types";
-import { api, expenseImageUrl, type MemoImage } from "../../api";
+import { api, expenseImageUrl } from "../../api";
 import { readAttachedImage, isHeic, isPdf } from "../../lib/readAttachedImage";
 import { CURRENCIES } from "../../lib/money";
 import type { AttachedImage } from "../../hooks/useSpotChat";
+import FilePreview, { type PreviewFile } from "./FilePreview";
+
+/** base64 → 表示用の Blob URL（添付 PDF を iframe で確実にプレビューするため）。 */
+function base64ToBlobUrl(base64: string, mimeType: string): string {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+}
 
 /** 実費の費目（budget の費目と揃える想定）。DB に保存する値なので翻訳せず日本語のまま扱う。 */
 export const EXPENSE_CATEGORIES = ["宿泊", "交通", "食事", "観光", "買い物", "その他"];
@@ -67,7 +76,31 @@ export default function ExpenseFormDialog({
   const [saving, setSaving] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // プレビュー対象（画像/PDF）。添付ファイルは blob URL を作るので閉じるとき revoke する。
+  const [preview, setPreview] = useState<PreviewFile | null>(null);
+  const revokeRef = useRef<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function openExistingPreview(im: (typeof existing)[number]) {
+    setPreview({ src: expenseImageUrl(im.id, im.updated_at), mimeType: im.mime_type, name: im.filename });
+  }
+  function openAttachedPreview(a: AttachedImage) {
+    // 画像は dataUrl で十分。PDF は iframe で確実に表示するため blob URL を作る。
+    if (a.mimeType === "application/pdf") {
+      const url = base64ToBlobUrl(a.base64, a.mimeType);
+      revokeRef.current = url;
+      setPreview({ src: url, mimeType: a.mimeType, name: a.name ?? null });
+    } else {
+      setPreview({ src: a.dataUrl, mimeType: a.mimeType, name: a.name ?? null });
+    }
+  }
+  function closePreview() {
+    if (revokeRef.current) {
+      URL.revokeObjectURL(revokeRef.current);
+      revokeRef.current = null;
+    }
+    setPreview(null);
+  }
 
   // ダイアログを開き直すたびに対象の実費で初期化する。
   useEffect(() => {
@@ -123,7 +156,7 @@ export default function ExpenseFormDialog({
     setWarning(null);
     setError(null);
     try {
-      const images: MemoImage[] = attached.map((a) => ({ data: a.base64, mimeType: a.mimeType }));
+      const images = attached.map((a) => ({ data: a.base64, mimeType: a.mimeType }));
       const { extraction: x, warning: w } = await api.extractReceipt(images);
       applyExtraction(x);
       if (w) setWarning(w);
@@ -161,7 +194,7 @@ export default function ExpenseFormDialog({
       const id = expense
         ? ((await api.updateExpense(expense.id, body))?.id ?? expense.id)
         : (await api.createExpense(body))?.id;
-      const images: MemoImage[] = attached.map((a) => ({ data: a.base64, mimeType: a.mimeType }));
+      const images = attached.map((a) => ({ data: a.base64, mimeType: a.mimeType, filename: a.name ?? null }));
       if (id && images.length > 0) await api.addExpenseImages(id, images);
       onSaved();
       onClose();
@@ -184,6 +217,7 @@ export default function ExpenseFormDialog({
     }`;
 
   return createPortal(
+    <>
     <div
       className="fixed inset-0 z-[600] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
       onClick={onClose}
@@ -244,25 +278,29 @@ export default function ExpenseFormDialog({
             {(existing.length > 0 || attached.length > 0) && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {existing.map((im) => (
-                  <div key={im.id} className="group relative">
-                    {im.mime_type === "application/pdf" ? (
-                      <a
-                        href={expenseImageUrl(im.id, im.updated_at)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-lg bg-white text-rose-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700"
-                        title={t("form.upload.openPdf")}
-                      >
-                        <FaFilePdf className="text-xl" />
-                        <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400">PDF</span>
-                      </a>
-                    ) : (
-                      <img
-                        src={expenseImageUrl(im.id, im.updated_at)}
-                        alt={t("form.upload.attachedAlt")}
-                        className="h-16 w-16 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700"
-                      />
-                    )}
+                  <div key={im.id} className="group relative w-16">
+                    <button
+                      type="button"
+                      onClick={() => openExistingPreview(im)}
+                      className="block h-16 w-16 overflow-hidden rounded-lg ring-1 ring-slate-200 transition hover:ring-cyan-400 dark:ring-slate-700"
+                      title={t("form.upload.preview")}
+                    >
+                      {im.mime_type === "application/pdf" ? (
+                        <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white text-rose-500 dark:bg-slate-800">
+                          <FaFilePdf className="text-xl" />
+                          <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400">PDF</span>
+                        </span>
+                      ) : (
+                        <img
+                          src={expenseImageUrl(im.id, im.updated_at)}
+                          alt={t("form.upload.attachedAlt")}
+                          className="h-full w-full object-cover"
+                        />
+                      )}
+                    </button>
+                    <span className="mt-1 block w-16 truncate text-[10px] text-slate-500 dark:text-slate-400" title={im.filename ?? undefined}>
+                      {im.filename || t("form.upload.filenameFallback")}
+                    </span>
                     <button
                       onClick={() => void removeExisting(im.id)}
                       className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-white opacity-0 transition group-hover:opacity-100"
@@ -273,15 +311,25 @@ export default function ExpenseFormDialog({
                   </div>
                 ))}
                 {attached.map((a, i) => (
-                  <div key={i} className="group relative">
-                    {a.mimeType === "application/pdf" ? (
-                      <div className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-lg bg-white text-rose-500 ring-1 ring-cyan-300 dark:bg-slate-800 dark:ring-cyan-500/50">
-                        <FaFilePdf className="text-xl" />
-                        <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400">PDF</span>
-                      </div>
-                    ) : (
-                      <img src={a.dataUrl} alt={t("form.upload.attachedAlt")} className="h-16 w-16 rounded-lg object-cover ring-1 ring-cyan-300 dark:ring-cyan-500/50" />
-                    )}
+                  <div key={i} className="group relative w-16">
+                    <button
+                      type="button"
+                      onClick={() => openAttachedPreview(a)}
+                      className="block h-16 w-16 overflow-hidden rounded-lg ring-1 ring-cyan-300 transition hover:ring-cyan-400 dark:ring-cyan-500/50"
+                      title={t("form.upload.preview")}
+                    >
+                      {a.mimeType === "application/pdf" ? (
+                        <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white text-rose-500 dark:bg-slate-800">
+                          <FaFilePdf className="text-xl" />
+                          <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400">PDF</span>
+                        </span>
+                      ) : (
+                        <img src={a.dataUrl} alt={t("form.upload.attachedAlt")} className="h-full w-full object-cover" />
+                      )}
+                    </button>
+                    <span className="mt-1 block w-16 truncate text-[10px] text-slate-500 dark:text-slate-400" title={a.name}>
+                      {a.name || t("form.upload.filenameFallback")}
+                    </span>
                     <button
                       onClick={() => setAttached((prev) => prev.filter((_, j) => j !== i))}
                       className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-white opacity-0 transition group-hover:opacity-100"
@@ -430,7 +478,9 @@ export default function ExpenseFormDialog({
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+    <FilePreview file={preview} onClose={closePreview} />
+    </>,
     document.body,
   );
 }

@@ -29,7 +29,7 @@ export type ExpenseBody = Partial<Omit<Expense, "created_at" | "updated_at" | "i
 type ExpenseRow = Omit<Expense, "images">;
 
 /** 画像メタ（実体 data を除く）用の共通 SELECT 句。 */
-const IMAGE_META_COLS = "id, expense_id, mime_type, sort_order, created_at, updated_at";
+const IMAGE_META_COLS = "id, expense_id, mime_type, filename, sort_order, created_at, updated_at";
 
 /** ある実費に紐づく画像メタ（実体 data は含まない）を表示順で取得する。 */
 export function listExpenseImages(db: DatabaseSync, expenseId: SQLInputValue): ExpenseImageMeta[] {
@@ -114,7 +114,7 @@ export function deleteExpense(db: DatabaseSync, id: SQLInputValue): { ok: true }
 export function addExpenseImages(
   db: DatabaseSync,
   expenseId: string,
-  images: Array<{ data: string; mimeType: string }>,
+  images: Array<{ data: string; mimeType: string; filename?: string | null }>,
 ): ExpenseImageMeta[] {
   const maxOrder = (
     db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM expense_images WHERE expense_id = ?").get(expenseId) as {
@@ -122,12 +122,12 @@ export function addExpenseImages(
     }
   ).m;
   const stmt = db.prepare(
-    "INSERT INTO expense_images (id, expense_id, mime_type, data, sort_order, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+    "INSERT INTO expense_images (id, expense_id, mime_type, filename, data, sort_order, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))",
   );
   images.forEach((im, i) => {
     // base64 → バイナリ（BLOB）。Buffer は Uint8Array なので BLOB にそのまま束縛できる。
     const buf = Buffer.from(im.data, "base64");
-    stmt.run(randomUUID(), expenseId, im.mimeType || "image/png", buf, maxOrder + 1 + i);
+    stmt.run(randomUUID(), expenseId, im.mimeType || "image/png", im.filename ?? null, buf, maxOrder + 1 + i);
   });
   return listExpenseImages(db, expenseId);
 }

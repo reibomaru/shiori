@@ -13,9 +13,19 @@ export interface MemoImage {
 export const memoImageUrl = (id: string, version?: string) =>
   `/api/memo/images/${id}${version ? `?v=${encodeURIComponent(version)}` : ""}`;
 
-/** 領収書画像の配信 URL。version（updated_at）を付けてキャッシュを更新する。 */
-export const expenseImageUrl = (id: string, version?: string) =>
-  `/api/expenses/images/${id}${version ? `?v=${encodeURIComponent(version)}` : ""}`;
+/**
+ * 領収書ファイルの配信 URL。<img>/<iframe> は X-Project-Id ヘッダを付けられないため、
+ * projectId をクエリで渡す（サーバはヘッダ／クエリの両方を受け付ける）。
+ * version（updated_at）はキャッシュ更新用。
+ */
+export const expenseImageUrl = (id: string, version?: string) => {
+  const params = new URLSearchParams();
+  const pid = getActiveProject();
+  if (pid) params.set("projectId", pid);
+  if (version) params.set("v", version);
+  const qs = params.toString();
+  return `/api/expenses/images/${id}${qs ? `?${qs}` : ""}`;
+};
 
 /** チャットセッション一覧の 1 行（サーバの chat_sessions より）。 */
 export interface ChatSessionSummary {
@@ -194,8 +204,8 @@ export const api = {
   createExpense: (body: Record<string, unknown>) => http<Expense>(`/api/expenses`, "POST", body),
   updateExpense: (id: string, patch: Record<string, unknown>) => http<Expense>(`/api/expenses/${id}`, "PUT", patch),
   deleteExpense: (id: string) => http(`/api/expenses/${id}`, "DELETE"),
-  // 領収書画像を実費に追加保存し、更新後の実費を返す。
-  addExpenseImages: (id: string, images: MemoImage[]) =>
+  // 領収書ファイル（画像/PDF）を実費に追加保存し、更新後の実費を返す。filename は任意。
+  addExpenseImages: (id: string, images: Array<MemoImage & { filename?: string | null }>) =>
     http<Expense>(`/api/expenses/${id}/images`, "POST", { images }),
   deleteExpenseImage: (id: string) => http(`/api/expenses/images/${id}`, "DELETE"),
   // 領収書・請求書/予約完了画面のスクショや PDF から実費情報を抽出する（保存はしない）。

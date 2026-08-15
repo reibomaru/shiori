@@ -6,6 +6,7 @@ import { PanelRightOpen } from "lucide-react";
 import { useMemoPages } from "../hooks/useMemoPages";
 import { useMemoChat } from "../hooks/useMemoChat";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useEdgeSwipe } from "../hooks/useEdgeSwipe";
 import { useVisualViewport } from "../hooks/useVisualViewport";
 import MemoDetail from "../components/memo/MemoDetail";
 import MemoChat from "../components/memoChat/MemoChat";
@@ -37,6 +38,15 @@ export default function MemoDetailPage() {
   const [chatWidth, setChatWidth] = useState(() => {
     const saved = Number(localStorage.getItem(WIDTH_KEY));
     return saved >= CHAT_MIN ? saved : CHAT_DEFAULT;
+  });
+
+  // モバイルは右端からのスワイプで開き、右へのスワイプで閉じる。
+  useEdgeSwipe({
+    edge: "right",
+    isOpen: chatOpen,
+    onOpen: () => setChatOpen(true),
+    onClose: () => setChatOpen(false),
+    enabled: isMobile,
   });
 
   const containerRef = useRef<HTMLDivElement>(null);

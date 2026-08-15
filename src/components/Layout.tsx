@@ -16,6 +16,8 @@ import {
 } from "react-icons/fa6";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftExpand } from "react-icons/tb";
 import { useTrip } from "../store";
+import { useIsMobile } from "../hooks/useIsMobile";
+import { useEdgeSwipe } from "../hooks/useEdgeSwipe";
 import { useAuth } from "./AuthGate";
 import { useProject } from "../project";
 import { Logo } from "./Logo";
@@ -68,6 +70,16 @@ export default function Layout() {
   const [navOpen, setNavOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  // モバイルは左端からのスワイプで開き、左へのスワイプで閉じる。
+  useEdgeSwipe({
+    edge: "left",
+    isOpen: mobileOpen,
+    onOpen: () => setMobileOpen(true),
+    onClose: () => setMobileOpen(false),
+    enabled: isMobile,
+  });
 
   // ページ遷移したらモバイルのドロワーは閉じる。
   useEffect(() => {

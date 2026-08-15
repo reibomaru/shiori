@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { TbLayoutSidebarRightExpand } from "react-icons/tb";
 import { useTrip } from "../store";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useEdgeSwipe } from "../hooks/useEdgeSwipe";
 import { api, type SpotRating } from "../api";
 import MapView from "../components/MapView";
 import MoveProcess from "../components/MoveProcess";
@@ -72,6 +73,15 @@ export default function MapPage() {
   // サイドパネルの幅（splitter ドラッグで調整）
   const [panelWidth, setPanelWidth] = useState(320);
   const draggingRef = useRef(false);
+
+  // モバイルは右端からのスワイプで工程パネルを開き、右へのスワイプで閉じる。
+  useEdgeSwipe({
+    edge: "right",
+    isOpen: panelOpen,
+    onOpen: () => setPanelOpen(true),
+    onClose: () => setPanelOpen(false),
+    enabled: isMobile,
+  });
 
   // Google マップの評価・写真。一覧ページと同じソース（DB に30日キャッシュ）。
   const [ratings, setRatings] = useState<Record<string, SpotRating | null>>({});

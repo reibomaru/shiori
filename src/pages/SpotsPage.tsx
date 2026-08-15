@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { PanelRightOpen } from "lucide-react";
 import { useTrip } from "../store";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useEdgeSwipe } from "../hooks/useEdgeSwipe";
 import { useVisualViewport } from "../hooks/useVisualViewport";
 import { useSpotChat } from "../hooks/useSpotChat";
 import Spots from "../components/Spots";
@@ -27,6 +28,15 @@ export default function SpotsPage() {
   const [chatWidth, setChatWidth] = useState(() => {
     const saved = Number(localStorage.getItem(STORAGE_KEY));
     return saved >= CHAT_MIN ? saved : CHAT_DEFAULT;
+  });
+
+  // モバイルは右端からのスワイプで開き、右へのスワイプで閉じる。
+  useEdgeSwipe({
+    edge: "right",
+    isOpen: chatOpen,
+    onOpen: () => setChatOpen(true),
+    onClose: () => setChatOpen(false),
+    enabled: isMobile,
   });
 
   const containerRef = useRef<HTMLDivElement>(null);

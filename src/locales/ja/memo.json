@@ -6,7 +6,13 @@
     "createFirst": "最初のメモを作成",
     "untitled": "無題のメモ",
     "updatedAt": "更新 {{date}}",
-    "deleteTitle": "このメモを削除"
+    "createdAt": "作成 {{date}}",
+    "deleteTitle": "このメモを削除",
+    "sortLabel": "並び替え",
+    "sortByUpdated": "更新順",
+    "sortByCreated": "作成順",
+    "sortDesc": "新しい順",
+    "sortAsc": "古い順"
   },
   "detail": {
     "backToList": "メモ一覧",

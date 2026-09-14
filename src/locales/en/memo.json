@@ -6,7 +6,13 @@
     "createFirst": "Create your first note",
     "untitled": "Untitled note",
     "updatedAt": "Updated {{date}}",
-    "deleteTitle": "Delete this note"
+    "createdAt": "Created {{date}}",
+    "deleteTitle": "Delete this note",
+    "sortLabel": "Sort",
+    "sortByUpdated": "Updated",
+    "sortByCreated": "Created",
+    "sortDesc": "Newest first",
+    "sortAsc": "Oldest first"
   },
   "detail": {
     "backToList": "Notes list",

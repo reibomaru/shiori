@@ -101,12 +101,18 @@ function authPage(opts: { heading: string; bodyHtml: string }): string {
   h1 { font-size: 20px; margin: 0 0 14px; color: #f1f5f9; }
   p { margin: 0 0 12px; font-size: 14px; color: #cbd5e1; }
   b { color: #f1f5f9; font-weight: 600; }
-  a.btn {
+  .btn {
     display: inline-block; margin-top: 10px; padding: 10px 18px; border-radius: 10px;
     background: #22d3ee; color: #0b1120; font-weight: 600; text-decoration: none;
+    border: 0; cursor: pointer; font-family: inherit; font-size: 14px;
     transition: background-color .15s ease;
   }
-  a.btn:hover { background: #67e8f9; }
+  .btn:hover { background: #67e8f9; }
+  .btn.secondary {
+    margin-left: 8px; background: transparent; color: #cbd5e1;
+    box-shadow: inset 0 0 0 1px rgba(148,163,184,.35);
+  }
+  .btn.secondary:hover { background: rgba(148,163,184,.12); }
 </style>
 </head>
 <body>
@@ -126,7 +132,18 @@ function pendingHtml(email: string): string {
     bodyHtml: `
     <p>アカウント（<b>${escapeHtml(email)}</b>）の利用申請を受け付けました。<br />管理者の承認後にご利用いただけます。</p>
     <p>承認されたら、もう一度ログインしてください。</p>
-    <p><a class="btn" href="/">トップへ戻る</a></p>`,
+    <p>
+      <a class="btn" href="/">トップへ戻る</a>
+      <button class="btn secondary" type="button" onclick="logout()">ログアウト</button>
+    </p>
+    <script>
+      // 別アカウントで申請し直したい場合などに、この画面からでもセッションを破棄できるようにする。
+      function logout() {
+        fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' })
+          .catch(function () {})
+          .then(function () { location.href = '/'; });
+      }
+    </script>`,
   });
 }
 

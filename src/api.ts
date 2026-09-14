@@ -249,6 +249,8 @@ export const api = {
   createMemoPage: (body: Record<string, unknown> = {}) => http<MemoPage>(`/api/memo/pages`, "POST", body),
   updateMemoPage: (id: string, patch: Record<string, unknown>) => http<MemoPage>(`/api/memo/pages/${id}`, "PUT", patch),
   deleteMemoPage: (id: string) => http(`/api/memo/pages/${id}`, "DELETE"),
+  // 本文の内容から AI でタイトル候補を生成して返す（保存はしない）。
+  generateMemoTitle: (id: string) => http<{ title: string }>(`/api/memo/pages/${id}/title`, "POST"),
   // 元画像を保存しつつ情報を抽出して HTML/テキストをページに追記し、更新後のページを返す。
   // 抽出に失敗しても元画像は保存され、warning が添えられる。
   extractMemoPage: (id: string, images: MemoImage[]) =>

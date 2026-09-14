@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FaCheck, FaPen } from "react-icons/fa6";
+import { FaCheck, FaPen, FaWandMagicSparkles } from "react-icons/fa6";
 import type { MemoPage } from "../../types";
+import { api } from "../../api";
 import Markdown from "../spotChat/Markdown";
 
 /**
@@ -21,13 +22,35 @@ export default function MemoDetail({
   const [editBody, setEditBody] = useState(false);
   const [bodyDraft, setBodyDraft] = useState(page.body ?? "");
   const [savingBody, setSavingBody] = useState(false);
+  const [genTitle, setGenTitle] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   // ページを切り替えたらローカルの下書きを同期する。
   useEffect(() => {
     setTitle(page.title);
     setBodyDraft(page.body ?? "");
     setEditBody(false);
+    setGenError(null);
   }, [page.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // タイトル生成の素材（保存済みの本文 or 画像抽出テキスト）があるか。無ければボタンを無効化する。
+  const hasSource = !!(page.body?.trim() || page.text?.trim());
+
+  const generateTitle = async () => {
+    setGenTitle(true);
+    setGenError(null);
+    try {
+      const { title: next } = await api.generateMemoTitle(page.id);
+      if (next) {
+        setTitle(next);
+        await onUpdate({ title: next });
+      }
+    } catch {
+      setGenError(t("detail.generateTitleError"));
+    } finally {
+      setGenTitle(false);
+    }
+  };
 
   const saveTitle = () => {
     const next = title.trim() || t("list.untitled");
@@ -47,19 +70,33 @@ export default function MemoDetail({
 
   return (
     <div className="space-y-4">
-      {/* タイトル */}
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onBlur={saveTitle}
-        onKeyDown={(e) => {
-          // IME 変換確定の Enter（日本語入力中）は無視する。
-          // ここで blur すると変換途中で保存が走り、確定文字列が二重に入る不具合になる。
-          if (e.key === "Enter" && !e.nativeEvent.isComposing) e.currentTarget.blur();
-        }}
-        placeholder={t("editor.titlePlaceholder")}
-        className="w-full border-0 border-b border-transparent bg-transparent pb-1 text-xl font-bold text-slate-800 focus:border-cyan-300 focus:outline-none dark:text-slate-100 dark:placeholder-slate-500"
-      />
+      {/* タイトル（本文から AI 生成もできる） */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={(e) => {
+              // IME 変換確定の Enter（日本語入力中）は無視する。
+              // ここで blur すると変換途中で保存が走り、確定文字列が二重に入る不具合になる。
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) e.currentTarget.blur();
+            }}
+            placeholder={t("editor.titlePlaceholder")}
+            className="min-w-0 flex-1 border-0 border-b border-transparent bg-transparent pb-1 text-xl font-bold text-slate-800 focus:border-cyan-300 focus:outline-none dark:text-slate-100 dark:placeholder-slate-500"
+          />
+          <button
+            onClick={generateTitle}
+            disabled={genTitle || !hasSource}
+            title={hasSource ? t("detail.generateTitle") : t("detail.generateTitleEmpty")}
+            className="no-print flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-700"
+          >
+            <FaWandMagicSparkles className={`text-[11px] ${genTitle ? "animate-pulse" : ""}`} />
+            {genTitle ? t("detail.generatingTitle") : t("detail.generateTitle")}
+          </button>
+        </div>
+        {genError && <p className="text-xs text-rose-600 dark:text-rose-400">{genError}</p>}
+      </div>
 
       {/* 本文（Markdown） */}
       <section className="space-y-2">

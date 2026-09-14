@@ -22,7 +22,11 @@
     "notFound": "Note not found.",
     "backToListLink": "Back to list",
     "resizeHint": "Drag to adjust width",
-    "closeChat": "Close chat"
+    "closeChat": "Close chat",
+    "generateTitle": "Auto-generate title",
+    "generatingTitle": "Generating…",
+    "generateTitleEmpty": "Add some content to auto-generate a title",
+    "generateTitleError": "Failed to generate a title."
   },
   "editor": {
     "titlePlaceholder": "Note title",

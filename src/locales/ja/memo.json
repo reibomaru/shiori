@@ -22,7 +22,11 @@
     "notFound": "メモが見つかりませんでした。",
     "backToListLink": "一覧へ戻る",
     "resizeHint": "ドラッグで幅を調整",
-    "closeChat": "チャットを閉じる"
+    "closeChat": "チャットを閉じる",
+    "generateTitle": "タイトルを自動生成",
+    "generatingTitle": "生成中…",
+    "generateTitleEmpty": "本文を入力するとタイトルを自動生成できます",
+    "generateTitleError": "タイトルの生成に失敗しました。"
   },
   "editor": {
     "titlePlaceholder": "メモのタイトル",

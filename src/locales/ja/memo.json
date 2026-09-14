@@ -59,9 +59,13 @@
     },
     "tools": {
       "list_memo_pages": "メモ一覧を確認",
+      "list_itinerary": "旅程を参照",
+      "list_spots": "候補スポットを参照",
       "get_memo_page": "メモを取得",
       "propose_upsert_memo_page": "作成/編集を提案",
-      "propose_delete_memo_page": "削除を提案"
+      "propose_delete_memo_page": "削除を提案",
+      "web_search": "Web 検索",
+      "fetch_url": "ページ取得"
     }
   },
   "proposal": {

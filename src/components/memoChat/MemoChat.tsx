@@ -18,9 +18,13 @@ const MAX_BYTES = 12 * 1024 * 1024; // 1 枚あたり 12MB まで（HEIC の元�
 // ツール名 → i18n キー。ラベル文言は locale 側で管理する。
 const TOOL_LABEL_KEYS: Record<string, string> = {
   list_memo_pages: "chat.tools.list_memo_pages",
+  list_itinerary: "chat.tools.list_itinerary",
+  list_spots: "chat.tools.list_spots",
   get_memo_page: "chat.tools.get_memo_page",
   propose_upsert_memo_page: "chat.tools.propose_upsert_memo_page",
   propose_delete_memo_page: "chat.tools.propose_delete_memo_page",
+  web_search: "chat.tools.web_search",
+  fetch_url: "chat.tools.fetch_url",
 };
 
 const SUGGESTION_KEYS = ["chat.suggestions.fixTypos", "chat.suggestions.summarize", "chat.suggestions.packingList"];

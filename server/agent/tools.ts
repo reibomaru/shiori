@@ -134,6 +134,92 @@ function makeListMemoPages(db: DatabaseSync): ToolDefinition {
   });
 }
 
+/** URL 本文をプレーンテキストで取得する読み取り専用ツール（spot / memo 双方で共有）。 */
+function makeFetchUrl(): ToolDefinition {
+  return defineTool({
+    name: "fetch_url",
+    label: "URL 取得",
+    description:
+      "指定 URL のページ本文をプレーンテキストで取得する。ユーザーが貼った URL や、web_search で見つけた公式ページから、英名・カテゴリ・概要・出典を読み取るために使う。短縮URL/302 リダイレクトは自動で辿り、最終的に着地した URL も併せて返す（リダイレクト先が Google マップなら resolve_map_url の利用を検討）。",
+    promptSnippet: "fetch_url(url) — ページ本文を取得（リダイレクト先も追う）",
+    parameters: Type.Object({
+      url: Type.String({ description: "取得する URL" }),
+    }),
+    async execute(_id, p, signal) {
+      try {
+        // 非ブラウザ UA。Google 等はブラウザ風 UA だと 30x を返さずインタースティシャルになるため。
+        const res = await fetch(p.url, {
+          signal: signal ?? undefined,
+          headers: { "User-Agent": "shiori/1.0 (shiori spot agent)" },
+          redirect: "follow", // 302 等は最後まで辿り、res.url に最終 URL が入る
+        });
+        // 着地先が元URLと違う（=リダイレクトされた）なら、その最終URLを明示する
+        const redirectedNote = res.url && res.url !== p.url ? `リダイレクト先: ${res.url}\n\n` : "";
+        if (!res.ok) return text(`${redirectedNote}取得失敗: HTTP ${res.status}`);
+        const body = await res.text();
+        const plain = htmlToText(body).slice(0, 4000);
+        return text(redirectedNote + (plain || "(本文を抽出できませんでした)"));
+      } catch (err) {
+        return text(`取得エラー: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    },
+  });
+}
+
+/** Web 検索ツール（spot / memo 双方で共有）。websearchapi.ai を利用する。 */
+function makeWebSearch(webSearchApiKey: string): ToolDefinition {
+  return defineTool({
+    name: "web_search",
+    label: "Web 検索",
+    description:
+      "Web を検索して、スポットの公式ページ・概要・所在地などの最新情報を得る。URL が分からないスポットを名前だけで調べるときに使う。",
+    promptSnippet: "web_search(query) — Web 検索",
+    parameters: Type.Object({
+      query: Type.String({ description: "検索クエリ" }),
+      max_results: Type.Optional(Type.Number({ description: "最大件数（既定 5・最大 10）" })),
+    }),
+    async execute(_id, p, signal) {
+      if (!webSearchApiKey) {
+        return text("Web 検索の設定がありません。サーバーの環境変数 WEBSEARCH_API_KEY を .env に設定してください。");
+      }
+      const limit = Math.min(p.max_results ?? 5, 10);
+      console.log(`[web_search] query="${p.query}" maxResults=${limit} → websearchapi.ai`);
+      try {
+        const res = await fetch("https://api.websearchapi.ai/ai-search", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${webSearchApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query: p.query, maxResults: limit, includeContent: false }),
+          signal: signal ?? undefined,
+        });
+        if (!res.ok) {
+          console.error(`[web_search] HTTP ${res.status} query="${p.query}"`);
+          return text(`検索失敗: HTTP ${res.status}（websearchapi.ai）`);
+        }
+        const data = await res.json() as { organic?: Array<{ title?: string; url?: string; description?: string }> };
+        const results = (data.organic ?? []).slice(0, limit);
+        console.log(`[web_search] query="${p.query}" → ${results.length} 件`);
+        if (results.length === 0) return text("検索結果が見つかりませんでした。");
+        const formatted = results
+          .map((r, i) => {
+            const lines = [`${i + 1}. ${r.title}`, `   URL: ${r.url}`];
+            if (r.description) lines.push(`   ${r.description}`);
+            return lines.join("\n");
+          })
+          .join("\n\n");
+        return text(formatted);
+      } catch (err) {
+        console.error(`[web_search] error query="${p.query}":`, err instanceof Error ? err.message : err);
+        return text(
+          `検索エラー: ${err instanceof Error ? err.message : String(err)}（websearchapi.ai に接続できません）`,
+        );
+      }
+    },
+  });
+}
+
 /**
  * リクエスト 1 回分のツール一式を生成する。
  */
@@ -300,85 +386,9 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
     },
   });
 
-  const fetch_url = defineTool({
-    name: "fetch_url",
-    label: "URL 取得",
-    description:
-      "指定 URL のページ本文をプレーンテキストで取得する。ユーザーが貼った URL や、web_search で見つけた公式ページから、英名・カテゴリ・概要・出典を読み取るために使う。短縮URL/302 リダイレクトは自動で辿り、最終的に着地した URL も併せて返す（リダイレクト先が Google マップなら resolve_map_url の利用を検討）。",
-    promptSnippet: "fetch_url(url) — ページ本文を取得（リダイレクト先も追う）",
-    parameters: Type.Object({
-      url: Type.String({ description: "取得する URL" }),
-    }),
-    async execute(_id, p, signal) {
-      try {
-        // 非ブラウザ UA。Google 等はブラウザ風 UA だと 30x を返さずインタースティシャルになるため。
-        const res = await fetch(p.url, {
-          signal: signal ?? undefined,
-          headers: { "User-Agent": "shiori/1.0 (shiori spot agent)" },
-          redirect: "follow", // 302 等は最後まで辿り、res.url に最終 URL が入る
-        });
-        // 着地先が元URLと違う（=リダイレクトされた）なら、その最終URLを明示する
-        const redirectedNote = res.url && res.url !== p.url ? `リダイレクト先: ${res.url}\n\n` : "";
-        if (!res.ok) return text(`${redirectedNote}取得失敗: HTTP ${res.status}`);
-        const body = await res.text();
-        const plain = htmlToText(body).slice(0, 4000);
-        return text(redirectedNote + (plain || "(本文を抽出できませんでした)"));
-      } catch (err) {
-        return text(`取得エラー: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    },
-  });
+  const fetch_url = makeFetchUrl();
 
-  const web_search = defineTool({
-    name: "web_search",
-    label: "Web 検索",
-    description:
-      "Web を検索して、スポットの公式ページ・概要・所在地などの最新情報を得る。URL が分からないスポットを名前だけで調べるときに使う。",
-    promptSnippet: "web_search(query) — Web 検索",
-    parameters: Type.Object({
-      query: Type.String({ description: "検索クエリ" }),
-      max_results: Type.Optional(Type.Number({ description: "最大件数（既定 5・最大 10）" })),
-    }),
-    async execute(_id, p, signal) {
-      if (!webSearchApiKey) {
-        return text("Web 検索の設定がありません。サーバーの環境変数 WEBSEARCH_API_KEY を .env に設定してください。");
-      }
-      const limit = Math.min(p.max_results ?? 5, 10);
-      console.log(`[web_search] query="${p.query}" maxResults=${limit} → websearchapi.ai`);
-      try {
-        const res = await fetch("https://api.websearchapi.ai/ai-search", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${webSearchApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ query: p.query, maxResults: limit, includeContent: false }),
-          signal: signal ?? undefined,
-        });
-        if (!res.ok) {
-          console.error(`[web_search] HTTP ${res.status} query="${p.query}"`);
-          return text(`検索失敗: HTTP ${res.status}（websearchapi.ai）`);
-        }
-        const data = await res.json() as { organic?: Array<{ title?: string; url?: string; description?: string }> };
-        const results = (data.organic ?? []).slice(0, limit);
-        console.log(`[web_search] query="${p.query}" → ${results.length} 件`);
-        if (results.length === 0) return text("検索結果が見つかりませんでした。");
-        const formatted = results
-          .map((r, i) => {
-            const lines = [`${i + 1}. ${r.title}`, `   URL: ${r.url}`];
-            if (r.description) lines.push(`   ${r.description}`);
-            return lines.join("\n");
-          })
-          .join("\n\n");
-        return text(formatted);
-      } catch (err) {
-        console.error(`[web_search] error query="${p.query}":`, err instanceof Error ? err.message : err);
-        return text(
-          `検索エラー: ${err instanceof Error ? err.message : String(err)}（websearchapi.ai に接続できません）`,
-        );
-      }
-    },
-  });
+  const web_search = makeWebSearch(webSearchApiKey);
 
   return [list_spots, list_memo_pages, propose_upsert_spot, propose_delete_spot, resolve_map_url, geocode, fetch_url, web_search];
 }
@@ -387,17 +397,22 @@ export function createSpotTools({ db, emit, webSearchApiKey }: SpotToolsOptions)
 export interface MemoToolsOptions {
   db: DatabaseSync;
   emit: EmitFn;
+  /** websearchapi.ai の API キー */
+  webSearchApiKey: string;
 }
 
 /**
  * メモ編集エージェント用のツール一式。
  * スポットと同じくプレビュー承認制で、DB は直接書き換えず propose_* で提案するだけ。
  */
-export function createMemoTools({ db, emit }: MemoToolsOptions): ToolDefinition[] {
+export function createMemoTools({ db, emit, webSearchApiKey }: MemoToolsOptions): ToolDefinition[] {
   const list_memo_pages = makeListMemoPages(db);
   // 旅程・スポットは読み取り専用で参照だけできる（編集は各担当エージェント/UI に任せる）。
   const list_itinerary = makeListItinerary(db);
   const list_spots = makeListSpots(db);
+  // Web で最新情報を調べてメモに反映できるよう、検索・URL 取得も共有する。
+  const fetch_url = makeFetchUrl();
+  const web_search = makeWebSearch(webSearchApiKey);
 
   const get_memo_page = defineTool({
     name: "get_memo_page",
@@ -486,5 +501,7 @@ export function createMemoTools({ db, emit }: MemoToolsOptions): ToolDefinition[
     get_memo_page,
     propose_upsert_memo_page,
     propose_delete_memo_page,
+    fetch_url,
+    web_search,
   ];
 }

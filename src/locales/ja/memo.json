@@ -6,7 +6,13 @@
     "createFirst": "最初のメモを作成",
     "untitled": "無題のメモ",
     "updatedAt": "更新 {{date}}",
-    "deleteTitle": "このメモを削除"
+    "createdAt": "作成 {{date}}",
+    "deleteTitle": "このメモを削除",
+    "sortLabel": "並び替え",
+    "sortByUpdated": "更新順",
+    "sortByCreated": "作成順",
+    "sortDesc": "新しい順",
+    "sortAsc": "古い順"
   },
   "detail": {
     "backToList": "メモ一覧",
@@ -16,7 +22,11 @@
     "notFound": "メモが見つかりませんでした。",
     "backToListLink": "一覧へ戻る",
     "resizeHint": "ドラッグで幅を調整",
-    "closeChat": "チャットを閉じる"
+    "closeChat": "チャットを閉じる",
+    "generateTitle": "タイトルを自動生成",
+    "generatingTitle": "生成中…",
+    "generateTitleEmpty": "本文を入力するとタイトルを自動生成できます",
+    "generateTitleError": "タイトルの生成に失敗しました。"
   },
   "editor": {
     "titlePlaceholder": "メモのタイトル",
@@ -59,9 +69,13 @@
     },
     "tools": {
       "list_memo_pages": "メモ一覧を確認",
+      "list_itinerary": "旅程を参照",
+      "list_spots": "候補スポットを参照",
       "get_memo_page": "メモを取得",
       "propose_upsert_memo_page": "作成/編集を提案",
-      "propose_delete_memo_page": "削除を提案"
+      "propose_delete_memo_page": "削除を提案",
+      "web_search": "Web 検索",
+      "fetch_url": "ページ取得"
     }
   },
   "proposal": {

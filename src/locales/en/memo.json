@@ -6,7 +6,13 @@
     "createFirst": "Create your first note",
     "untitled": "Untitled note",
     "updatedAt": "Updated {{date}}",
-    "deleteTitle": "Delete this note"
+    "createdAt": "Created {{date}}",
+    "deleteTitle": "Delete this note",
+    "sortLabel": "Sort",
+    "sortByUpdated": "Updated",
+    "sortByCreated": "Created",
+    "sortDesc": "Newest first",
+    "sortAsc": "Oldest first"
   },
   "detail": {
     "backToList": "Notes list",
@@ -16,7 +22,11 @@
     "notFound": "Note not found.",
     "backToListLink": "Back to list",
     "resizeHint": "Drag to adjust width",
-    "closeChat": "Close chat"
+    "closeChat": "Close chat",
+    "generateTitle": "Auto-generate title",
+    "generatingTitle": "Generating…",
+    "generateTitleEmpty": "Add some content to auto-generate a title",
+    "generateTitleError": "Failed to generate a title."
   },
   "editor": {
     "titlePlaceholder": "Note title",
@@ -59,9 +69,13 @@
     },
     "tools": {
       "list_memo_pages": "Checking note list",
+      "list_itinerary": "Checking itinerary",
+      "list_spots": "Checking saved spots",
       "get_memo_page": "Fetching note",
       "propose_upsert_memo_page": "Proposing create/edit",
-      "propose_delete_memo_page": "Proposing delete"
+      "propose_delete_memo_page": "Proposing delete",
+      "web_search": "Web search",
+      "fetch_url": "Fetch page"
     }
   },
   "proposal": {

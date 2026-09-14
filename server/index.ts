@@ -43,6 +43,7 @@ import {
   extractGraphFromImages,
   extractHtmlFromImages,
   extractReceiptFromImages,
+  generateTitleFromText,
 } from "./agent/extract.ts";
 import { normalizeImageForWeb } from "./agent/images.ts";
 import { MissingApiKeyError } from "./apiKeys.ts";
@@ -599,6 +600,44 @@ app.post("/api/memo/pages/:id/extract", async (c) => {
   // 画像メタを反映した最新ページを返す。
   const updated = memoRepo.getMemoPage(db, id);
   return c.json(warning ? { ...updated, warning } : updated);
+});
+
+// メモ本文から内容を表すタイトルを AI で生成して返す（保存はクライアント側で行う）。
+app.post("/api/memo/pages/:id/title", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+  const page = memoRepo.getMemoPage(db, id);
+  if (!page) return c.json({ error: "メモページが見つかりません。" }, 404);
+
+  // 本文（自由記述）を優先し、無ければ画像抽出の平文をタイトルの素材にする。
+  const source = (page.body?.trim() || page.text?.trim() || "");
+  if (!source) return c.json({ error: "本文が空のためタイトルを生成できません。" }, 400);
+
+  let resolved;
+  try {
+    resolved = await resolveAiKey(c.get("userId"));
+  } catch (err) {
+    const status = err instanceof UsageLimitExceededError ? 429 : 400;
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, status);
+  }
+
+  let cost = 0;
+  let title: string;
+  try {
+    title = await generateTitleFromText({
+      apiKey: resolved.apiKey,
+      text: source,
+      onUsage: (u) => {
+        cost += u.costUSD;
+      },
+    });
+  } catch (err) {
+    return c.json({ error: `タイトルの生成に失敗しました: ${err instanceof Error ? err.message : String(err)}` }, 502);
+  }
+  await recordUsage(c.get("userId"), resolved.source, cost);
+
+  if (!title) return c.json({ error: "タイトルを生成できませんでした。" }, 502);
+  return c.json({ title });
 });
 
 // ---- route ------------------------------------------------

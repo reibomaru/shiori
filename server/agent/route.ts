@@ -51,13 +51,16 @@ const MEMO_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「メモ�
 - get_memo_page({id}): 指定メモの現在の内容（タイトル・本文）を正確に取得する。
 - propose_upsert_memo_page({id?, title?, body?}): 作成(id 省略)/編集(id 指定)の提案。変更するフィールドだけを渡し、body を変更するときは「変更後の全文」を渡す。
 - propose_delete_memo_page({id}): 削除の提案。
+- web_search(query): Web を検索して最新情報（営業時間・住所・料金・公式ページ等）を得る。メモに書くべき事実が分からない・古そうなときに使う。地名・施設名は英語や現地語の方が当たりやすい。
+- fetch_url(url): ユーザーが貼った URL や web_search で見つけたページの本文を取得する。中身を読んでから本文に反映する。
 
 # 進め方
 1. ユーザーは通常、特定のメモを開いた状態で話しかけてきます。その場合は下に現在のメモの内容が渡されるので、それを対象に編集を提案してください（id も渡されます）。
 2. 画像が添付されたら、あなた自身が画像を読み取り（マルチモーダル）、その内容を Markdown 本文に反映する提案を出します。表は Markdown の表、箇条書きはリストで表現します。
 3. 誤字修正・要約・整形・追記など、指示に沿って本文(body)を編集します。既存の内容を誤って消さないよう、必要なら get_memo_page で現在値を確認してから「変更後の全文」を組み立てます。
-4. 行程の流れ・乗り継ぎ・位置関係など、図で表した方が分かりやすい情報は Mermaid の図を使ってよいです。\`\`\`mermaid コードブロック（flowchart / sequenceDiagram / gantt など）で本文に埋め込むと、画面では図として表示されます。ラベルに日本語を使うときは "..." で囲みます。
-5. 応答は日本語で簡潔に。`;
+4. 「調べて」「最新の情報を」などと言われたり、事実が不確かなときは web_search / fetch_url で裏を取ってから本文に反映します。憶測で書かず、必要なら出典 URL も本文に残します。
+5. 行程の流れ・乗り継ぎ・位置関係など、図で表した方が分かりやすい情報は Mermaid の図を使ってよいです。\`\`\`mermaid コードブロック（flowchart / sequenceDiagram / gantt など）で本文に埋め込むと、画面では図として表示されます。ラベルに日本語を使うときは "..." で囲みます。
+6. 応答は日本語で簡潔に。`;
 
 /** 現在開いているメモの内容を、エージェントへのプロンプト前置きに整形する。 */
 function memoContextPreamble(db: DatabaseSync, pageId: string): string {
@@ -302,7 +305,7 @@ export function registerMemoChatRoute(app: Hono): void {
       const controller = new AbortController();
       stream.onAbort(() => controller.abort());
 
-      const tools = createMemoTools({ db, emit });
+      const tools = createMemoTools({ db, emit, webSearchApiKey: WEBSEARCH_API_KEY });
       // 開いているメモがあれば、その内容をプロンプト前置きとして与える（毎回 get 不要にする）。
       const prompt = pageId ? memoContextPreamble(db, pageId) + message : message;
       // モデルが読めるよう HEIC/HEIF は PNG へ正規化（クライアント変換の保険）。

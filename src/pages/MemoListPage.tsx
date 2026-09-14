@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaChevronRight, FaPlus, FaRegNoteSticky, FaTrash } from "react-icons/fa6";
+import { FaArrowDownWideShort, FaArrowUpWideShort, FaChevronRight, FaPlus, FaRegNoteSticky, FaTrash } from "react-icons/fa6";
 import { useMemoPages } from "../hooks/useMemoPages";
 import ConfirmDialog from "../components/ConfirmDialog";
 
@@ -9,6 +9,11 @@ import ConfirmDialog from "../components/ConfirmDialog";
 function fmtDate(s: string): string {
   return (s || "").slice(0, 10);
 }
+
+/** 一覧の並び替えキー。更新日時 / 作成日時。 */
+type SortKey = "updated" | "created";
+/** 並び順。desc=新しい順 / asc=古い順。 */
+type SortDir = "desc" | "asc";
 
 /** メモの一覧ページ。ページの作成・削除と、詳細（/memo/:id）への遷移を行う。 */
 export default function MemoListPage() {
@@ -20,6 +25,17 @@ export default function MemoListPage() {
   const [creating, setCreating] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("updated");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  // 日時文字列（"YYYY-MM-DD HH:MM:SS" UTC）は辞書順=時系列順なので文字列比較で並べ替えられる。
+  const sortedPages = useMemo(() => {
+    const field = sortKey === "updated" ? "updated_at" : "created_at";
+    return [...pages].sort((a, b) => {
+      const cmp = (a[field] || "").localeCompare(b[field] || "");
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+  }, [pages, sortKey, sortDir]);
 
   const onCreate = async () => {
     setCreating(true);
@@ -50,6 +66,35 @@ export default function MemoListPage() {
 
       {error && <div className="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</div>}
 
+      {!loading && pages.length > 0 && (
+        <div className="no-print mb-3 flex items-center gap-2 text-sm">
+          <span className="text-slate-400 dark:text-slate-500">{t("list.sortLabel")}</span>
+          <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+            {(["updated", "created"] as const).map((key) => (
+              <button
+                key={key}
+                onClick={() => setSortKey(key)}
+                className={`px-3 py-1 font-medium transition ${
+                  sortKey === key
+                    ? "bg-cyan-700 text-white"
+                    : "bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                }`}
+              >
+                {key === "updated" ? t("list.sortByUpdated") : t("list.sortByCreated")}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            title={sortDir === "desc" ? t("list.sortDesc") : t("list.sortAsc")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1 font-medium text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+          >
+            {sortDir === "desc" ? <FaArrowDownWideShort /> : <FaArrowUpWideShort />}
+            {sortDir === "desc" ? t("list.sortDesc") : t("list.sortAsc")}
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="p-10 text-center text-sm text-slate-400 dark:text-slate-500">{t("common:state.loading")}</div>
       ) : pages.length === 0 ? (
@@ -65,7 +110,7 @@ export default function MemoListPage() {
         </div>
       ) : (
         <ul className="space-y-2">
-          {pages.map((p) => (
+          {sortedPages.map((p) => (
             <li key={p.id}>
               <div className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-cyan-300 hover:shadow dark:border-slate-700 dark:bg-slate-800 dark:hover:border-cyan-500">
                 <button
@@ -78,7 +123,11 @@ export default function MemoListPage() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-slate-800 dark:text-slate-100">{p.title || t("list.untitled")}</span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400 dark:text-slate-500">
-                      <span>{t("list.updatedAt", { date: fmtDate(p.updated_at) })}</span>
+                      <span>
+                        {sortKey === "created"
+                          ? t("list.createdAt", { date: fmtDate(p.created_at) })
+                          : t("list.updatedAt", { date: fmtDate(p.updated_at) })}
+                      </span>
                     </span>
                   </span>
                 </button>

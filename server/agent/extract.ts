@@ -104,6 +104,15 @@ const RECEIPT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの費用�
 - 金額は税込み合計（total）を優先する。複数通貨が併記されている場合は主たる請求通貨を採用する。
 - 日本語で読み取り、title / vendor / note は日本語でよい。`;
 
+const TITLE_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ機能を支援するアシスタントです。
+ユーザーが書いたメモ本文を読み、その内容を一言で表す簡潔なタイトルを 1 つ考えます。
+
+# 出力ルール（厳守）
+- 出力はタイトルの文字列のみ。前置き・説明・記号・引用符・句点・コードフェンスは一切付けない。
+- 全角 20 文字程度まで。長くしすぎない。
+- 本文の主題が伝わる具体的な言葉にする。「メモ」「無題」のような中身のない語は避ける。
+- 本文と同じ言語で書く（日本語の本文なら日本語）。`;
+
 interface OneShotOptions {
   /** 解決済みの API キー（BYOK or 共有キー。呼び出し側が resolveAiKey で渡す）。 */
   apiKey: string;
@@ -348,4 +357,37 @@ export async function extractReceiptFromImages(args: {
     ...args,
   });
   return parseReceiptResponse(raw);
+}
+
+/** モデルが付けがちな引用符・記号・前置きを落として 1 行のタイトルに整える。 */
+function cleanTitle(raw: string): string {
+  const firstLine = raw.split("\n").map((l) => l.trim()).find((l) => l) ?? "";
+  return firstLine
+    .replace(/^["'「『【]+/, "")
+    .replace(/["'」』】。.]+$/, "")
+    .trim()
+    .slice(0, 40);
+}
+
+/**
+ * メモ本文（Markdown / 平文）から、内容を表す簡潔なタイトルを生成して返す。
+ * 生成できなければ空文字を返す（呼び出し側でフォールバックする）。
+ * @throws MissingApiKeyError API キー未設定 / モデル解決失敗時
+ */
+export async function generateTitleFromText(args: {
+  apiKey: string;
+  text: string;
+  signal?: AbortSignal;
+  onUsage?: (u: TurnUsage) => void;
+}): Promise<string> {
+  const { text, ...rest } = args;
+  // 長文はコスト/レイテンシ対策で先頭を中心に切り詰める（タイトル生成には十分）。
+  const source = text.trim().slice(0, 4000);
+  const raw = await runOneShot({
+    systemPrompt: TITLE_SYSTEM_PROMPT,
+    userPrompt: `次のメモ本文にふさわしいタイトルを 1 つだけ出力してください。\n\n---\n${source}\n---`,
+    images: [],
+    ...rest,
+  });
+  return cleanTitle(raw);
 }

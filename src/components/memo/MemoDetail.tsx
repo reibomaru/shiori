@@ -53,7 +53,9 @@ export default function MemoDetail({
         onChange={(e) => setTitle(e.target.value)}
         onBlur={saveTitle}
         onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
+          // IME 変換確定の Enter（日本語入力中）は無視する。
+          // ここで blur すると変換途中で保存が走り、確定文字列が二重に入る不具合になる。
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) e.currentTarget.blur();
         }}
         placeholder={t("editor.titlePlaceholder")}
         className="w-full border-0 border-b border-transparent bg-transparent pb-1 text-xl font-bold text-slate-800 focus:border-cyan-300 focus:outline-none dark:text-slate-100 dark:placeholder-slate-500"

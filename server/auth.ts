@@ -210,6 +210,9 @@ export function registerAuthRoutes(app: Hono): void {
   // （本人が編集しても JWT を再発行せずに済ませるため）。台帳が読めない場合も
   // 認証情報（JWT クレーム）だけで最低限のログイン状態を返す。
   app.get("/auth/me", async (c) => {
+    // 認証状態は絶対にキャッシュさせない。PWA/ブラウザの HTTP キャッシュが
+    // ログアウト前の 200 を返し続けると、ログアウトしても認証済みに見えてしまう。
+    c.header("Cache-Control", "no-store");
     const s = await getSession(c);
     if (!s) return c.json({ error: "unauthenticated" }, 401);
     let displayName: string | null = null;
@@ -264,6 +267,10 @@ export function registerAuthRoutes(app: Hono): void {
         client_id: clientId,
         client_secret: clientSecret,
         scope: ["openid", "email", "profile"],
+        // ログアウト後に別アカウントでログインし直せるよう、毎回アカウント選択画面を出す。
+        // これが無いと Google 側のセッションで同じアカウントに自動再ログインされ、
+        // 「ログアウトしてもログイン情報が残る（別アカウントに切り替えられない）」状態になる。
+        prompt: "select_account",
         // 承認済みリダイレクト URI は既定でこのルート自身（<origin>/auth/google）。
         // 明示したい場合は APP_BASE_URL から組み立てて上書きする。
         redirect_uri: process.env.APP_BASE_URL ? `${process.env.APP_BASE_URL.replace(/\/$/, "")}/auth/google` : undefined,

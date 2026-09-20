@@ -157,7 +157,8 @@ export const api = {
   // ---- 認証 ----
   // 現在のユーザーを取得。未ログインは null（認証ゲートがログイン画面を出す）。
   me: async (): Promise<Me | null> => {
-    const res = await fetch("/auth/me", { credentials: "same-origin" });
+    // 認証状態はキャッシュから読まない（ログアウト後に古い認証済み応答を拾わないため）。
+    const res = await fetch("/auth/me", { credentials: "same-origin", cache: "no-store" });
     if (res.status === 401) return null;
     if (!res.ok) throw new Error(`/auth/me -> ${res.status}`);
     return (await res.json()) as Me;

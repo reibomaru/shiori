@@ -23,8 +23,38 @@ export interface ProjectRecord {
   ownerSub: string;
   ownerEmail: string;
   memberEmails: string[];
+  /** 地図の初期表示（中心・ズーム等）。未設定ならルート地点に合わせて自動で決める。 */
+  mapView?: MapViewSetting;
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** 地図の視点。deck.gl の viewState と同じ単位（度・ズームレベル）。 */
+export interface MapViewSetting {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+  pitch?: number;
+  bearing?: number;
+}
+
+/** 入力値を検証して MapViewSetting に整える。不正なら null。 */
+export function parseMapView(x: unknown): MapViewSetting | null {
+  if (!x || typeof x !== "object") return null;
+  const o = x as Record<string, unknown>;
+  const num = (v: unknown, min: number, max: number) =>
+    typeof v === "number" && Number.isFinite(v) && v >= min && v <= max ? v : null;
+  const longitude = num(o.longitude, -180, 180);
+  const latitude = num(o.latitude, -85, 85);
+  const zoom = num(o.zoom, 0, 22);
+  if (longitude == null || latitude == null || zoom == null) return null;
+  return {
+    longitude,
+    latitude,
+    zoom,
+    pitch: num(o.pitch, 0, 85) ?? 0,
+    bearing: num(o.bearing, -360, 360) ?? 0,
+  };
 }
 
 const norm = (email: string): string => (email || "").trim().toLowerCase();
@@ -36,6 +66,7 @@ function toRecord(id: string, x: FirebaseFirestore.DocumentData): ProjectRecord 
     ownerSub: typeof x.ownerSub === "string" ? x.ownerSub : "",
     ownerEmail: typeof x.ownerEmail === "string" ? x.ownerEmail : "",
     memberEmails: Array.isArray(x.memberEmails) ? (x.memberEmails as unknown[]).map((e) => String(e)) : [],
+    mapView: parseMapView(x.mapView) ?? undefined,
     createdAt: typeof x.createdAt === "string" ? x.createdAt : undefined,
     updatedAt: typeof x.updatedAt === "string" ? x.updatedAt : undefined,
   };
@@ -77,6 +108,11 @@ export async function createProject(name: string, ownerSub: string, ownerEmail: 
 
 export async function renameProject(id: string, name: string): Promise<void> {
   await col().doc(sanitizeProjectId(id)).set({ name: name.trim(), updatedAt: new Date().toISOString() }, { merge: true });
+}
+
+/** 地図の初期表示を保存する。null で解除（自動に戻す）。 */
+export async function setProjectMapView(id: string, mapView: MapViewSetting | null): Promise<void> {
+  await col().doc(sanitizeProjectId(id)).set({ mapView, updatedAt: new Date().toISOString() }, { merge: true });
 }
 
 export async function deleteProjectDoc(id: string): Promise<void> {

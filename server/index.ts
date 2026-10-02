@@ -23,6 +23,9 @@ import {
   removeMember,
   renameProject,
   requireProjectMember,
+  parseMapView,
+  setProjectMapView,
+  type MapViewSetting,
 } from "./projects.ts";
 import { updateOwnProfile, avatarUrlOf } from "./users.ts";
 import {
@@ -108,6 +111,21 @@ app.patch("/api/projects/:id", async (c) => {
   await renameProject(project!.id, body.name);
   invalidateProjectCache(project!.id);
   return c.json({ ...project!, name: body.name.trim() });
+});
+
+// 地図の初期表示（旅程と同じくメンバー全員が編集できる）。mapView: null で解除。
+app.put("/api/projects/:id/map-view", async (c) => {
+  const { project, error } = await loadOwnedOrMember(c, false);
+  if (error) return error;
+  const body = (await c.req.json().catch(() => ({}))) as { mapView?: unknown };
+  let mapView: MapViewSetting | null = null;
+  if (body.mapView !== null) {
+    mapView = parseMapView(body.mapView);
+    if (!mapView) return c.json({ error: "mapView が不正です。" }, 400);
+  }
+  await setProjectMapView(project!.id, mapView);
+  invalidateProjectCache(project!.id);
+  return c.json({ ...project!, mapView: mapView ?? undefined });
 });
 
 app.delete("/api/projects/:id", async (c) => {

@@ -18,7 +18,12 @@
     "resetView": "全体表示",
     "openPanel": "移動の工程を開く",
     "closePanel": "パネルを閉じる",
-    "resizePanel": "パネルの幅を調整"
+    "resizePanel": "パネルの幅を調整",
+    "saveHomeView": "この位置を初期表示に",
+    "saveHomeViewHint": "いまの地図の位置とズームを、この旅行で地図を開いたときの初期表示にします",
+    "homeViewSaved": "保存しました",
+    "clearHomeView": "初期表示を自動に戻す",
+    "clearHomeViewHint": "保存した初期表示を解除し、ルートの地点に合わせて自動で表示します"
   },
   "legend": {
     "border": "国境",

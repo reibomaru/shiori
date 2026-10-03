@@ -105,6 +105,17 @@ export interface Project {
   ownerSub: string;
   ownerEmail: string;
   memberEmails: string[];
+  /** 地図の初期表示。未設定ならルート地点に合わせて自動で決める。 */
+  mapView?: MapViewSetting;
+}
+
+/** 地図の視点（deck.gl の viewState と同じ単位）。 */
+export interface MapViewSetting {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+  pitch?: number;
+  bearing?: number;
 }
 
 /** プロジェクトのメンバー情報。 */
@@ -179,6 +190,8 @@ export const api = {
   listProjects: () => http<Project[]>("/api/projects", "GET"),
   createProject: (name: string) => http<Project>("/api/projects", "POST", { name }),
   renameProject: (id: string, name: string) => http<Project>(`/api/projects/${id}`, "PATCH", { name }),
+  setProjectMapView: (id: string, mapView: MapViewSetting | null) =>
+    http<Project>(`/api/projects/${id}/map-view`, "PUT", { mapView }),
   deleteProject: (id: string) => http(`/api/projects/${id}`, "DELETE"),
   getMembers: (id: string) => http<ProjectMembers>(`/api/projects/${id}/members`, "GET"),
   addMember: (id: string, email: string) => http<ProjectMembers>(`/api/projects/${id}/members`, "POST", { email }),

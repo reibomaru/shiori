@@ -5,7 +5,8 @@ import { TbLayoutSidebarRightExpand } from "react-icons/tb";
 import { useTrip } from "../store";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { useEdgeSwipe } from "../hooks/useEdgeSwipe";
-import { api, type SpotRating } from "../api";
+import { api, type MapViewSetting, type SpotRating } from "../api";
+import { useProject } from "../project";
 import MapView from "../components/MapView";
 import MoveProcess from "../components/MoveProcess";
 
@@ -15,6 +16,15 @@ const PANEL_MAX = 640;
 export default function MapPage() {
   const { t } = useTranslation("map");
   const { data, reload } = useTrip();
+  const { projectId, project, reloadProjects } = useProject();
+  // 地図の初期表示をこの旅行（プロジェクト）に保存する。null で解除。
+  const saveHomeView = useCallback(
+    async (v: MapViewSetting | null) => {
+      await api.setProjectMapView(projectId, v);
+      await reloadProjects();
+    },
+    [projectId, reloadProjects],
+  );
   const isMobile = useIsMobile();
   const [selectedLeg, setSelectedLeg] = useState<number | null>(null);
   // モバイルはパネルが地図を全面で覆うため、初期は閉じて地図を見せる。
@@ -148,6 +158,8 @@ export default function MapPage() {
           onVisibleSpotsChange={setVisibleSpotIds}
           showSpots={showSpots}
           itineraryLegOrder={orderedLegIds}
+          homeView={project?.mapView ?? null}
+          onSaveHomeView={saveHomeView}
         />
       </div>
 

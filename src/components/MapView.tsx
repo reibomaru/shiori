@@ -8,6 +8,7 @@ import { ZoomWidget, CompassWidget, FullscreenWidget } from "@deck.gl/widgets";
 import "@deck.gl/widgets/stylesheet.css";
 import type { Feature, FeatureCollection } from "geojson";
 import type { RoutePoint, LegFeature, Spot } from "../types";
+import type { MapViewSetting } from "../api";
 import { resolveSpotIcon, spotPinIcon } from "../spotIcons";
 import bordersData from "../data/borders.geojson.json";
 
@@ -84,6 +85,8 @@ export default function MapView({
   onVisibleSpotsChange,
   showSpots = true,
   itineraryLegOrder = [],
+  homeView = null,
+  onSaveHomeView,
 }: {
   route: RoutePoint[];
   legs: LegFeature[];
@@ -96,6 +99,8 @@ export default function MapView({
   onVisibleSpotsChange?: (ids: string[]) => void; // いま地図に見えているスポット id
   showSpots?: boolean; // 候補スポットのピン表示/非表示（パネルのチェックで切替）
   itineraryLegOrder?: string[]; // 旅程に組み込まれた leg id を旅程順に並べた配列。指定時はこれだけを順番表示
+  homeView?: MapViewSetting | null; // プロジェクトに保存された初期表示。未設定ならルート地点から自動で決める
+  onSaveHomeView?: (v: MapViewSetting | null) => Promise<void>; // 初期表示の保存（null で解除）。未指定ならボタンを出さない
 }) {
   const { t } = useTranslation("map");
   const modeLabel = (m: string) => t(`mode.${m}`, { defaultValue: m });
@@ -174,11 +179,19 @@ export default function MapView({
   }, [itinActive, legs, itineraryLegOrder.join(",")]);
   const visibleCities = activeCityIndex ? cities.filter((c) => activeCityIndex.has(c.index)) : cities;
 
+  // 初期表示: プロジェクトに保存された視点 → ルート地点（無ければ候補スポット）に合わせて自動 → 世界全体。
+  const fitPositions = cities.length > 0 ? cities.map((c) => c.position) : spotPoints.map((s) => s.position);
   const initialViewState = useMemo(() => {
-    const euro = cities.filter((c) => c.position[1] > 40 && c.position[1] < 52 && c.position[0] > -6 && c.position[0] < 20);
-    const base = { longitude: 7, latitude: 46.4, zoom: 6.4, pitch: 0, bearing: 0 };
-    if (euro.length < 2) return base;
-    const lons = euro.map((c) => c.position[0]); const lats = euro.map((c) => c.position[1]);
+    if (homeView) {
+      return { longitude: homeView.longitude, latitude: homeView.latitude, zoom: homeView.zoom, pitch: homeView.pitch ?? 0, bearing: homeView.bearing ?? 0 };
+    }
+    const world = { longitude: 0, latitude: 20, zoom: 1.5, pitch: 0, bearing: 0 };
+    if (fitPositions.length === 0) return world;
+    if (fitPositions.length === 1) {
+      const [longitude, latitude] = fitPositions[0];
+      return { longitude, latitude, zoom: 9, pitch: 0, bearing: 0 };
+    }
+    const lons = fitPositions.map((p) => p[0]); const lats = fitPositions.map((p) => p[1]);
     try {
       const vp = new WebMercatorViewport({ width: 1200, height: 700 });
       const { longitude, latitude, zoom } = vp.fitBounds(
@@ -187,9 +200,10 @@ export default function MapView({
       );
       return { longitude, latitude, zoom: Math.min(zoom, 9), pitch: 0, bearing: 0 };
     } catch {
-      return base;
+      return world;
     }
-  }, [JSON.stringify(cities.map((c) => c.position))]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(homeView), JSON.stringify(fitPositions)]);
 
   // 視点はコントロール（2D/3D 切替・全体表示リセットのため）
   const [viewState, setViewState] = useState<any>(initialViewState);
@@ -197,6 +211,35 @@ export default function MapView({
   const is3D = (viewState.pitch ?? 0) > 0;
   const toggle3D = () => setViewState((v: any) => ({ ...v, pitch: is3D ? 0 : 45, transitionDuration: 400 }));
   const resetView = () => setViewState({ ...initialViewState, transitionDuration: 600 });
+
+  // いまの視点をこのプロジェクトの初期表示として保存／解除する
+  const [savingHome, setSavingHome] = useState(false);
+  const [homeSaved, setHomeSaved] = useState(false);
+  const saveHome = async (v: MapViewSetting | null) => {
+    if (!onSaveHomeView || savingHome) return;
+    setSavingHome(true);
+    try {
+      await onSaveHomeView(v);
+      if (v) {
+        setHomeSaved(true);
+        setTimeout(() => setHomeSaved(false), 1800);
+      }
+    } catch {
+      /* 失敗時は何もしない（ボタンは再度押せる） */
+    } finally {
+      setSavingHome(false);
+    }
+  };
+  // 地図を回り込むと経度・方位が ±180 を超えることがあるので正規化して保存する
+  const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
+  const saveCurrentAsHome = () =>
+    saveHome({
+      longitude: wrap180(viewState.longitude),
+      latitude: viewState.latitude,
+      zoom: viewState.zoom,
+      pitch: viewState.pitch ?? 0,
+      bearing: wrap180(viewState.bearing ?? 0),
+    });
 
   // スポットが選択されたら、その位置へ滑らかに移動（座標があるもののみ）。
   // 右側の工程パネルに隠れないよう、可視領域（パネルの左側）の中心へ寄せる。
@@ -501,6 +544,30 @@ export default function MapView({
             {t("controls.resetView")}
           </button>
         </div>
+        {onSaveHomeView && (
+          <div className="no-print inline-flex gap-1.5">
+            <button
+              type="button"
+              onClick={saveCurrentAsHome}
+              disabled={savingHome}
+              title={t("controls.saveHomeViewHint")}
+              className="rounded-lg bg-white/90 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-slate-100 dark:bg-slate-800/90 dark:text-slate-300 dark:ring-white/10 dark:hover:bg-slate-700 disabled:opacity-60"
+            >
+              {homeSaved ? t("controls.homeViewSaved") : t("controls.saveHomeView")}
+            </button>
+            {homeView && (
+              <button
+                type="button"
+                onClick={() => saveHome(null)}
+                disabled={savingHome}
+                title={t("controls.clearHomeViewHint")}
+                className="rounded-lg bg-white/90 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-slate-100 dark:bg-slate-800/90 dark:text-slate-300 dark:ring-white/10 dark:hover:bg-slate-700 disabled:opacity-60"
+              >
+                {t("controls.clearHomeView")}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* 凡例（操作群の下にまとめる） */}
         <div className="max-w-[15rem] rounded-xl bg-white/85 px-3 py-2 text-xs text-slate-600 shadow-sm backdrop-blur dark:bg-slate-800/85 dark:text-slate-300">

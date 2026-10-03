@@ -18,7 +18,12 @@
     "resetView": "Fit all",
     "openPanel": "Open route panel",
     "closePanel": "Close panel",
-    "resizePanel": "Resize panel"
+    "resizePanel": "Resize panel",
+    "saveHomeView": "Set as default view",
+    "saveHomeViewHint": "Use the current map position and zoom as this trip's default view",
+    "homeViewSaved": "Saved",
+    "clearHomeView": "Reset default view",
+    "clearHomeViewHint": "Clear the saved default view and fit the map to the route automatically"
   },
   "legend": {
     "border": "Border",

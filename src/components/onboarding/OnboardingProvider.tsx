@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { api } from "../../api";
+import { useAuth } from "../AuthGate";
 
 /** オンボーディング案内のステップ。順序は ORDER で管理する。 */
 export type OnboardingKey = "create-project" | "search-spots" | "chat-spot" | "map-spots" | "itinerary-dnd";
@@ -11,8 +13,11 @@ export const ONBOARDING_ORDER: OnboardingKey[] = [
   "itinerary-dnd",
 ];
 
-/** 「初回案内を見終わった」ことを記録する localStorage キー。 */
-const STORAGE_KEY = "shiori-onboarding-done";
+/**
+ * 旧実装で「初回案内を見終わった」ことを記録していた localStorage キー。
+ * 正は Firestore（users.onboardingDone）。旧フラグが残っている端末は済み扱いにし、Firestore へ移行する。
+ */
+const LEGACY_STORAGE_KEY = "shiori-onboarding-done";
 
 interface OnboardingCtx {
   /** 現在アクティブなステップ。案内していない/完了済みなら null。 */
@@ -34,30 +39,42 @@ export function useOnboarding(): OnboardingCtx {
   return c;
 }
 
-/** 案内済みかどうかを localStorage から読む。読めない環境では「済み」扱いにして出さない。 */
-function readDone(): boolean {
+/** 旧実装の localStorage フラグが立っているか。 */
+function readLegacyDone(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "1";
+    return localStorage.getItem(LEGACY_STORAGE_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
 /**
  * 初回ログイン時のみオンボーディング案内を出すためのプロバイダ。
  * 認証済みユーザーのみをラップする想定（AuthGate 配下に置く）。
- * localStorage の "済み" フラグが立っていなければ、最初のステップから開始する。
+ * /auth/me の onboardingDone（Firestore の users ドキュメント）が立っていなければ、
+ * 最初のステップから開始する。完了/スキップで Firestore のフラグを true にする。
  */
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const [index, setIndex] = useState<number | null>(() => (readDone() ? null : 0));
+  const { me, applyMe } = useAuth();
+  const legacyDone = readLegacyDone();
+  const [index, setIndex] = useState<number | null>(() => (me.onboardingDone || legacyDone ? null : 0));
+
+  /** Firestore に表示済みを記録し、手元の me にも反映する（失敗しても案内は閉じたまま）。 */
+  const persistDone = () => {
+    applyMe({ ...me, onboardingDone: true });
+    api.markOnboardingDone().catch((e) => console.error("オンボーディング表示済みの保存に失敗しました:", e));
+  };
+
+  // 旧 localStorage フラグだけ立っている端末は、Firestore 側へ移行しておく。
+  useEffect(() => {
+    if (legacyDone && !me.onboardingDone) persistDone();
+    // マウント時に一度だけ
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const finish = () => {
     setIndex(null);
-    try {
-      localStorage.setItem(STORAGE_KEY, "1");
-    } catch {
-      /* 保存できなくても致命的ではない（そのセッション中は案内が続くだけ） */
-    }
+    persistDone();
   };
 
   const next = () => {

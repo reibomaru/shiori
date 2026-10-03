@@ -80,6 +80,8 @@ export interface Me {
   displayName?: string | null;
   /** アバター表示用 URL（アップロード or Google 写真、無ければ null）。 */
   avatarUrl?: string | null;
+  /** 初回オンボーディング案内を見終えたか（users ドキュメントで管理・端末をまたいで共有）。 */
+  onboardingDone?: boolean;
 }
 
 /** 表示に使う名前を返す（displayName 優先、無ければ name、最後に email）。 */
@@ -179,6 +181,8 @@ export const api = {
   // undefined は据え置き。更新後の Me を返す。
   updateProfile: (patch: { displayName?: string | null; avatar?: string | null }) =>
     http<Me>("/api/profile", "PATCH", patch),
+  // 初回オンボーディング案内を表示済みにする（完了/スキップ時）。
+  markOnboardingDone: () => http<{ ok: true }>("/api/onboarding/done", "POST"),
 
   // ---- BYOK（自分の Gemini API キー）----
   getByok: () => http<ByokStatus>("/api/byok", "GET"),

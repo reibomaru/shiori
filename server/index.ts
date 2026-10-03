@@ -27,7 +27,7 @@ import {
   setProjectMapView,
   type MapViewSetting,
 } from "./projects.ts";
-import { updateOwnProfile, avatarUrlOf } from "./users.ts";
+import { updateOwnProfile, avatarUrlOf, markOnboardingDone } from "./users.ts";
 import {
   getByokStatus,
   setUserApiKey,
@@ -215,7 +215,16 @@ app.patch("/api/profile", async (c) => {
     role: c.get("userRole"),
     displayName: rec.displayName ?? null,
     avatarUrl: avatarUrlOf(rec),
+    onboardingDone: rec.onboardingDone,
   });
+});
+
+// ---- 初回オンボーディング案内の表示済みフラグ ------------------
+// 完了/スキップ時にクライアントから呼ぶ。users ドキュメントに保存し、
+// /auth/me の onboardingDone で端末・ブラウザをまたいで参照する。
+app.post("/api/onboarding/done", async (c) => {
+  await markOnboardingDone(c.get("userId"));
+  return c.json({ ok: true });
 });
 
 // ---- BYOK（自分の Gemini API キー）----------------------------

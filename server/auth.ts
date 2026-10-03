@@ -217,11 +217,14 @@ export function registerAuthRoutes(app: Hono): void {
     if (!s) return c.json({ error: "unauthenticated" }, 401);
     let displayName: string | null = null;
     let avatarUrl: string | null = null;
+    // 取得失敗時は「済み」扱いにして、案内が毎回出続けるのを避ける。
+    let onboardingDone = true;
     try {
       const rec = await getUserProfile(s.sub);
       if (rec) {
         displayName = rec.displayName ?? null;
         avatarUrl = avatarUrlOf(rec);
+        onboardingDone = rec.onboardingDone;
       }
     } catch (e) {
       console.error("プロフィールの取得に失敗しました:", e);
@@ -232,6 +235,7 @@ export function registerAuthRoutes(app: Hono): void {
       role: s.role === "admin" ? "admin" : "user",
       displayName,
       avatarUrl,
+      onboardingDone,
     });
   });
 

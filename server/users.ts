@@ -40,6 +40,8 @@ export interface UserRecord {
   picture?: string;
   /** 本人がアップロードしたアバター（リサイズ済みの data URL）。 */
   avatar?: string;
+  /** 初回オンボーディング案内を見終えた（完了 or スキップ）か。端末をまたいで共有する。 */
+  onboardingDone: boolean;
 }
 
 /** 不明値を安全に Role へ丸める（既定 user）。 */
@@ -58,6 +60,7 @@ function toUserRecord(id: string, x: Record<string, unknown>): UserRecord {
     displayName: typeof x.displayName === "string" ? x.displayName : undefined,
     picture: typeof x.picture === "string" ? x.picture : undefined,
     avatar: typeof x.avatar === "string" ? x.avatar : undefined,
+    onboardingDone: x.onboardingDone === true,
   };
 }
 
@@ -219,4 +222,12 @@ export async function updateOwnProfile(
   // FieldValue.delete() の反映後の正確な状態を返すため読み直す。
   const fresh = await ref.get();
   return toUserRecord(sub, fresh.data() ?? {});
+}
+
+/** 初回オンボーディング案内を「表示済み」にする（以降どの端末でも自動表示しない）。 */
+export async function markOnboardingDone(sub: string): Promise<void> {
+  await firestore()
+    .collection(COLLECTION)
+    .doc(sub)
+    .set({ onboardingDone: true, updatedAt: new Date().toISOString() }, { merge: true });
 }

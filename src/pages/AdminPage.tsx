@@ -186,7 +186,7 @@ export default function AdminPage() {
                   key={u.sub}
                   className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
                 >
-                  <Avatar src={u.avatar || u.picture} name={nameOf(u)} email={u.email} size={36} />
+                  <Avatar src={u.avatarUrl} name={nameOf(u)} email={u.email} size={36} />
                   <div className="min-w-0 flex-1 basis-48">
                     <p className="flex items-center gap-1.5 truncate font-semibold text-slate-800 dark:text-slate-100">
                       {nameOf(u)}

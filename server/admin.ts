@@ -21,7 +21,7 @@
 import type { Hono, MiddlewareHandler } from "hono";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { requireAuth } from "./auth.ts";
-import { listAllUsers, updateUserByAdmin, type Role } from "./users.ts";
+import { avatarUrlOf, getUserProfile, listAllUsers, updateUserByAdmin, type Role, type UserRecord } from "./users.ts";
 
 const BASIC_REALM = 'Basic realm="shiori admin", charset="UTF-8"';
 
@@ -63,11 +63,22 @@ export const adminBasicAuth: MiddlewareHandler = async (c, next) => {
   return c.body(null, 401, { "WWW-Authenticate": BASIC_REALM });
 };
 
-/** ログイン済みユーザーが role=admin であることを要求する（requireAuth の後に置く）。 */
+/**
+ * ログイン済みユーザーが role=admin であることを要求する（requireAuth の後に置く）。
+ * JWT の role はログイン時点の値で最大 7 日残るため、降格・承認取り消しが即座に
+ * 効くよう台帳（Firestore）の現在値で判定する。
+ */
 export const requireAdmin: MiddlewareHandler = async (c, next) => {
   if (c.get("userRole") !== "admin") return c.json({ error: "管理者のみアクセスできます。" }, 403);
+  const rec = await getUserProfile(c.get("userId"));
+  if (!rec || !rec.allowed || rec.role !== "admin") return c.json({ error: "管理者のみアクセスできます。" }, 403);
   return next();
 };
+
+/** 一覧/更新レスポンス用。アバターの data URL（最大 ~400KB）は avatarUrl 1 本にまとめる。 */
+function toAdminUser({ avatar, picture, ...rest }: UserRecord) {
+  return { ...rest, avatarUrl: avatarUrlOf({ avatar, picture }) };
+}
 
 /** リクエストボディの role を検証する（不正値は undefined ではなく null で区別）。 */
 function parseRole(v: unknown): Role | null | undefined {
@@ -91,7 +102,7 @@ export function registerAdminRoutes(app: Hono): void {
   // API はさらにログイン必須 + role=admin。
   app.use("/admin/api/*", requireAuth, requireAdmin);
 
-  app.get("/admin/api/users", async (c) => c.json(await listAllUsers()));
+  app.get("/admin/api/users", async (c) => c.json((await listAllUsers()).map(toAdminUser)));
 
   app.patch("/admin/api/users/:sub", async (c) => {
     const sub = c.req.param("sub");
@@ -112,6 +123,6 @@ export function registerAdminRoutes(app: Hono): void {
 
     const rec = await updateUserByAdmin(sub, { allowed, role });
     if (!rec) return c.json({ error: "ユーザーが見つかりません。" }, 404);
-    return c.json(rec);
+    return c.json(toAdminUser(rec));
   });
 }

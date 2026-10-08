@@ -93,8 +93,8 @@ export interface AdminUser {
   allowed: boolean;
   role: Role;
   displayName?: string;
-  picture?: string;
-  avatar?: string;
+  /** アバター表示用 URL（アップロード優先、無ければ Google 写真）。 */
+  avatarUrl: string | null;
   /** 初回ログイン（JIT 登録）の日時（ISO 8601）。 */
   createdAt?: string;
   /** 最終更新日時（ISO 8601）。 */

@@ -28,6 +28,7 @@ const BASIC = { user: "admin-user", pass: "admin-pass" };
 const ADMIN_SUB = "test-admin-dashboard-admin";
 const MEMBER_SUB = "test-admin-dashboard-member";
 const BOOTSTRAP_SUB = "test-admin-dashboard-bootstrap";
+const DEMOTED_SUB = "test-admin-dashboard-demoted";
 
 // auth.ts は SESSION_SECRET を読み込み時に固定するため、import より前に立てる。
 process.env.SESSION_SECRET = SECRET;
@@ -80,12 +81,22 @@ async function seedUsers() {
     allowed: false,
     role: "user",
     createdAt: "2026-02-01T00:00:00.000Z",
+    avatar: "data:image/png;base64,AAAA",
+  });
+  // ログイン時は admin だったが、その後ダッシュボードで降格されたユーザー。
+  await ref(DEMOTED_SUB).set({
+    sub: DEMOTED_SUB,
+    email: "demoted@example.com",
+    name: "Demoted",
+    allowed: true,
+    role: "user",
+    createdAt: "2026-03-01T00:00:00.000Z",
   });
 }
 
 async function cleanup() {
   await Promise.all(
-    [ADMIN_SUB, MEMBER_SUB, BOOTSTRAP_SUB].map((sub) => ref(sub).delete().catch(() => {})),
+    [ADMIN_SUB, MEMBER_SUB, BOOTSTRAP_SUB, DEMOTED_SUB].map((sub) => ref(sub).delete().catch(() => {})),
   );
 }
 
@@ -137,7 +148,7 @@ test(
   { skip: EMULATOR ? false : "Firestore エミュレータ未起動" },
   async () => {
     setBasicEnv(true);
-  const app = buildApp();
+    const app = buildApp();
     const basic = { Authorization: authHeader(BASIC.user, BASIC.pass) };
 
     const asMember = await app.request("/admin/api/users", {
@@ -154,6 +165,27 @@ test(
     assert.ok(member, "承認待ちユーザーが一覧に含まれる");
     assert.equal(member.allowed, false);
     assert.equal(member.createdAt, "2026-02-01T00:00:00.000Z");
+    // アバターは avatarUrl 1 本に集約し、生の avatar / picture は返さない。
+    const raw = member as unknown as Record<string, unknown>;
+    assert.equal(raw.avatarUrl, "data:image/png;base64,AAAA");
+    assert.equal("avatar" in raw, false);
+    assert.equal("picture" in raw, false);
+  },
+);
+
+test(
+  "JWT の role が admin でも、台帳で降格済みなら 403（降格が即時に効く）",
+  { skip: EMULATOR ? false : "Firestore エミュレータ未起動" },
+  async () => {
+    setBasicEnv(true);
+    const app = buildApp();
+    const res = await app.request("/admin/api/users", {
+      headers: {
+        Authorization: authHeader(BASIC.user, BASIC.pass),
+        Cookie: await sessionCookie(DEMOTED_SUB, "demoted@example.com", "admin"),
+      },
+    });
+    assert.equal(res.status, 403);
   },
 );
 
@@ -162,7 +194,7 @@ test(
   { skip: EMULATOR ? false : "Firestore エミュレータ未起動" },
   async () => {
     setBasicEnv(true);
-  const app = buildApp();
+    const app = buildApp();
     const headers = {
       Authorization: authHeader(BASIC.user, BASIC.pass),
       Cookie: await sessionCookie(ADMIN_SUB, "admin@example.com", "admin"),
@@ -188,7 +220,7 @@ test(
   { skip: EMULATOR ? false : "Firestore エミュレータ未起動" },
   async () => {
     setBasicEnv(true);
-  const app = buildApp();
+    const app = buildApp();
     const headers = {
       Authorization: authHeader(BASIC.user, BASIC.pass),
       Cookie: await sessionCookie(ADMIN_SUB, "admin@example.com", "admin"),
@@ -215,7 +247,7 @@ test(
   { skip: EMULATOR ? false : "Firestore エミュレータ未起動" },
   async () => {
     setBasicEnv(true);
-  const app = buildApp();
+    const app = buildApp();
     const headers = {
       Authorization: authHeader(BASIC.user, BASIC.pass),
       Cookie: await sessionCookie(ADMIN_SUB, "admin@example.com", "admin"),

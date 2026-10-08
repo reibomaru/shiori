@@ -50,8 +50,9 @@ export default defineConfig({
           "assets/cynefin-*.js",
         ],
         // SPA フォールバック。ただし API と OAuth はサーバーへ通す（キャッシュ/フォールバックしない）。
+        // /admin も画面遷移時にサーバーの Basic 認証を通すため、SW のキャッシュから返さない。
         navigateFallback: "index.html",
-        navigateFallbackDenylist: [/^\/api/, /^\/auth/],
+        navigateFallbackDenylist: [/^\/api/, /^\/auth/, /^\/admin/],
         // データ API はキャッシュしない方針のため、runtimeCaching は定義しない（＝常にネットワーク）。
         cleanupOutdatedCaches: true,
       },

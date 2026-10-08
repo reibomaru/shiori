@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaPlus, FaMapLocationDot, FaUsers, FaTrash, FaPen, FaArrowRightFromBracket, FaUserShield } from "react-icons/fa6";
 import { api, displayNameOf, type Project } from "../api";
@@ -86,16 +86,17 @@ export default function ProjectsPage() {
             <Avatar src={me.avatarUrl} name={me.displayName ?? me.name} email={me.email} size={26} />
             <span className="max-w-[12rem] truncate">{displayNameOf(me)}</span>
           </button>
-          {/* 管理ダッシュボードへの導線は admin にだけ出す（実際の制御はサーバ側）。 */}
+          {/* 管理ダッシュボードへの導線は admin にだけ出す（実際の制御はサーバ側）。
+              クライアント遷移だと Basic 認証が画面ロード時にかからないため、通常のリンクにする。 */}
           {me.role === "admin" && (
             <Tooltip label={t("common:auth.admin")} side="bottom">
-              <Link
-                to="/admin"
+              <a
+                href="/admin"
                 aria-label={t("common:auth.admin")}
                 className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-white/10 hover:text-white"
               >
                 <FaUserShield size={15} />
-              </Link>
+              </a>
             </Tooltip>
           )}
           <Tooltip label={t("common:auth.logout")} side="bottom">

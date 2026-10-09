@@ -1,5 +1,6 @@
 // アバター用に画像をブラウザ側で正方形リサイズし、data URL(JPEG) を返す。
 // Firestore の 1MB ドキュメント制限に収めるため、サーバへ送る前に必ず縮小する。
+import i18n from "../i18n";
 
 /**
  * 画像ファイルを一辺 `size` px の正方形（センタークロップ）に縮小して
@@ -12,7 +13,7 @@ export async function resizeToSquareDataUrl(file: File, size = 256, quality = 0.
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("canvas 2d context を取得できませんでした。");
+    if (!ctx) throw new Error(i18n.t("error.canvas", { ns: "common" }));
 
     // センタークロップ（cover）: 短辺に合わせて正方形に切り出す。
     const side = Math.min(bitmap.width, bitmap.height);
@@ -42,7 +43,7 @@ async function loadBitmap(file: File): Promise<Decoded> {
     const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error("画像を読み込めませんでした。"));
+      img.onerror = () => reject(new Error(i18n.t("error.imageLoad", { ns: "common" })));
       img.src = url;
     });
     return img;

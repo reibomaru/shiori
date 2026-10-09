@@ -1,6 +1,7 @@
 // 複数ページのメモを管理するフック。
 // 一覧の取得・作成・更新・削除・画像からの抽出・元画像の削除をまとめる。
 // ページの選択はルーティング（/memo・/memo/:id）側で行うため、ここでは保持しない。
+import i18n from "../i18n";
 import { useCallback, useEffect, useState } from "react";
 import type { MemoPage } from "../types";
 import { api, type MemoImage } from "../api";
@@ -64,7 +65,7 @@ export function useMemoPages(): UseMemoPages {
 
   const create = useCallback(async () => {
     try {
-      const page = await api.createMemoPage({ title: "無題のメモ" });
+      const page = await api.createMemoPage({ title: i18n.t("list.untitled", { ns: "memo" }) });
       if (page) upsertLocal(page);
       return page;
     } catch (e) {

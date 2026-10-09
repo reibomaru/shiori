@@ -96,7 +96,7 @@ function IconPicker({ spot, reload }: { spot: Spot; reload: () => void }) {
                     key={d.key}
                     type="button"
                     onClick={() => pick(d.key)}
-                    title={d.label}
+                    title={t(`icon.${d.key}`)}
                     className={`flex h-8 w-8 items-center justify-center rounded-lg text-lg leading-none transition-colors hover:bg-slate-100 dark:hover:bg-slate-700 ${
                       spot.icon === d.key ? "bg-cyan-100 ring-1 ring-cyan-500 dark:bg-cyan-500/20" : ""
                     }`}

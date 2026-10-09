@@ -1,5 +1,6 @@
 // API クライアント。Vite の proxy 経由で /api を叩きます。
 import type { TripPayload, MemoPage, MemoImageMeta, Expense, ExpenseExtraction } from "./types";
+import { langHeader } from "./i18n";
 import type { ChatMessage } from "./hooks/useSpotChat";
 import type { MemoChatMessage } from "./hooks/useMemoChat";
 
@@ -141,7 +142,8 @@ export function projectHeader(): Record<string, string> {
 }
 
 async function http<T>(url: string, method: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = {};
+  // 表示言語をサーバへ伝える（エラーメッセージ・AI 応答の言語切り替えに使う）。
+  const headers: Record<string, string> = { ...langHeader() };
   if (body) headers["Content-Type"] = "application/json";
   // ドメイン API（/api/trip 等）は対象プロジェクトをヘッダで指定する。
   // プロジェクト管理 API（/api/projects*）はヘッダ不要（付いても無害）。

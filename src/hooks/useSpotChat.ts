@@ -2,6 +2,7 @@
 // POST /api/spots/chat の SSE（fetch + ReadableStream）を読み、
 // 本文・ツール実行・提案・コストを state へ反映する。
 import { useCallback, useEffect, useRef, useState } from "react";
+import i18n, { langHeader } from "../i18n";
 import { useSearchParams } from "react-router-dom";
 import type { Spot } from "../types";
 import { api, projectHeader, type ChatSessionSummary } from "../api";
@@ -186,7 +187,7 @@ export function useSpotChat() {
       try {
         const res = await fetch("/api/spots/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...projectHeader() },
+          headers: { "Content-Type": "application/json", ...projectHeader(), ...langHeader() },
           credentials: "same-origin",
           body: JSON.stringify({
             sessionId: sessionIdRef.current,
@@ -221,7 +222,7 @@ export function useSpotChat() {
               }));
               break;
             case "error":
-              setError(String(d.message ?? "不明なエラー"));
+              setError(String(d.message ?? i18n.t("error.unknown", { ns: "common" })));
               setErrorCode((d.code as ChatErrorCode) ?? null);
               break;
           }

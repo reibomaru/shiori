@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import { registerAuthRoutes, requireAuth } from "./auth.ts";
+import { langMiddleware, tc, translateError } from "./i18n.ts";
 import { closeAllProjectDbs, deleteProjectStorage, getProjectDb } from "./storage.ts";
 import {
   addMember,
@@ -78,6 +79,8 @@ const PORT = Number(process.env.PORT || 8080);
 // プロジェクトを解決し、メンバー確認の上で db / sessionDir をセットする。
 // 順序が重要: requireAuth → プロジェクト管理ルート登録 → projectScope 登録
 // → ドメインルート登録（Hono は登録後のルートにのみ middleware を適用）。
+// 表示言語の解決は認証ページ（/auth/*）でも使うので最初に登録する。
+app.use("*", langMiddleware);
 registerAuthRoutes(app);
 app.use("/api/*", requireAuth);
 
@@ -87,7 +90,7 @@ app.get("/api/projects", async (c) => c.json(await listProjectsForEmail(c.get("u
 app.post("/api/projects", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { name?: unknown };
   const name = typeof body.name === "string" ? body.name : "";
-  const project = await createProject(name, c.get("userId"), c.get("userEmail"));
+  const project = await createProject(name, c.get("userId"), c.get("userEmail"), tc(c, "project.defaultName"));
   await getProjectDb(project.id); // 空 DB を初期化（schema 適用）
   return c.json(project);
 });
@@ -95,11 +98,11 @@ app.post("/api/projects", async (c) => {
 // 以降の :id ルートは「メンバーであること」を確認する共通ヘルパーを使う。
 async function loadOwnedOrMember(c: import("hono").Context, requireOwner: boolean) {
   const id = c.req.param("id");
-  if (!id) return { error: c.json({ error: "プロジェクト ID が必要です。" }, 400) };
+  if (!id) return { error: c.json({ error: tc(c, "project.idRequired") }, 400) };
   const project = await getProject(id);
-  if (!project) return { error: c.json({ error: "プロジェクトが見つかりません。" }, 404) };
-  if (!isMember(project, c.get("userEmail"))) return { error: c.json({ error: "アクセス権がありません。" }, 403) };
-  if (requireOwner && !isOwner(project, c.get("userId"))) return { error: c.json({ error: "オーナーのみ操作できます。" }, 403) };
+  if (!project) return { error: c.json({ error: tc(c, "project.notFound") }, 404) };
+  if (!isMember(project, c.get("userEmail"))) return { error: c.json({ error: tc(c, "project.forbidden") }, 403) };
+  if (requireOwner && !isOwner(project, c.get("userId"))) return { error: c.json({ error: tc(c, "project.ownerOnly") }, 403) };
   return { project };
 }
 
@@ -107,7 +110,7 @@ app.patch("/api/projects/:id", async (c) => {
   const { project, error } = await loadOwnedOrMember(c, true);
   if (error) return error;
   const body = (await c.req.json().catch(() => ({}))) as { name?: unknown };
-  if (typeof body.name !== "string" || !body.name.trim()) return c.json({ error: "name が必要です。" }, 400);
+  if (typeof body.name !== "string" || !body.name.trim()) return c.json({ error: tc(c, "project.nameRequired") }, 400);
   await renameProject(project!.id, body.name);
   invalidateProjectCache(project!.id);
   return c.json({ ...project!, name: body.name.trim() });
@@ -121,7 +124,7 @@ app.put("/api/projects/:id/map-view", async (c) => {
   let mapView: MapViewSetting | null = null;
   if (body.mapView !== null) {
     mapView = parseMapView(body.mapView);
-    if (!mapView) return c.json({ error: "mapView が不正です。" }, 400);
+    if (!mapView) return c.json({ error: tc(c, "project.mapViewInvalid") }, 400);
   }
   await setProjectMapView(project!.id, mapView);
   invalidateProjectCache(project!.id);
@@ -148,7 +151,7 @@ app.post("/api/projects/:id/members", async (c) => {
   if (error) return error;
   const body = (await c.req.json().catch(() => ({}))) as { email?: unknown };
   const email = typeof body.email === "string" ? body.email.trim() : "";
-  if (!email || !email.includes("@")) return c.json({ error: "有効なメールアドレスが必要です。" }, 400);
+  if (!email || !email.includes("@")) return c.json({ error: tc(c, "member.emailRequired") }, 400);
   await addMember(project!.id, email);
   invalidateProjectCache(project!.id);
   const updated = await getProject(project!.id);
@@ -161,7 +164,7 @@ app.delete("/api/projects/:id/members/:email", async (c) => {
   try {
     await removeMember(project!.id, decodeURIComponent(c.req.param("email")));
   } catch (e) {
-    return c.json({ error: e instanceof Error && /owner/.test(e.message) ? "オーナーは削除できません。" : "削除に失敗しました。" }, 400);
+    return c.json({ error: tc(c, e instanceof Error && /owner/.test(e.message) ? "member.cannotRemoveOwner" : "member.removeFailed") }, 400);
   }
   invalidateProjectCache(project!.id);
   const updated = await getProject(project!.id);
@@ -182,10 +185,10 @@ app.patch("/api/profile", async (c) => {
       patch.displayName = null;
     } else if (typeof body.displayName === "string") {
       const t = body.displayName.trim();
-      if (t.length > 60) return c.json({ error: "表示名は60文字以内にしてください。" }, 400);
+      if (t.length > 60) return c.json({ error: tc(c, "profile.displayNameTooLong") }, 400);
       patch.displayName = t; // 空文字は台帳側で「未設定（削除）」として扱う
     } else {
-      return c.json({ error: "displayName が不正です。" }, 400);
+      return c.json({ error: tc(c, "profile.displayNameInvalid") }, 400);
     }
   }
 
@@ -194,21 +197,21 @@ app.patch("/api/profile", async (c) => {
       patch.avatar = null;
     } else if (typeof body.avatar === "string") {
       if (!/^data:image\/(png|jpeg|webp|gif);base64,/.test(body.avatar)) {
-        return c.json({ error: "アバター画像の形式が不正です。" }, 400);
+        return c.json({ error: tc(c, "profile.avatarInvalidFormat") }, 400);
       }
       if (body.avatar.length > AVATAR_MAX_LEN) {
-        return c.json({ error: "アバター画像が大きすぎます。別の画像でお試しください。" }, 400);
+        return c.json({ error: tc(c, "profile.avatarTooLarge") }, 400);
       }
       patch.avatar = body.avatar;
     } else {
-      return c.json({ error: "avatar が不正です。" }, 400);
+      return c.json({ error: tc(c, "profile.avatarInvalid") }, 400);
     }
   }
 
-  if (Object.keys(patch).length === 0) return c.json({ error: "変更内容がありません。" }, 400);
+  if (Object.keys(patch).length === 0) return c.json({ error: tc(c, "profile.noChanges") }, 400);
 
   const rec = await updateOwnProfile(c.get("userId"), patch);
-  if (!rec) return c.json({ error: "ユーザーが見つかりません。" }, 404);
+  if (!rec) return c.json({ error: tc(c, "profile.userNotFound") }, 404);
   return c.json({
     email: c.get("userEmail"),
     name: c.get("userName"),
@@ -236,10 +239,10 @@ app.get("/api/byok", async (c) => c.json(await getByokStatus(c.get("userId"))));
 app.put("/api/byok", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { apiKey?: unknown };
   const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
-  if (!apiKey) return c.json({ error: "apiKey が必要です。" }, 400);
+  if (!apiKey) return c.json({ error: tc(c, "byok.apiKeyRequired") }, 400);
   const ok = await setUserApiKey(c.get("userId"), apiKey);
   if (!ok) {
-    return c.json({ error: "API キーが無効です。Google AI Studio で発行した有効な Gemini API キーを入力してください。" }, 400);
+    return c.json({ error: tc(c, "byok.invalidKey") }, 400);
   }
   return c.json(await getByokStatus(c.get("userId")));
 });
@@ -272,11 +275,14 @@ app.onError((err, c) => {
   //   - items: 移動は leg_id、スポット(spot/meal/hotel)は spot_id が必須（free は例外）
   //   - legs : geojson 必須
   if (/constraint/i.test(msg)) {
-    const hint = /CHECK constraint/i.test(msg)
-      ? "予定は移動なら leg_id、スポット(spot/meal/hotel)なら spot_id のどちらか一方が必要です（free は例外）。"
-      : /NOT NULL constraint failed: legs\.geojson/i.test(msg)
-        ? "移動区間（leg）には geojson が必須です。"
-        : "データが制約に違反しています。";
+    const hint = tc(
+      c,
+      /CHECK constraint/i.test(msg)
+        ? "db.constraintItems"
+        : /NOT NULL constraint failed: legs\.geojson/i.test(msg)
+          ? "db.constraintLegGeojson"
+          : "db.constraintGeneric",
+    );
     return c.json({ error: hint, detail: msg }, 400);
   }
   return c.json({ error: msg }, 500);
@@ -336,7 +342,7 @@ app.post("/api/items", async (c) => {
   const id = b.id ?? randomUUID();
   db.prepare(`INSERT INTO items (id, day_id, sort_order, time, type, title, note, url, url_label, cost, spot_id, leg_id)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(id, b.day_id, b.sort_order ?? maxOrder + 1, b.time ?? null, b.type ?? "spot", b.title ?? "（無題）",
+    .run(id, b.day_id, b.sort_order ?? maxOrder + 1, b.time ?? null, b.type ?? "spot", b.title ?? tc(c, "item.untitled"),
          b.note ?? null, b.url ?? null, b.url_label ?? null, b.cost ?? null, b.spot_id ?? null, b.leg_id ?? null);
   return c.json(db.prepare("SELECT * FROM items WHERE id = ?").get(id));
 });
@@ -363,7 +369,7 @@ app.post("/api/budget", async (c) => {
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM budget").get() as { m: number }).m;
   const id = b.id ?? randomUUID();
   db.prepare("INSERT INTO budget (id, sort_order, category, per_person, note) VALUES (?, ?, ?, ?, ?)")
-    .run(id, b.sort_order ?? maxOrder + 1, b.category ?? "（費目）", b.per_person ?? 0, b.note ?? null);
+    .run(id, b.sort_order ?? maxOrder + 1, b.category ?? tc(c, "budget.untitledCategory"), b.per_person ?? 0, b.note ?? null);
   return c.json(db.prepare("SELECT * FROM budget WHERE id = ?").get(id));
 });
 app.put("/api/budget/:id", async (c) => {
@@ -388,7 +394,7 @@ app.delete("/api/expenses/:id", (c) => c.json(expensesRepo.deleteExpense(c.get("
 app.post("/api/expenses/:id/images", async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
-  if (!expensesRepo.getExpense(db, id)) return c.json({ error: "実費が見つかりません。" }, 404);
+  if (!expensesRepo.getExpense(db, id)) return c.json({ error: tc(c, "expense.notFound") }, 404);
   const body = (await c.req.json().catch(() => ({}))) as { images?: unknown };
   const uploads = Array.isArray(body.images)
     ? (body.images as Array<{ data?: unknown; mimeType?: unknown; filename?: unknown }>)
@@ -400,7 +406,7 @@ app.post("/api/expenses/:id/images", async (c) => {
           filename: typeof im.filename === "string" ? im.filename : null,
         }))
     : [];
-  if (uploads.length === 0) return c.json({ error: "ファイルが指定されていません。" }, 400);
+  if (uploads.length === 0) return c.json({ error: tc(c, "expense.noFiles") }, 400);
   // HEIC→PNG 等の正規化は data/mimeType のみ対象。ファイル名はそのまま保持する。
   const normalized = await Promise.all(
     uploads.map(async (u) => ({
@@ -415,7 +421,7 @@ app.post("/api/expenses/:id/images", async (c) => {
 // 領収書画像の配信（BLOB をそのまま返す）。内容は不変なので長期キャッシュ可。
 app.get("/api/expenses/images/:id", (c) => {
   const img = expensesRepo.getExpenseImageData(c.get("db"), c.req.param("id"));
-  if (!img) return c.json({ error: "画像が見つかりません。" }, 404);
+  if (!img) return c.json({ error: tc(c, "image.notFound") }, 404);
   return new Response(img.data, {
     headers: { "Content-Type": img.mime_type, "Cache-Control": "private, max-age=31536000, immutable" },
   });
@@ -431,7 +437,7 @@ app.post("/api/expenses/extract", async (c) => {
         .filter((im): im is AgentImage => !!im && typeof im.data === "string" && typeof im.mimeType === "string")
         .slice(0, 4)
     : [];
-  if (images.length === 0) return c.json({ error: "画像が指定されていません。" }, 400);
+  if (images.length === 0) return c.json({ error: tc(c, "image.noImages") }, 400);
   const normalized = await Promise.all(images.map(normalizeImageForWeb));
 
   const emptyExtraction = {
@@ -453,14 +459,15 @@ app.post("/api/expenses/extract", async (c) => {
     const extraction = await extractReceiptFromImages({
       apiKey: resolved.apiKey,
       images: normalized,
+      lang: c.get("lang"),
       onUsage: (u) => { extractCost += u.costUSD; },
     });
     return c.json({ extraction });
   } catch (err) {
     const warning =
       err instanceof MissingApiKeyError
-        ? err.message
-        : `情報の抽出に失敗しました: ${err instanceof Error ? err.message : String(err)}`;
+        ? translateError(c.get("lang"), err)
+        : tc(c, "extract.failed", { msg: err instanceof Error ? err.message : String(err) });
     return c.json({ extraction: emptyExtraction, warning });
   } finally {
     // 共有キー利用時のみ、抽出の消費コストをユーザーの月次集計へ加算する。
@@ -517,7 +524,7 @@ app.delete("/api/memo/pages/:id", (c) => c.json(memoRepo.deleteMemoPage(c.get("d
 // サーバ（heic-convert）で確実に変換してプレビュー/送信の両方に使う。
 app.post("/api/image/normalize", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { data?: unknown; mimeType?: unknown };
-  if (typeof body.data !== "string") return c.json({ error: "data（base64）が必要です。" }, 400);
+  if (typeof body.data !== "string") return c.json({ error: tc(c, "image.dataRequired") }, 400);
   const mimeType = typeof body.mimeType === "string" ? body.mimeType : "image/heic";
   const out = await normalizeImageForWeb({ data: body.data, mimeType });
   return c.json(out);
@@ -526,7 +533,7 @@ app.post("/api/image/normalize", async (c) => {
 // 取り込んだ元画像の配信（BLOB をそのまま返す）。内容は不変なので長期キャッシュ可。
 app.get("/api/memo/images/:id", (c) => {
   const img = memoRepo.getMemoImageData(c.get("db"), c.req.param("id"));
-  if (!img) return c.json({ error: "画像が見つかりません。" }, 404);
+  if (!img) return c.json({ error: tc(c, "image.notFound") }, 404);
   return new Response(img.data, {
     headers: { "Content-Type": img.mime_type, "Cache-Control": "private, max-age=31536000, immutable" },
   });
@@ -535,10 +542,10 @@ app.get("/api/memo/images/:id", (c) => {
 app.put("/api/memo/images/:id", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { data?: unknown; mimeType?: unknown };
   if (typeof body.data !== "string" || typeof body.mimeType !== "string") {
-    return c.json({ error: "data（base64）と mimeType が必要です。" }, 400);
+    return c.json({ error: tc(c, "image.dataAndMimeRequired") }, 400);
   }
   const meta = memoRepo.replaceMemoImageData(c.get("db"), c.req.param("id"), { data: body.data, mimeType: body.mimeType });
-  if (!meta) return c.json({ error: "画像が見つかりません。" }, 404);
+  if (!meta) return c.json({ error: tc(c, "image.notFound") }, 404);
   return c.json(meta);
 });
 // 元画像 1 枚を削除する。
@@ -552,7 +559,7 @@ app.post("/api/memo/pages/:id/extract", async (c) => {
   const id = c.req.param("id");
   const userId = c.get("userId");
   const page = memoRepo.getMemoPage(db, id);
-  if (!page) return c.json({ error: "メモページが見つかりません。" }, 404);
+  if (!page) return c.json({ error: tc(c, "memo.pageNotFound") }, 404);
 
   const body = (await c.req.json().catch(() => ({}))) as { images?: unknown };
   const images: AgentImage[] = Array.isArray(body.images)
@@ -560,7 +567,7 @@ app.post("/api/memo/pages/:id/extract", async (c) => {
         .filter((im): im is AgentImage => !!im && typeof im.data === "string" && typeof im.mimeType === "string")
         .slice(0, 4)
     : [];
-  if (images.length === 0) return c.json({ error: "画像が指定されていません。" }, 400);
+  if (images.length === 0) return c.json({ error: tc(c, "image.noImages") }, 400);
 
   // Web で表示できる形式へ正規化（HEIC/HEIF → PNG）。保存・抽出の両方に使う。
   const normalized = await Promise.all(images.map(normalizeImageForWeb));
@@ -575,10 +582,10 @@ app.post("/api/memo/pages/:id/extract", async (c) => {
     resolved = await resolveAiKey(userId);
   } catch (err) {
     const updated = memoRepo.getMemoPage(db, id);
-    const message = err instanceof Error ? err.message : String(err);
+    const message = translateError(c.get("lang"), err);
     const warningCode =
       err instanceof UsageLimitExceededError ? "limit_exceeded" : err instanceof MissingApiKeyError ? "missing_key" : undefined;
-    return c.json({ ...updated, warning: `${message}（元画像は保存しました）`, warningCode });
+    return c.json({ ...updated, warning: tc(c, "memo.originalKept", { msg: message }), warningCode });
   }
 
   // 共有キー利用時の集計用に、両抽出の usage を合算する。
@@ -590,7 +597,7 @@ app.post("/api/memo/pages/:id/extract", async (c) => {
   // HTML（表・チャート等）とグラフ構造（フローチャート・相関図等）を並行で抽出する。
   // グラフは付加価値なので、失敗しても HTML 側には影響させない。
   const [htmlRes, graphRes] = await Promise.allSettled([
-    extractHtmlFromImages({ apiKey: resolved.apiKey, images: normalized, onUsage }),
+    extractHtmlFromImages({ apiKey: resolved.apiKey, images: normalized, lang: c.get("lang"), onUsage }),
     extractGraphFromImages({ apiKey: resolved.apiKey, images: normalized, onUsage }),
   ]);
 
@@ -600,13 +607,15 @@ app.post("/api/memo/pages/:id/extract", async (c) => {
     html = sanitizeHtml(htmlRes.value);
   } else {
     const err = htmlRes.reason;
-    warning =
-      err instanceof MissingApiKeyError
-        ? `${err.message}（元画像は保存しました）`
-        : `情報の抽出に失敗しました: ${err instanceof Error ? err.message : String(err)}（元画像は保存しました）`;
+    warning = tc(c, "memo.originalKept", {
+      msg:
+        err instanceof MissingApiKeyError
+          ? translateError(c.get("lang"), err)
+          : tc(c, "extract.failed", { msg: err instanceof Error ? err.message : String(err) }),
+    });
   }
   const addedGraph = graphRes.status === "fulfilled" ? graphRes.value : null;
-  if (!warning && !html && !addedGraph) warning = "画像から情報を読み取れませんでした（元画像は保存しました）";
+  if (!warning && !html && !addedGraph) warning = tc(c, "memo.originalKept", { msg: tc(c, "memo.extractNothing") });
 
   const patch: memoRepo.MemoPageBody = {};
   if (html) {
@@ -634,18 +643,18 @@ app.post("/api/memo/pages/:id/title", async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
   const page = memoRepo.getMemoPage(db, id);
-  if (!page) return c.json({ error: "メモページが見つかりません。" }, 404);
+  if (!page) return c.json({ error: tc(c, "memo.pageNotFound") }, 404);
 
   // 本文（自由記述）を優先し、無ければ画像抽出の平文をタイトルの素材にする。
   const source = (page.body?.trim() || page.text?.trim() || "");
-  if (!source) return c.json({ error: "本文が空のためタイトルを生成できません。" }, 400);
+  if (!source) return c.json({ error: tc(c, "memo.bodyEmpty") }, 400);
 
   let resolved;
   try {
     resolved = await resolveAiKey(c.get("userId"));
   } catch (err) {
     const status = err instanceof UsageLimitExceededError ? 429 : 400;
-    return c.json({ error: err instanceof Error ? err.message : String(err) }, status);
+    return c.json({ error: translateError(c.get("lang"), err) }, status);
   }
 
   let cost = 0;
@@ -659,11 +668,11 @@ app.post("/api/memo/pages/:id/title", async (c) => {
       },
     });
   } catch (err) {
-    return c.json({ error: `タイトルの生成に失敗しました: ${err instanceof Error ? err.message : String(err)}` }, 502);
+    return c.json({ error: tc(c, "memo.titleFailed", { msg: translateError(c.get("lang"), err) }) }, 502);
   }
   await recordUsage(c.get("userId"), resolved.source, cost);
 
-  if (!title) return c.json({ error: "タイトルを生成できませんでした。" }, 502);
+  if (!title) return c.json({ error: tc(c, "memo.titleEmpty") }, 502);
   return c.json({ title });
 });
 
@@ -675,7 +684,7 @@ app.post("/api/route", async (c) => {
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) AS m FROM route").get() as { m: number }).m;
   const id = b.id ?? randomUUID();
   db.prepare("INSERT INTO route (id, order_index, name, lat, lng, hub, leg_type, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-    .run(id, b.order_index ?? maxOrder + 1, b.name ?? "（地点）", b.lat ?? null, b.lng ?? null, b.hub ?? 0, b.leg_type ?? null, b.note ?? null);
+    .run(id, b.order_index ?? maxOrder + 1, b.name ?? tc(c, "route.untitledPoint"), b.lat ?? null, b.lng ?? null, b.hub ?? 0, b.leg_type ?? null, b.note ?? null);
   return c.json(db.prepare("SELECT * FROM route WHERE id = ?").get(id));
 });
 app.put("/api/route/:id", async (c) => {
@@ -739,7 +748,7 @@ app.get("/api/osrm", async (c) => {
   const profile = c.req.query("profile") || "driving";
   // via="lng,lat;lng,lat;…"（経由地。順に from → via… → to で経路を組む）。
   const viaPoints = (c.req.query("via") || "").split(";").map((s) => s.trim()).filter(Boolean);
-  if (!from || !to) return c.json({ error: "from と to（'lng,lat'）が必要です" }, 400);
+  if (!from || !to) return c.json({ error: tc(c, "route.fromToRequired") }, 400);
   const base = (process.env.OSRM_URL || "https://router.project-osrm.org").replace(/\/$/, "");
   // 経由地を挟んで座標列を組み立てる（from;via1;…;to）。
   const coordStr = [from, ...viaPoints, to].join(";");
@@ -903,7 +912,7 @@ if (existsSync(DIST_DIR)) {
 } else {
   // dist が無い（API のみで起動した場合）の確認用ルート。
   app.get("/", (c) =>
-    c.json({ name: "しおり API", status: "ok", endpoints: ["/api/trip", "/health"] }),
+    c.json({ name: "shiori API", status: "ok", endpoints: ["/api/trip", "/health"] }),
   );
 }
 

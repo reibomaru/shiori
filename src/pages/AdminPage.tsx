@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { FaArrowLeft, FaCheck, FaRotate, FaUserShield, FaBan } from "react-icons/fa6";
 import { api, displayNameOf, AdminAccessError, type AdminDeniedReason, type AdminUser, type Role } from "../api";
@@ -41,12 +41,22 @@ function StatusBadge({ allowed }: { allowed: boolean }) {
 }
 
 /**
+ * `/admin` のルート。非 admin には画面の存在自体を見せず、未知のパスと同じく
+ * トップへ戻す（実際のアクセス制御はサーバ側。ここは見せ方だけ）。
+ */
+export default function AdminPage() {
+  const { me } = useAuth();
+  if (me.role !== "admin") return <Navigate to="/" replace />;
+  return <AdminDashboard />;
+}
+
+/**
  * 管理ダッシュボード（`/admin`）。
  * ユーザー台帳を一覧し、利用申請の承認（allowed=true）とロール変更を行う。
  * サーバ側は Basic 認証 + role=admin の二段構え（server/admin.ts）。この画面は
  * 導線を出さないだけで、実際のアクセス制御は必ず API 側で担保される。
  */
-export default function AdminPage() {
+function AdminDashboard() {
   const { t, i18n } = useTranslation(["admin", "common"]);
   const { me } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -105,6 +115,9 @@ export default function AdminPage() {
         action: t(`admin:confirm.${pending.kind}.action`),
       }
     : null;
+
+  // JWT 上は admin でも台帳で降格済みなら API が 403 を返す。その場合も画面ごと隠す。
+  if (denied === "forbidden") return <Navigate to="/" replace />;
 
   return (
     <div className="mesh-light min-h-screen">

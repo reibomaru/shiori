@@ -51,10 +51,6 @@
     }
   },
   "denied": {
-    "forbidden": {
-      "title": "Access denied",
-      "message": "This dashboard is available to administrators only."
-    },
     "unauthorized": {
       "title": "Authentication required",
       "message": "The dashboard needs its basic-auth credentials, or you need to sign in. Reload the page and try again."

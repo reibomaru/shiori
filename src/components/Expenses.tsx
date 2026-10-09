@@ -4,6 +4,7 @@ import { FaReceipt, FaPlus, FaPen, FaTrash, FaLink, FaFilePdf } from "react-icon
 import type { Expense, ItemType } from "../types";
 import { money } from "../lib/money";
 import { ITEM_META } from "../itemMeta";
+import { expenseCategoryKey } from "../lib/expenseCategory";
 import { api, expenseImageUrl } from "../api";
 import { useTrip } from "../store";
 import ConfirmDialog from "./ConfirmDialog";
@@ -77,7 +78,7 @@ function ExpenseRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-            {e.category}
+            {t(expenseCategoryKey(e.category), { defaultValue: e.category })}
           </span>
           <span className="font-medium text-slate-800 dark:text-slate-100">{e.title}</span>
           <span

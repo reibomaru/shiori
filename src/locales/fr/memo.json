@@ -1,0 +1,99 @@
+{
+  "list": {
+    "heading": "Notes",
+    "addPage": "Ajouter une page",
+    "empty": "Aucune note pour l'instant.",
+    "createFirst": "Créer votre première note",
+    "untitled": "Note sans titre",
+    "updatedAt": "Modifiée le {{date}}",
+    "createdAt": "Créée le {{date}}",
+    "deleteTitle": "Supprimer cette note",
+    "sortLabel": "Trier",
+    "sortByUpdated": "Modification",
+    "sortByCreated": "Création",
+    "sortDesc": "Plus récentes d'abord",
+    "sortAsc": "Plus anciennes d'abord"
+  },
+  "detail": {
+    "backToList": "Liste des notes",
+    "openAiEditMobile": "Modifier avec l'IA",
+    "openAiEdit": "Ouvrir l'éditeur IA",
+    "deleteTitle": "Supprimer cette note",
+    "notFound": "Note introuvable.",
+    "backToListLink": "Retour à la liste",
+    "resizeHint": "Glisser pour ajuster la largeur",
+    "closeChat": "Fermer le chat",
+    "generateTitle": "Générer un titre automatiquement",
+    "generatingTitle": "Génération…",
+    "generateTitleEmpty": "Ajoutez du contenu pour générer un titre automatiquement",
+    "generateTitleError": "La génération du titre a échoué."
+  },
+  "editor": {
+    "titlePlaceholder": "Titre de la note",
+    "sectionLabel": "Note",
+    "bodyPlaceholder": "Écrivez librement en Markdown (titres, listes, tableaux, diagrammes ```mermaid aussi). Vous pouvez aussi transmettre des images via « Modifier avec l'IA » pour qu'elle rédige à votre place.",
+    "preview": "Aperçu",
+    "previewEmpty": "Un aperçu apparaîtra ici au fur et à mesure.",
+    "empty": "Pas encore de note. Écrivez librement depuis « Modifier », ou transmettez une image via « Modifier avec l'IA » pour qu'elle rédige à votre place."
+  },
+  "diff": {
+    "noChanges": "Aucune modification du contenu.",
+    "omitted": "⋯ {{count}} lignes omises"
+  },
+  "confirm": {
+    "deleteTitle": "Supprimer cette page de notes ?",
+    "deleteMessageList": "« {{title}} » sera supprimée. Cette action est irréversible, y compris pour les images importées.",
+    "deleteMessageDetail": "« {{title}} » sera supprimée. Cette action est irréversible.",
+    "deleteSessionTitle": "Supprimer cette conversation ?",
+    "deleteSessionMessage": "L'historique de la conversation « {{title}} » sera supprimé. Cette action est irréversible."
+  },
+  "chat": {
+    "defaultSessionName": "Cette conversation",
+    "newSession": "Nouvelle conversation",
+    "deleteSession": "Supprimer cette conversation",
+    "sessionCostTitle": "Coût cumulé de cette session",
+    "loadingHistory": "Chargement de l'historique…",
+    "introText": "Décrivez en quelques mots comment modifier le contenu de la note (texte libre et informations importées depuis des images). Corriger les fautes, résumer, mettre en forme, compléter, etc. Rien n'est enregistré sans votre confirmation.",
+    "thinking": "Réflexion…",
+    "saveError": "Échec de l'enregistrement : {{error}}",
+    "attachImage": "Joindre une image",
+    "removeImage": "Retirer",
+    "stop": "Arrêter",
+    "sendTitle": "Envoyer",
+    "inputPlaceholder": "Décrivez comment modifier la note…",
+    "sendHint": "Entrée pour envoyer / Maj+Entrée pour un saut de ligne",
+    "suggestions": {
+      "fixTypos": "Corrige les fautes et mets au propre les informations importées",
+      "summarize": "Résume les points clés de cette note en 3 lignes dans le contenu",
+      "packingList": "Ajoute une liste de bagages au contenu à partir des informations importées"
+    },
+    "tools": {
+      "list_memo_pages": "Consultation des notes",
+      "list_itinerary": "Consultation du programme",
+      "list_spots": "Consultation des lieux enregistrés",
+      "get_memo_page": "Lecture de la note",
+      "propose_upsert_memo_page": "Proposition de création/modification",
+      "propose_delete_memo_page": "Proposition de suppression",
+      "web_search": "Recherche web",
+      "fetch_url": "Lecture de page"
+    }
+  },
+  "proposal": {
+    "untitled": "Note sans titre",
+    "createLabel": "Proposition de création",
+    "updateLabel": "Proposition de modification",
+    "deleteLabel": "Proposition de suppression",
+    "viewPreview": "Aperçu",
+    "viewDiff": "Différences",
+    "applied": "✓ Appliquée",
+    "dismissed": "Ignorée",
+    "deleteConfirm": "« {{title}} » sera supprimée. Confirmer ?",
+    "titleLabel": "Titre :",
+    "emptyValue": "(vide)",
+    "noChanges": "Aucune modification.",
+    "noBody": "(pas de contenu)",
+    "dismiss": "Ignorer",
+    "delete": "Supprimer",
+    "save": "Enregistrer"
+  }
+}

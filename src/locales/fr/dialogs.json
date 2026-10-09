@@ -1,0 +1,50 @@
+{
+  "profile": {
+    "title": "Profil",
+    "aria": "Modifier le profil",
+    "uploadImage": "Importer une image",
+    "changeImage": "Changer l'image",
+    "displayName": "Nom affiché",
+    "displayNamePlaceholder": "Nom affiché",
+    "displayNameHint": "Si vide, le nom de votre compte ({{account}}) sera utilisé.",
+    "imageError": "Impossible de charger cette image. Essayez une autre image (PNG / JPEG)."
+  },
+  "members": {
+    "title": "Membres — {{name}}",
+    "invitePlaceholder": "Adresse e-mail à inviter",
+    "invite": "Inviter",
+    "owner": "Propriétaire",
+    "removeMember": "Retirer le membre",
+    "inviteError": "L'invitation a échoué. Vérifiez l'adresse e-mail.",
+    "removeError": "La suppression a échoué.",
+    "ownerOnly": "Seul le propriétaire peut ajouter ou retirer des membres.",
+    "confirmTitle": "Retirer ce membre ?",
+    "confirmMessage": "{{email}} sera retiré de ce projet."
+  },
+  "rename": {
+    "title": "Renommer le projet",
+    "aria": "Renommer le projet"
+  },
+  "byok": {
+    "title": "Clé IA (BYOK)",
+    "loading": "Chargement…",
+    "loadError": "Impossible de charger l'état.",
+    "registered": "Votre clé API est enregistrée",
+    "usingShared": "Clé partagée en cours d'utilisation",
+    "usageLabel": "Ce mois-ci : {{cost}} $ / {{limit}} $",
+    "overLimit": "Vous avez atteint la limite d'utilisation gratuite de ce mois. Enregistrez votre propre clé API pour continuer à utiliser les fonctions IA.",
+    "sharedNotConfigured": "Aucune clé partagée n'est configurée. Veuillez enregistrer votre propre clé API.",
+    "benefit": "Enregistrez votre propre clé pour utiliser les fonctions IA sans limite (l'utilisation est à votre charge).",
+    "keyPlaceholder": "Collez votre clé API Gemini",
+    "getKeyLink": "Obtenir une clé API",
+    "register": "Enregistrer",
+    "update": "Enregistrer les modifications",
+    "replace": "Utiliser une autre clé",
+    "remove": "Supprimer la clé",
+    "saved": "Clé API enregistrée.",
+    "invalid": "Clé API invalide. Saisissez une clé API Gemini valide obtenue sur Google AI Studio.",
+    "removeError": "La suppression de la clé a échoué.",
+    "confirmRemoveTitle": "Supprimer votre clé API ?",
+    "confirmRemoveMessage": "Vous repasserez sur la clé partagée (avec une limite mensuelle)."
+  }
+}

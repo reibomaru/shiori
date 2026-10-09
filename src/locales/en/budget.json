@@ -71,5 +71,13 @@
     "cancel": "Cancel",
     "save": "Save",
     "saving": "Saving…"
+  },
+  "category": {
+    "hotel": "Stay",
+    "transport": "Transport",
+    "meal": "Meals",
+    "sightseeing": "Sightseeing",
+    "shopping": "Shopping",
+    "other": "Other"
   }
 }

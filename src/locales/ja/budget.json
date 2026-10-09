@@ -71,5 +71,13 @@
     "cancel": "キャンセル",
     "save": "保存",
     "saving": "保存中…"
+  },
+  "category": {
+    "hotel": "宿泊",
+    "transport": "交通",
+    "meal": "食事",
+    "sightseeing": "観光",
+    "shopping": "買い物",
+    "other": "その他"
   }
 }

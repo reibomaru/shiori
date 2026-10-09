@@ -128,6 +128,7 @@
     "deleteDayTitleQuote": "「{{title}}」",
     "deleteLegTitle": "この移動を削除しますか？",
     "deleteLegMessage": "「{{from}} → {{to}}」の移動区間を削除します。この操作は取り消せません。{{where}}",
-    "deleteLegWhere": "旅程（{{days}}）に配置済みの予定はそのまま残ります。"
+    "deleteLegWhere": "旅程（{{days}}）に配置済みの予定はそのまま残ります。",
+    "daysSeparator": "・"
   }
 }

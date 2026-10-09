@@ -48,7 +48,8 @@
   },
   "auth": {
     "logout": "Se déconnecter",
-    "editProfile": "Modifier le profil"
+    "editProfile": "Modifier le profil",
+    "admin": "Gestion des utilisateurs"
   },
   "error": {
     "unknown": "Erreur inconnue",

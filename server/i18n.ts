@@ -86,6 +86,20 @@ const MESSAGES = {
   "profile.avatarInvalid": { ja: "avatar が不正です。", en: "Invalid avatar.", fr: "avatar invalide." },
   "profile.noChanges": { ja: "変更内容がありません。", en: "Nothing to update.", fr: "Aucune modification." },
   "profile.userNotFound": { ja: "ユーザーが見つかりません。", en: "User not found.", fr: "Utilisateur introuvable." },
+  // ---- 管理ダッシュボード ----
+  "admin.unconfigured": {
+    ja: "管理ダッシュボードは未設定です（ADMIN_BASIC_USER / ADMIN_BASIC_PASS）。",
+    en: "The admin dashboard is not configured (ADMIN_BASIC_USER / ADMIN_BASIC_PASS).",
+    fr: "Le tableau de bord d'administration n'est pas configuré (ADMIN_BASIC_USER / ADMIN_BASIC_PASS).",
+  },
+  "admin.forbidden": { ja: "管理者のみアクセスできます。", en: "Only administrators can access this.", fr: "Réservé aux administrateurs." },
+  "admin.allowedInvalid": { ja: "allowed は真偽値で指定してください。", en: "allowed must be a boolean.", fr: "allowed doit être un booléen." },
+  "admin.roleInvalid": { ja: "role は admin か user を指定してください。", en: "role must be admin or user.", fr: "role doit valoir admin ou user." },
+  "admin.cannotRevokeSelf": {
+    ja: "自分自身の管理者権限・利用許可は取り消せません。",
+    en: "You cannot revoke your own admin role or access.",
+    fr: "Vous ne pouvez pas révoquer votre propre rôle d'administrateur ni votre accès.",
+  },
   // ---- BYOK / AI キー ----
   "byok.apiKeyRequired": { ja: "apiKey が必要です。", en: "An apiKey is required.", fr: "Une apiKey est requise." },
   "byok.invalidKey": {

@@ -1,0 +1,26 @@
+{
+  "heading": "Projets",
+  "createPlaceholder": "Nom du nouveau projet (ex. Voyage à Taïwan 2026)",
+  "empty": {
+    "title": "Aucun projet pour l'instant.",
+    "hint": "Créez votre premier projet depuis le champ ci-dessus."
+  },
+  "member": {
+    "count_one": "{{count}} membre",
+    "count_other": "{{count}} membres",
+    "owner": " · Propriétaire"
+  },
+  "actions": {
+    "members": "Membres",
+    "rename": "Renommer"
+  },
+  "delete": {
+    "title": "Supprimer ce projet ?",
+    "message": "Le programme, les lieux, le budget et l'historique des conversations de « {{name}} » seront tous supprimés. Cette action est irréversible."
+  },
+  "login": {
+    "tagline": "Commencez à préparer votre voyage",
+    "description": "Connectez-vous avec votre compte Google pour créer votre programme.",
+    "google": "Se connecter avec Google"
+  }
+}

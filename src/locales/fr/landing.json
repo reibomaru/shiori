@@ -1,0 +1,122 @@
+{
+  "header": {
+    "login": "Connexion"
+  },
+  "hero": {
+    "badge": "Un carnet de voyage créé avec l'IA",
+    "title": "Votre plan de voyage,<0/>dans un seul <1>carnet</1>.",
+    "lead": "Itinéraires, programme jour par jour, lieux à visiter, budget et notes : tout se modifie au même endroit, puis s'exporte directement en PDF. Donnez forme à votre voyage en discutant avec l'IA.",
+    "ctaGoogle": "Commencer avec Google",
+    "ctaFeatures": "Voir les fonctionnalités",
+    "previewAlt": "L'application shiori : parcourez vos lieux candidats tout en discutant avec l'IA pour faire avancer la préparation du voyage."
+  },
+  "workflow": {
+    "eyebrow": "Workflow",
+    "title": "Découvrir, organiser, en faire un carnet",
+    "lead": "L'agent IA se renseigne sur l'histoire, la gastronomie, la culture et la nature à partir de recherches web et de documents numérisés. Transformez les lieux trouvés en un programme efficace, importez reçus et factures pour suivre vos dépenses, et terminez par un carnet PDF ou HTML."
+  },
+  "flow": {
+    "aria": "Dans l'espace shiori, quatre phases s'enchaînent : découverte, planification, réservations et suivi des dépenses, puis création du carnet. La recherche web et l'OCR des documents, reçus et factures entrent comme sources externes ; le PDF et le HTML sortent comme résultats externes.",
+    "step1": {
+      "title": "Découverte",
+      "note": "Recherches avec l'agent IA",
+      "tags": [
+        "Histoire",
+        "Gastronomie",
+        "Culture",
+        "Nature"
+      ]
+    },
+    "step2": {
+      "title": "Planification",
+      "desc1": "Vue d'ensemble sur la carte",
+      "desc2": "pour un programme efficace"
+    },
+    "step3": {
+      "title": "Réservations & coûts",
+      "tags": [
+        "Vols",
+        "Hébergement",
+        "Transports",
+        "Activités",
+        "Restaurants"
+      ]
+    },
+    "step4": {
+      "title": "Carnet",
+      "note": "Généré par l'agent"
+    },
+    "inputs": {
+      "webSearch": "Recherche web",
+      "docOcr": "OCR documents",
+      "receiptOcr": "OCR reçus",
+      "invoiceOcr": "OCR factures"
+    },
+    "outputs": {
+      "pdf": "Impression PDF",
+      "html": "HTML"
+    }
+  },
+  "phase": {
+    "all": "Toutes les phases",
+    "discovery": "01 Découverte",
+    "planning": "02 Planification",
+    "booking": "03 Réservations & dépenses",
+    "booklet": "04 Carnet"
+  },
+  "features": {
+    "agent": {
+      "title": "Agent IA",
+      "desc": "Il exploite de façon autonome la recherche web et la lecture de documents pour étudier et proposer destinations et itinéraires. Il ne se contente pas de discuter : il fait avancer votre voyage."
+    },
+    "spots": {
+      "title": "Lieux candidats",
+      "desc": "Mettez de côté les endroits qui vous tentent et gérez-les avec vos notes. Intégrez directement vos favoris au programme."
+    },
+    "map": {
+      "title": "Carte & itinéraires",
+      "desc": "Enchaînez étapes et moyens de transport pour visualiser chaque trajet sur la carte, en distinguant train, avion et marche."
+    },
+    "itinerary": {
+      "title": "Programme jour par jour",
+      "desc": "Empilez les activités de chaque journée et réorganisez-les par glisser-déposer. Une chronologie qui montre déplacements et séjours d'un coup d'œil."
+    },
+    "budget": {
+      "title": "Budget",
+      "desc": "Notez estimations et dépenses réelles par catégorie. Planifiez en gardant l'équilibre entre vue d'ensemble et porte-monnaie."
+    },
+    "export": {
+      "title": "Export PDF & HTML",
+      "desc": "Imprimez ou exportez le carnet terminé en PDF. Un document unique à consulter hors ligne, où que vous soyez."
+    },
+    "memo": {
+      "title": "Notes",
+      "desc": "Liste de bagages, numéros de réservation, découvertes sur place : gardez toutes vos notes de voyage au même endroit et notez vos idées dès qu'elles viennent."
+    }
+  },
+  "steps": {
+    "eyebrow": "How to start",
+    "title": "Commencer en 3 étapes",
+    "s1": {
+      "title": "Connectez-vous",
+      "desc": "Identifiez-vous avec votre compte Google en quelques secondes et commencez votre premier voyage tout de suite."
+    },
+    "s2": {
+      "title": "Composez votre voyage",
+      "desc": "Rassemblez les lieux à visiter, alignez trajets et programme jour par jour, puis ajoutez budget et notes."
+    },
+    "s3": {
+      "title": "Emportez votre carnet",
+      "desc": "Partagez-le avec vos compagnons ou exportez-le en PDF. Le jour J, il devient votre compagnon de route."
+    }
+  },
+  "cta": {
+    "title": "Commencez votre prochain voyage dès maintenant",
+    "lead": "Connectez-vous avec votre compte Google et créez votre programme.",
+    "button": "Se connecter avec Google"
+  },
+  "footer": {
+    "github": "GitHub",
+    "copyright": "© 2026 shiori"
+  }
+}

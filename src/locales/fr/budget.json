@@ -1,0 +1,83 @@
+{
+  "title": "Dépenses réelles",
+  "summary": {
+    "total": "Total {{currency}}",
+    "unpaid": "Impayé {{currency}}",
+    "emptyLabel": "Total"
+  },
+  "filter": {
+    "all": "Tout",
+    "unpaid": "Impayé",
+    "paid": "Payé"
+  },
+  "status": {
+    "paid": "Payé",
+    "unpaid": "Impayé"
+  },
+  "preview": {
+    "untitled": "Fichier",
+    "openNewTab": "Ouvrir dans un nouvel onglet",
+    "close": "Fermer"
+  },
+  "row": {
+    "link": "Lien",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "receiptAlt": "Reçu",
+    "dayLabel": "Jour {{day}}",
+    "linkedItem": "Lié au programme Jour {{day}} · {{title}}"
+  },
+  "empty": {
+    "none": "Aucune dépense pour l'instant. Vous pouvez en ajouter une à partir d'une capture de reçu.",
+    "filtered": "Aucune dépense correspondante."
+  },
+  "addButton": "Ajouter une dépense (importer depuis un reçu)",
+  "delete": {
+    "title": "Supprimer cette dépense ?",
+    "message": "« {{title}} » sera retiré des dépenses. Cette action est irréversible."
+  },
+  "form": {
+    "editTitle": "Modifier la dépense",
+    "addTitle": "Ajouter une dépense",
+    "upload": {
+      "hint": "Collez ou déposez une image ou un PDF de reçu, de facture ou de confirmation de réservation",
+      "select": "Choisir un fichier",
+      "extract": "Extraire depuis le fichier",
+      "extracting": "Extraction…",
+      "removeImage": "Retirer ce fichier",
+      "removeAttach": "Retirer la pièce jointe",
+      "attachedAlt": "Pièce jointe",
+      "preview": "Aperçu",
+      "filenameFallback": "Fichier"
+    },
+    "field": {
+      "category": "Catégorie",
+      "title": "Intitulé",
+      "titlePlaceholder": "ex. Hôtel XX, 2 nuits / Genève→Zermatt en train",
+      "vendor": "Prestataire / commerce",
+      "vendorPlaceholder": "ex. Booking.com / CFF / Restaurant XX",
+      "amount": "Montant",
+      "currency": "Devise",
+      "paidStatus": "Statut du paiement",
+      "date": "Date de paiement / réservation",
+      "sourceUrl": "Lien de référence (site de réservation / facture, etc.)",
+      "note": "Note"
+    },
+    "error": {
+      "titleRequired": "Veuillez saisir un intitulé (titre).",
+      "extractFailed": "L'extraction a échoué : {{msg}}",
+      "saveFailed": "Échec de l'enregistrement : {{msg}}"
+    },
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…"
+  },
+  "category": {
+    "hotel": "Hébergement",
+    "transport": "Transport",
+    "meal": "Repas",
+    "sightseeing": "Visites",
+    "shopping": "Achats",
+    "other": "Autre"
+  }
+}

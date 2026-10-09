@@ -1,0 +1,50 @@
+{
+  "mode": {
+    "train": "Train",
+    "bus": "Bus / Téléphérique",
+    "car": "Voiture",
+    "flight": "Avion",
+    "walk": "À pied"
+  },
+  "basemap": {
+    "osm": "Standard",
+    "satellite": "Satellite",
+    "topo": "Relief",
+    "light": "Clair"
+  },
+  "controls": {
+    "view2d": "2D",
+    "view3d": "3D",
+    "resetView": "Tout afficher",
+    "openPanel": "Ouvrir le panneau des trajets",
+    "closePanel": "Fermer le panneau",
+    "resizePanel": "Redimensionner le panneau",
+    "saveHomeView": "Définir comme vue par défaut",
+    "saveHomeViewHint": "Utiliser la position et le zoom actuels comme vue par défaut de ce voyage",
+    "homeViewSaved": "Enregistré",
+    "clearHomeView": "Réinitialiser la vue par défaut",
+    "clearHomeViewHint": "Effacer la vue par défaut enregistrée et ajuster automatiquement la carte à l'itinéraire"
+  },
+  "legend": {
+    "border": "Frontière",
+    "spots": "Lieux enregistrés",
+    "missingCoords": "Masqués (sans coordonnées) : {{count}}"
+  },
+  "tooltip": {
+    "geojsonDetail": "Détail GeoJSON · {{count}} pts",
+    "straight": "Ligne droite",
+    "border": " (frontière)"
+  },
+  "panel": {
+    "legsTitle": "Itinéraire",
+    "legsHint": "Cliquez sur une carte pour surligner le trajet sur la carte",
+    "spotsTitle": "Lieux enregistrés",
+    "spotsHint": "Cliquez sur une carte pour les détails · cochez la case pour afficher/masquer les épingles",
+    "backToSpots": "Retour aux lieux enregistrés",
+    "showSpotsOnMap": "Afficher les lieux enregistrés sur la carte",
+    "segment": "Trajet {{n}}",
+    "routePoints": "Itinéraire · {{count}} pts",
+    "straight": "Ligne droite",
+    "shownOnMap": "Sur la carte"
+  }
+}

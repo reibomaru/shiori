@@ -6,6 +6,7 @@
 //  対応するか」と、一覧表示用のメタ情報（タイトル・件数・コスト・
 //  更新時刻）を SQLite で管理し、resume と一覧を可能にする。
 // ============================================================
+import { t as tr, type Lang } from "../i18n.ts";
 import type { DatabaseSync } from "node:sqlite";
 import type { ChatSessionRow } from "../../db/types.ts";
 
@@ -23,22 +24,22 @@ export interface SessionListItem {
   has_history: boolean;
 }
 
-/** 最初のユーザー発言からタイトルを作る（40 文字で打ち切り）。 */
-function makeTitle(message: string | null | undefined): string {
+/** 最初のユーザー発言からタイトルを作る（40 文字で打ち切り）。空なら表示言語の「新しい会話」。 */
+function makeTitle(message: string | null | undefined, lang: Lang): string {
   const t = (message ?? "").replace(/\s+/g, " ").trim();
-  if (!t) return "新しい会話";
+  if (!t) return tr(lang, "chat.newConversation");
   return t.length > 40 ? `${t.slice(0, 39)}…` : t;
 }
 
 /** セッション行が無ければ作成。初回メッセージがあればタイトルも設定。 */
-export function upsertSession(db: DatabaseSync, id: string, firstMessage?: string, kind: ChatKind = "spot"): void {
+export function upsertSession(db: DatabaseSync, id: string, firstMessage?: string, kind: ChatKind = "spot", lang: Lang = "ja"): void {
   const row = db.prepare("SELECT id, title FROM chat_sessions WHERE id = ?").get(id) as
     | Pick<ChatSessionRow, "id" | "title">
     | undefined;
   if (!row) {
-    db.prepare("INSERT INTO chat_sessions (id, title, kind) VALUES (?, ?, ?)").run(id, makeTitle(firstMessage), kind);
+    db.prepare("INSERT INTO chat_sessions (id, title, kind) VALUES (?, ?, ?)").run(id, makeTitle(firstMessage, lang), kind);
   } else if (!row.title && firstMessage) {
-    db.prepare("UPDATE chat_sessions SET title = ? WHERE id = ?").run(makeTitle(firstMessage), id);
+    db.prepare("UPDATE chat_sessions SET title = ? WHERE id = ?").run(makeTitle(firstMessage, lang), id);
   }
 }
 

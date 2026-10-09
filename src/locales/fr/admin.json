@@ -1,0 +1,64 @@
+{
+  "heading": "Gestion des utilisateurs",
+  "subtitle": "Approuvez les demandes d'accès des nouveaux utilisateurs.",
+  "backToProjects": "Retour aux projets",
+  "reload": "Actualiser",
+  "filter": {
+    "label": "Filtrer",
+    "all": "Tous",
+    "pending": "En attente",
+    "approved": "Approuvés"
+  },
+  "pendingCount_one": "{{count}} en attente",
+  "pendingCount_other": "{{count}} en attente",
+  "column": {
+    "user": "Utilisateur",
+    "role": "Rôle",
+    "status": "Statut",
+    "createdAt": "Inscription"
+  },
+  "status": {
+    "pending": "En attente",
+    "approved": "Approuvé"
+  },
+  "role": {
+    "admin": "Administrateur",
+    "user": "Utilisateur"
+  },
+  "actions": {
+    "approve": "Approuver",
+    "revoke": "Révoquer l'approbation",
+    "changeRole": "Changer le rôle"
+  },
+  "self": "Vous",
+  "empty": "Aucun utilisateur.",
+  "emptyFiltered": "Aucun utilisateur ne correspond à ce filtre.",
+  "confirm": {
+    "revoke": {
+      "title": "Révoquer l'accès ?",
+      "message": "{{name}} ne pourra plus utiliser l'application (une nouvelle connexion le remettra en attente).",
+      "action": "Révoquer"
+    },
+    "promote": {
+      "title": "Nommer cet utilisateur administrateur ?",
+      "message": "{{name}} pourra approuver les utilisateurs et modifier les rôles depuis ce tableau de bord.",
+      "action": "Nommer administrateur"
+    },
+    "demote": {
+      "title": "Retirer les droits d'administrateur ?",
+      "message": "{{name}} n'aura plus accès à ce tableau de bord.",
+      "action": "Retirer"
+    }
+  },
+  "denied": {
+    "unauthorized": {
+      "title": "Authentification requise",
+      "message": "Le tableau de bord nécessite ses identifiants d'authentification Basic, ou une connexion. Actualisez la page et réessayez."
+    },
+    "unconfigured": {
+      "title": "Tableau de bord désactivé",
+      "message": "ADMIN_BASIC_USER / ADMIN_BASIC_PASS ne sont pas définis sur le serveur."
+    }
+  },
+  "error": "La mise à jour a échoué. Veuillez réessayer plus tard."
+}

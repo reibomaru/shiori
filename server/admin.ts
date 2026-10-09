@@ -21,6 +21,7 @@
 import type { Hono, MiddlewareHandler } from "hono";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { requireAuth } from "./auth.ts";
+import { tc } from "./i18n.ts";
 import { avatarUrlOf, getUserProfile, listAllUsers, updateUserByAdmin, type Role, type UserRecord } from "./users.ts";
 
 const BASIC_REALM = 'Basic realm="shiori admin", charset="UTF-8"';
@@ -47,7 +48,7 @@ function safeEqual(a: string, b: string): boolean {
 export const adminBasicAuth: MiddlewareHandler = async (c, next) => {
   const cred = basicCredentials();
   if (!cred) {
-    return c.json({ error: "管理ダッシュボードは未設定です（ADMIN_BASIC_USER / ADMIN_BASIC_PASS）。" }, 503);
+    return c.json({ error: tc(c, "admin.unconfigured") }, 503);
   }
   const m = /^Basic\s+(\S+)$/i.exec(c.req.header("Authorization") || "");
   if (m) {
@@ -69,9 +70,9 @@ export const adminBasicAuth: MiddlewareHandler = async (c, next) => {
  * 効くよう台帳（Firestore）の現在値で判定する。
  */
 export const requireAdmin: MiddlewareHandler = async (c, next) => {
-  if (c.get("userRole") !== "admin") return c.json({ error: "管理者のみアクセスできます。" }, 403);
+  if (c.get("userRole") !== "admin") return c.json({ error: tc(c, "admin.forbidden") }, 403);
   const rec = await getUserProfile(c.get("userId"));
-  if (!rec || !rec.allowed || rec.role !== "admin") return c.json({ error: "管理者のみアクセスできます。" }, 403);
+  if (!rec || !rec.allowed || rec.role !== "admin") return c.json({ error: tc(c, "admin.forbidden") }, 403);
   return next();
 };
 
@@ -110,19 +111,19 @@ export function registerAdminRoutes(app: Hono): void {
 
     const allowed = body.allowed === undefined ? undefined : body.allowed === true;
     if (body.allowed !== undefined && typeof body.allowed !== "boolean") {
-      return c.json({ error: "allowed は真偽値で指定してください。" }, 400);
+      return c.json({ error: tc(c, "admin.allowedInvalid") }, 400);
     }
     const role = parseRole(body.role);
-    if (role === null) return c.json({ error: "role は admin か user を指定してください。" }, 400);
-    if (allowed === undefined && role === undefined) return c.json({ error: "変更内容がありません。" }, 400);
+    if (role === null) return c.json({ error: tc(c, "admin.roleInvalid") }, 400);
+    if (allowed === undefined && role === undefined) return c.json({ error: tc(c, "profile.noChanges") }, 400);
 
     // 自分自身の権限剥奪は締め出しにつながるため禁止する（他の admin に依頼させる）。
     if (sub === c.get("userId") && (allowed === false || role === "user")) {
-      return c.json({ error: "自分自身の管理者権限・利用許可は取り消せません。" }, 400);
+      return c.json({ error: tc(c, "admin.cannotRevokeSelf") }, 400);
     }
 
     const rec = await updateUserByAdmin(sub, { allowed, role });
-    if (!rec) return c.json({ error: "ユーザーが見つかりません。" }, 404);
+    if (!rec) return c.json({ error: tc(c, "profile.userNotFound") }, 404);
     return c.json(toAdminUser(rec));
   });
 }

@@ -52,5 +52,19 @@
     "empty": "関連する Instagram 投稿はまだありません。",
     "showMore": "他 {{count}} 件を表示",
     "close": "閉じる"
+  },
+  "icon": {
+    "pin": "デフォルト",
+    "sightseeing": "観光",
+    "nature": "自然",
+    "food": "食事",
+    "cafe": "カフェ",
+    "hotel": "宿泊",
+    "castle": "城",
+    "museum": "美術館",
+    "shopping": "買い物",
+    "view": "絶景",
+    "beach": "ビーチ",
+    "star": "お気に入り"
   }
 }

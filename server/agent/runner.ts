@@ -21,6 +21,7 @@ import {
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { getModel } from "@earendil-works/pi-ai/compat";
 import { MissingApiKeyError } from "../apiKeys.ts";
+import { PROMPT_LANG_NAME, type Lang } from "../i18n.ts";
 
 // キー解決（BYOK / 共有キー）は apiKeys.ts に集約。ここは渡されたキーで動くだけ。
 export { MissingApiKeyError } from "../apiKeys.ts";
@@ -40,7 +41,12 @@ const ROOT = join(__dirname, "..", "..");
 const PROVIDER = process.env.GEMINI_PROVIDER ?? "google";
 const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
 
-export const SPOT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「行きたいスポット候補」を管理する日本語アシスタントです。
+/**
+ * スポット候補チャットのシステムプロンプト。指示文自体は日本語だが、
+ * 応答言語だけはユーザーの表示言語（lang）に合わせる。
+ */
+export function spotSystemPrompt(lang: Lang = "ja"): string {
+  return `あなたは旅行のしおりアプリの「行きたいスポット候補」を管理するアシスタントです。
 
 # もっとも重要なルール
 - あなたは DB を直接書き換えません。スポットの追加・更新・削除は必ず propose_* ツールで「提案」として出すだけです。
@@ -67,7 +73,8 @@ export const SPOT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「
 5. Google マップのリンクを貼られたら resolve_map_url で地名・座標を取り出し、そのリンクを google_maps_url に入れて提案する。口コミ・星評価はリンク先で見られるので shiori には保存しない。
 6. 既存候補の更新・削除は、先に list_spots で対象 id を特定してから提案する。
 7. 複数スポットの提案は propose_upsert_spot を複数回呼ぶ。
-8. 応答は日本語で簡潔に。`;
+8. 応答は${PROMPT_LANG_NAME[lang]}で簡潔に。提案するスポットの name・note も${PROMPT_LANG_NAME[lang]}で書く（name_en は英語のまま）。`;
+}
 
 /** 1 ターン分の usage。 */
 export interface TurnUsage {
@@ -155,7 +162,7 @@ export async function runChatAgent({
   signal,
 }: RunChatAgentParams): Promise<string | undefined> {
   if (!apiKey) {
-    throw new MissingApiKeyError("API キーが解決できませんでした。");
+    throw new MissingApiKeyError("ai.keyUnresolved");
   }
 
   mkdirSync(sessionDir, { recursive: true });
@@ -170,9 +177,7 @@ export async function runChatAgent({
   // 黙ってフォールバックし「No API key found for amazon-bedrock」になる。
   // 原因が分かりにくいので、ここで明示的に弾く。
   if (!model) {
-    throw new MissingApiKeyError(
-      `モデル "${PROVIDER}/${MODEL_ID}" を解決できません。GEMINI_MODEL に有効なモデル ID を設定してください（例: gemini-3-flash-preview, gemini-2.5-flash, gemini-flash-latest）。`,
-    );
+    throw new MissingApiKeyError("ai.modelUnresolved", { model: `${PROVIDER}/${MODEL_ID}` });
   }
 
   const loader = new DefaultResourceLoader({

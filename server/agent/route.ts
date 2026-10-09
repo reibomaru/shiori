@@ -19,7 +19,8 @@ import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { DatabaseSync } from "node:sqlite";
 import { createSpotTools, createMemoTools } from "./tools.ts";
-import { runChatAgent, SPOT_SYSTEM_PROMPT } from "./runner.ts";
+import { runChatAgent, spotSystemPrompt } from "./runner.ts";
+import { t as tr, tc, translateError, PROMPT_LANG_NAME, type Lang } from "../i18n.ts";
 import type { AgentImage, EmitFn } from "./runner.ts";
 import { MissingApiKeyError, UsageLimitExceededError, resolveAiKey, recordUsage } from "../apiKeys.ts";
 import * as memoRepo from "../../db/memo-repo.ts";
@@ -36,7 +37,9 @@ import {
 import { readSessionMessages } from "./history.ts";
 import { normalizeImageForWeb } from "./images.ts";
 
-const MEMO_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「メモ」を編集する日本語アシスタントです。
+/** メモ編集チャットのシステムプロンプト。指示文は日本語のまま、応答言語だけ表示言語に合わせる。 */
+function memoSystemPrompt(lang: Lang): string {
+  return `あなたは旅行のしおりアプリの「メモ」を編集するアシスタントです。
 メモは 1 つの Markdown 文書（タイトル + 本文 body）です。ユーザーの自由記述も、画像から読み取った情報も、すべてこの 1 つの本文にまとめます（別々の欄はありません）。
 
 # もっとも重要なルール
@@ -60,7 +63,8 @@ const MEMO_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの「メモ�
 3. 誤字修正・要約・整形・追記など、指示に沿って本文(body)を編集します。既存の内容を誤って消さないよう、必要なら get_memo_page で現在値を確認してから「変更後の全文」を組み立てます。
 4. 「調べて」「最新の情報を」などと言われたり、事実が不確かなときは web_search / fetch_url で裏を取ってから本文に反映します。憶測で書かず、必要なら出典 URL も本文に残します。
 5. 行程の流れ・乗り継ぎ・位置関係など、図で表した方が分かりやすい情報は Mermaid の図を使ってよいです。\`\`\`mermaid コードブロック（flowchart / sequenceDiagram / gantt など）で本文に埋め込むと、画面では図として表示されます。ラベルに日本語を使うときは "..." で囲みます。
-6. 応答は日本語で簡潔に。`;
+6. 応答は${PROMPT_LANG_NAME[lang]}で簡潔に。提案するメモの本文も、ユーザーが別の言語で書いていない限り${PROMPT_LANG_NAME[lang]}で書く。`;
+}
 
 /** 現在開いているメモの内容を、エージェントへのプロンプト前置きに整形する。 */
 function memoContextPreamble(db: DatabaseSync, pageId: string): string {
@@ -82,12 +86,10 @@ function memoContextPreamble(db: DatabaseSync, pageId: string): string {
 const WEBSEARCH_API_KEY = process.env.WEBSEARCH_API_KEY ?? "";
 
 /** チャットのエラーを SSE 用の {message, code} に整形する。code はフロントの導線分岐に使う。 */
-function toChatError(err: unknown): { message: string; code?: "missing_key" | "limit_exceeded" } {
-  if (err instanceof UsageLimitExceededError) return { message: err.message, code: "limit_exceeded" };
-  if (err instanceof MissingApiKeyError) return { message: err.message, code: "missing_key" };
-  return {
-    message: `エージェントの実行中にエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`,
-  };
+function toChatError(lang: Lang, err: unknown): { message: string; code?: "missing_key" | "limit_exceeded" } {
+  if (err instanceof UsageLimitExceededError) return { message: translateError(lang, err), code: "limit_exceeded" };
+  if (err instanceof MissingApiKeyError) return { message: translateError(lang, err), code: "missing_key" };
+  return { message: tr(lang, "chat.agentError", { msg: err instanceof Error ? err.message : String(err) }) };
 }
 
 /** Hono アプリにチャット関連ルートを登録する。 */
@@ -109,7 +111,7 @@ export function registerSpotChatRoute(app: Hono): void {
     const body = (await c.req.json().catch(() => ({}))) as { proposalId?: unknown; status?: unknown };
     const proposalId = typeof body.proposalId === "string" ? body.proposalId : "";
     const status = body.status === "saved" || body.status === "dismissed" ? body.status : null;
-    if (!proposalId || !status) return c.json({ error: "proposalId と status（saved/dismissed）が必要です。" }, 400);
+    if (!proposalId || !status) return c.json({ error: tc(c, "chat.resolutionRequired") }, 400);
     recordResolution(c.get("db"), c.req.param("id"), proposalId, status);
     return c.json({ ok: true });
   });
@@ -135,6 +137,7 @@ export function registerSpotChatRoute(app: Hono): void {
     const db = c.get("db");
     const sessionDir = c.get("sessionDir");
     const userId = c.get("userId");
+    const lang = c.get("lang");
     const body = (await c.req.json().catch(() => ({}))) as {
       sessionId?: unknown;
       message?: unknown;
@@ -158,27 +161,27 @@ export function registerSpotChatRoute(app: Hono): void {
       };
 
       if (!sessionId) {
-        await emit("error", { message: "sessionId が指定されていません。" });
+        await emit("error", { message: tr(lang, "chat.sessionIdRequired") });
         return;
       }
       if (!message && images.length === 0) {
-        await emit("error", { message: "メッセージが空です。" });
+        await emit("error", { message: tr(lang, "chat.messageEmpty") });
         return;
       }
       // 画像のみ送られた場合の既定指示。
-      if (!message) message = "添付画像から行きたいスポットを読み取って、候補への追加を提案してください。";
+      if (!message) message = tr(lang, "chat.defaultImageSpotPrompt");
 
       // キー解決（BYOK 優先・共有キーは上限チェック）。ここで弾かれたら実行しない。
       let resolved;
       try {
         resolved = await resolveAiKey(userId);
       } catch (err) {
-        await emit("error", toChatError(err));
+        await emit("error", toChatError(lang, err));
         return;
       }
 
       // セッション行を用意（初回はタイトルも設定）。
-      upsertSession(db, sessionId, message);
+      upsertSession(db, sessionId, message, "spot", lang);
 
       // クライアント切断時はエージェントを中断する。
       const controller = new AbortController();
@@ -192,7 +195,7 @@ export function registerSpotChatRoute(app: Hono): void {
         const sessionFile = await runChatAgent({
           apiKey: resolved.apiKey,
           prompt: message,
-          systemPrompt: SPOT_SYSTEM_PROMPT,
+          systemPrompt: spotSystemPrompt(lang),
           resumeSessionFile: getSessionFile(db, sessionId),
           customTools: tools,
           sessionDir,
@@ -205,7 +208,7 @@ export function registerSpotChatRoute(app: Hono): void {
         await recordUsage(userId, resolved.source, costUSD);
         await emit("done", {});
       } catch (err) {
-        await emit("error", toChatError(err));
+        await emit("error", toChatError(lang, err));
       }
     });
   });
@@ -229,7 +232,7 @@ export function registerMemoChatRoute(app: Hono): void {
     const body = (await c.req.json().catch(() => ({}))) as { proposalId?: unknown; status?: unknown };
     const proposalId = typeof body.proposalId === "string" ? body.proposalId : "";
     const status = body.status === "saved" || body.status === "dismissed" ? body.status : null;
-    if (!proposalId || !status) return c.json({ error: "proposalId と status（saved/dismissed）が必要です。" }, 400);
+    if (!proposalId || !status) return c.json({ error: tc(c, "chat.resolutionRequired") }, 400);
     recordResolution(c.get("db"), c.req.param("id"), proposalId, status);
     return c.json({ ok: true });
   });
@@ -255,6 +258,7 @@ export function registerMemoChatRoute(app: Hono): void {
     const db = c.get("db");
     const sessionDir = c.get("sessionDir");
     const userId = c.get("userId");
+    const lang = c.get("lang");
     const body = (await c.req.json().catch(() => ({}))) as {
       sessionId?: unknown;
       message?: unknown;
@@ -280,26 +284,26 @@ export function registerMemoChatRoute(app: Hono): void {
       };
 
       if (!sessionId) {
-        await emit("error", { message: "sessionId が指定されていません。" });
+        await emit("error", { message: tr(lang, "chat.sessionIdRequired") });
         return;
       }
       if (!message && images.length === 0) {
-        await emit("error", { message: "メッセージが空です。" });
+        await emit("error", { message: tr(lang, "chat.messageEmpty") });
         return;
       }
-      if (!message) message = "添付画像の内容を読み取って、開いているメモへの追記・整形を提案してください。";
+      if (!message) message = tr(lang, "chat.defaultImageMemoPrompt");
 
       // キー解決（BYOK 優先・共有キーは上限チェック）。ここで弾かれたら実行しない。
       let resolved;
       try {
         resolved = await resolveAiKey(userId);
       } catch (err) {
-        await emit("error", toChatError(err));
+        await emit("error", toChatError(lang, err));
         return;
       }
 
       // セッション行を用意（初回はタイトルも設定・kind='memo'）。
-      upsertSession(db, sessionId, message, "memo");
+      upsertSession(db, sessionId, message, "memo", lang);
 
       // クライアント切断時はエージェントを中断する。
       const controller = new AbortController();
@@ -315,7 +319,7 @@ export function registerMemoChatRoute(app: Hono): void {
         const sessionFile = await runChatAgent({
           apiKey: resolved.apiKey,
           prompt,
-          systemPrompt: MEMO_SYSTEM_PROMPT,
+          systemPrompt: memoSystemPrompt(lang),
           resumeSessionFile: getSessionFile(db, sessionId),
           customTools: tools,
           sessionDir,
@@ -328,7 +332,7 @@ export function registerMemoChatRoute(app: Hono): void {
         await recordUsage(userId, resolved.source, costUSD);
         await emit("done", {});
       } catch (err) {
-        await emit("error", toChatError(err));
+        await emit("error", toChatError(lang, err));
       }
     });
   });

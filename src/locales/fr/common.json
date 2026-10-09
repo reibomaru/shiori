@@ -1,0 +1,59 @@
+{
+  "app": {
+    "name": "shiori",
+    "fallbackTitle": "Shiori"
+  },
+  "nav": {
+    "map": "Carte",
+    "itinerary": "Programme",
+    "budget": "Budget",
+    "spots": "Lieux",
+    "memo": "Notes"
+  },
+  "actions": {
+    "add": "Ajouter",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "create": "Créer",
+    "confirm": "OK",
+    "back": "Retour"
+  },
+  "state": {
+    "loading": "Chargement…",
+    "saving": "Enregistrement…",
+    "empty": "Aucune donnée"
+  },
+  "theme": {
+    "label": "Thème",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système"
+  },
+  "language": {
+    "label": "Langue",
+    "ja": "日本語",
+    "en": "English",
+    "fr": "Français"
+  },
+  "print": {
+    "pdf": "Exporter en PDF"
+  },
+  "menu": {
+    "open": "Ouvrir le menu",
+    "close": "Fermer le menu",
+    "toProjects": "Retour aux projets"
+  },
+  "auth": {
+    "logout": "Se déconnecter",
+    "editProfile": "Modifier le profil",
+    "admin": "Gestion des utilisateurs"
+  },
+  "error": {
+    "unknown": "Erreur inconnue",
+    "imageLoad": "Impossible de charger l'image.",
+    "canvas": "Le traitement de l'image a échoué (canvas indisponible)."
+  }
+}

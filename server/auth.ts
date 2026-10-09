@@ -13,6 +13,7 @@
 //    POST /auth/logout            Cookie 破棄
 //    GET  /auth/dev-login         開発専用バイパス（本番では無効）
 // ============================================================
+import { t as tr, type Lang } from "./i18n.ts";
 import type { Context, Hono, MiddlewareHandler } from "hono";
 import { googleAuth } from "@hono/oauth-providers/google";
 import { sign, verify } from "hono/jwt";
@@ -59,9 +60,9 @@ const LOGO_SVG = `<svg width="34" height="34" viewBox="0 0 32 32" fill="none" ro
  * フロントの Tailwind に依存しないよう、テーマ（Ubuntu フォント / メッシュ背景 /
  * shiori ワードマーク）は inline で完結させる。
  */
-function authPage(opts: { heading: string; bodyHtml: string }): string {
+function authPage(opts: { heading: string; bodyHtml: string; lang: Lang }): string {
   return `<!doctype html>
-<html lang="ja">
+<html lang="${opts.lang}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -126,15 +127,16 @@ function authPage(opts: { heading: string; bodyHtml: string }): string {
 }
 
 /** 承認待ちユーザーに見せる HTML（利用申請は受理済み・承認待ちである旨）。 */
-function pendingHtml(email: string): string {
+function pendingHtml(email: string, lang: Lang): string {
   return authPage({
-    heading: "利用申請を受け付けました",
+    lang,
+    heading: tr(lang, "auth.pendingHeading"),
     bodyHtml: `
-    <p>アカウント（<b>${escapeHtml(email)}</b>）の利用申請を受け付けました。<br />管理者の承認後にご利用いただけます。</p>
-    <p>承認されたら、もう一度ログインしてください。</p>
+    <p>${tr(lang, "auth.pendingBody", { email: escapeHtml(email) })}</p>
+    <p>${escapeHtml(tr(lang, "auth.pendingRelogin"))}</p>
     <p>
-      <a class="btn" href="/">トップへ戻る</a>
-      <button class="btn secondary" type="button" onclick="logout()">ログアウト</button>
+      <a class="btn" href="/">${escapeHtml(tr(lang, "auth.backToTop"))}</a>
+      <button class="btn secondary" type="button" onclick="logout()">${escapeHtml(tr(lang, "auth.logout"))}</button>
     </p>
     <script>
       // 別アカウントで申請し直したい場合などに、この画面からでもセッションを破棄できるようにする。
@@ -148,12 +150,13 @@ function pendingHtml(email: string): string {
 }
 
 /** 認証エラー時に見せる HTML。 */
-function authErrorHtml(message: string): string {
+function authErrorHtml(message: string, lang: Lang): string {
   return authPage({
-    heading: "ログインできませんでした",
+    lang,
+    heading: tr(lang, "auth.errorHeading"),
     bodyHtml: `
     <p>${escapeHtml(message)}</p>
-    <p><a class="btn" href="/">トップへ戻る</a></p>`,
+    <p><a class="btn" href="/">${escapeHtml(tr(lang, "auth.backToTop"))}</a></p>`,
   });
 }
 
@@ -284,8 +287,9 @@ export function registerAuthRoutes(app: Hono): void {
       const gUser = c.get("user-google");
       const email = gUser?.email;
       const sub = gUser?.id;
+      const lang = c.get("lang");
       if (!gUser || !email || !sub) {
-        return c.html(authErrorHtml("Google 認証に失敗しました。もう一度お試しください。"), 401);
+        return c.html(authErrorHtml(tr(lang, "auth.googleFailed"), lang), 401);
       }
       // 台帳へ JIT 登録し、利用可否は「ログイン時のみ」ここで判定する（許可制）。
       // 新規ユーザーは allowed=false（承認待ち）で作られ、セッションは発行しない。
@@ -296,10 +300,10 @@ export function registerAuthRoutes(app: Hono): void {
         user = await upsertUserOnLogin(String(sub), email, gUser.name || email, picture);
       } catch (e) {
         console.error("Firestore users への登録に失敗しました:", e);
-        return c.html(authErrorHtml("ログイン処理でエラーが発生しました。時間をおいて再度お試しください。"), 500);
+        return c.html(authErrorHtml(tr(lang, "auth.loginError"), lang), 500);
       }
       if (!user.allowed) {
-        return c.html(pendingHtml(email), 403);
+        return c.html(pendingHtml(email, lang), 403);
       }
       await issueSession(c, { sub: String(sub), email, name: gUser.name || email, role: user.role });
       return c.redirect("/");

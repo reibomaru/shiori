@@ -2,6 +2,7 @@
 // 認証ミドルウェア（server/auth.ts）と storage 解決ミドルウェア（server/index.ts）が
 // リクエストごとにセットする値をここで型付けする。
 import type { DatabaseSync } from "node:sqlite";
+import type { Lang } from "./i18n.ts";
 import "hono";
 
 declare module "hono" {
@@ -20,5 +21,7 @@ declare module "hono" {
     db: DatabaseSync;
     /** このリクエストのプロジェクトの会話セッション dir（agent-sessions/{projectId}）。 */
     sessionDir: string;
+    /** 表示言語（server/i18n.ts の langMiddleware が X-Lang / Cookie / Accept-Language から解決）。 */
+    lang: Lang;
   }
 }

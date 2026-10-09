@@ -45,11 +45,14 @@ variable "secret_ids" {
     "GOOGLE_OAUTH_CLIENT_ID",
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "SESSION_SECRET",
+    # 管理ダッシュボード（/admin）の Basic 認証。両方に値が入っていないと /admin は 503 で閉じる。
+    "ADMIN_BASIC_USER",
+    "ADMIN_BASIC_PASS",
   ]
 }
 
 # 利用許可は Firestore の users コレクション（allowed フラグ）で管理する。
-# 承認は初期は GCP コンソール / gcloud で該当ドキュメントを allowed=true にする。
+# 承認は管理ダッシュボード（/admin・Basic 認証 + role=admin）から行う。
 
 variable "app_base_url" {
   type        = string

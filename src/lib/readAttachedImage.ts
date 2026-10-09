@@ -1,3 +1,4 @@
+import { langHeader } from "../i18n";
 // 添付画像の読み込みユーティリティ（スポット/メモ両チャットで共有）。
 // iPhone 標準の HEIC/HEIF はブラウザが <img> で表示できず、モデルも読み取れない。
 // ブラウザ内変換（heic2any 等）は環境依存で不安定なため、サーバの
@@ -39,7 +40,7 @@ export async function readAttachedImage(file: File): Promise<AttachedImage> {
     try {
       const res = await fetch("/api/image/normalize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...langHeader() },
         body: JSON.stringify({ data: base64, mimeType: file.type || "image/heic" }),
       });
       if (res.ok) {

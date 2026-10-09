@@ -1,0 +1,81 @@
+{
+  "byokCta": "Enregistrer une clé API",
+  "session": {
+    "fallbackTitle": "cette conversation",
+    "untitled": "(Sans titre)",
+    "newConversation": "Nouvelle conversation",
+    "create": "Démarrer une nouvelle conversation",
+    "select": "Choisir une conversation",
+    "delete": "Supprimer cette conversation"
+  },
+  "confirm": {
+    "title": "Supprimer cette conversation ?",
+    "message": "L'historique de la conversation « {{title}} » sera supprimé. Cette action est irréversible."
+  },
+  "close": "Fermer le chat",
+  "usage": {
+    "title": "Coût cumulé de cette session",
+    "tokens": "{{count}} tok · "
+  },
+  "history": {
+    "loading": "Chargement de l'historique…"
+  },
+  "empty": {
+    "lead": "Décrivez les lieux que vous voulez visiter : l'IA cherchera des informations et proposera d'ajouter, de modifier ou de supprimer des candidats. Rien n'est enregistré sans votre confirmation."
+  },
+  "suggestions": {
+    "s1": "Ajoute 3 lieux recommandés à Zermatt avec vue sur le Cervin",
+    "s2": "Trouve un café en bord de mer pour le petit-déjeuner à Nice et ajoute-le aux candidats",
+    "s3": "Vérifie les doublons parmi les candidats actuels et propose comment les ranger"
+  },
+  "tools": {
+    "list_spots": "Consultation des candidats",
+    "web_search": "Recherche web",
+    "fetch_url": "Lecture de page",
+    "geocode": "Récupération des coordonnées",
+    "propose_upsert_spot": "Proposition d'ajout/modification",
+    "propose_delete_spot": "Proposition de suppression"
+  },
+  "thinking": "Réflexion…",
+  "saveError": "Échec de l'enregistrement : {{error}}",
+  "input": {
+    "placeholder": "Écrivez un message…",
+    "attach": "Joindre une image",
+    "removeImage": "Retirer",
+    "stop": "Arrêter",
+    "send": "Envoyer",
+    "hint": "Entrée pour envoyer / Maj+Entrée pour un saut de ligne"
+  },
+  "proposal": {
+    "create": "Proposition d'ajout",
+    "update": "Proposition de modification",
+    "delete": "Proposition de suppression",
+    "target": "({{name}})",
+    "preview": "Aperçu",
+    "edit": "Modifier",
+    "saved": "✓ Appliquée",
+    "dismissed": "Ignorée",
+    "deleteConfirm": "« {{name}} » sera retiré des candidats. Confirmer ?",
+    "noChanges": "Aucune modification.",
+    "empty": "(vide)",
+    "dismiss": "Ignorer",
+    "doDelete": "Supprimer",
+    "doSave": "Enregistrer",
+    "untitled": "(Sans titre)",
+    "fields": {
+      "name": "Nom",
+      "name_en": "Nom en anglais",
+      "category": "Catégorie",
+      "city": "Ville",
+      "country": "Pays",
+      "url": "URL",
+      "google_maps_url": "URL Google Maps",
+      "source": "Source",
+      "note": "Note",
+      "lat": "Latitude",
+      "lng": "Longitude",
+      "latInput": "Latitude (lat)",
+      "lngInput": "Longitude (lng)"
+    }
+  }
+}

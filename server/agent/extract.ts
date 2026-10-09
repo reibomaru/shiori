@@ -20,6 +20,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { getModel } from "@earendil-works/pi-ai/compat";
 import { MissingApiKeyError } from "./runner.ts";
+import { PROMPT_LANG_NAME, type Lang } from "../i18n.ts";
 import type { AgentImage, TurnUsage } from "./runner.ts";
 import type { MemoGraph, ExpenseExtraction } from "../../shared/types.ts";
 
@@ -42,7 +43,9 @@ const SESSION_DIR = process.env.AGENT_SESSIONS_DIR || join(ROOT, "data", "agent-
 const PROVIDER = process.env.GEMINI_PROVIDER ?? "google";
 const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
 
-const EXTRACT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ機能を支援するアシスタントです。
+/** 画像 → HTML 抽出のシステムプロンプト。出力言語だけ表示言語に合わせる。 */
+function extractSystemPrompt(lang: Lang): string {
+  return `あなたは旅行のしおりアプリのメモ機能を支援するアシスタントです。
 ユーザーがアップロードした画像（じゃらん・楽天トラベル等の宿/スポット紹介ページのスクリーンショットや写真、パンフレットなど）を読み取り、
 そこに書かれた情報を、後から見返しやすい 1 枚の HTML に整形します。
 
@@ -52,7 +55,7 @@ const EXTRACT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ�
 - 見出し(h2/h3)・段落(p)・箇条書き(ul/li)・表(table) など意味的なタグで構造化する。
 - 画像から実際に読み取れた事実だけを書く。推測で埋めない。読めない項目は省略する。
 - 宿名・プラン名・料金・住所・電話番号・チェックイン/アウト・食事・アクセス・部屋・特徴・注意事項などがあれば漏れなく拾う。
-- 日本語で出力する。
+- ${PROMPT_LANG_NAME[lang]}で出力する（固有名詞は原文の表記も併記してよい）。
 
 # 図表・グラフの再現
 - 画像に図表（表・料金カレンダー・比較表など）が含まれる場合は、<table> で構造まで忠実に再現する。
@@ -62,6 +65,7 @@ const EXTRACT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ�
   - 円グラフ・割合: 各区分の割合(%)を横棒＋数値で表す。
   - グラフの軸ラベル・凡例・単位・タイトルも文章や見出しで補う。
 - 読み取れた数値は必ず本文にも明記し、後からテキストとして検索・参照できるようにする。`;
+}
 
 const GRAPH_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ機能を支援するアシスタントです。
 ユーザーがアップロードした画像に「グラフ構造の図」が含まれるかを判定し、含まれる場合はその構造を JSON で書き出します。
@@ -83,9 +87,11 @@ const GRAPH_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ機
 - edges の from / to は必ず nodes に存在する id を指す。
 - 矢印がある向きは from→to にする。矢印の無い（向きのない）つながりは "undirected": true を付ける。線の脇に関係名があれば label に入れる。
 - グラフ構造の図が画像に無い場合は、必ず {"nodes":[],"edges":[]} だけを出力する。
-- 推測でノードやエッジを作らない。読み取れたものだけを書く。日本語のテキストはそのまま日本語で。`;
+- 推測でノードやエッジを作らない。読み取れたものだけを書く。テキストは画像に書かれた言語のまま写す。`;
 
-const RECEIPT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの費用管理を支援するアシスタントです。
+/** 領収書 → JSON 抽出のシステムプロンプト。category は DB の正規値（日本語）で固定し、自由記述だけ表示言語に合わせる。 */
+function receiptSystemPrompt(lang: Lang): string {
+  return `あなたは旅行のしおりアプリの費用管理を支援するアシスタントです。
 ユーザーがアップロードしたファイル（領収書・請求書・予約完了画面のスクリーンショットや写真、PDF など）を読み取り、
 そこに書かれた「1 件の支払い/予約」の情報を構造化 JSON として書き出します。
 
@@ -102,7 +108,8 @@ const RECEIPT_SYSTEM_PROMPT = `あなたは旅行のしおりアプリの費用�
    "note": string|null}         // 補足（内訳・人数・チェックイン/アウト・便名など、短く）
 - 画像から実際に読み取れた事実だけを入れる。推測で埋めない。読めない項目は null にする。
 - 金額は税込み合計（total）を優先する。複数通貨が併記されている場合は主たる請求通貨を採用する。
-- 日本語で読み取り、title / vendor / note は日本語でよい。`;
+- title / vendor / note は${PROMPT_LANG_NAME[lang]}で書く（固有名詞は原文のままでよい）。category は上記の日本語の値をそのまま使う。`;
+}
 
 const TITLE_SYSTEM_PROMPT = `あなたは旅行のしおりアプリのメモ機能を支援するアシスタントです。
 ユーザーが書いたメモ本文を読み、その内容を一言で表す簡潔なタイトルを 1 つ考えます。
@@ -131,7 +138,7 @@ interface OneShotOptions {
  */
 async function runOneShot({ apiKey, systemPrompt, userPrompt, images, signal, onUsage }: OneShotOptions): Promise<string> {
   if (!apiKey) {
-    throw new MissingApiKeyError("API キーが解決できませんでした。");
+    throw new MissingApiKeyError("ai.keyUnresolved");
   }
 
   mkdirSync(SESSION_DIR, { recursive: true });
@@ -141,9 +148,7 @@ async function runOneShot({ apiKey, systemPrompt, userPrompt, images, signal, on
   const modelRegistry = ModelRegistry.create(authStorage);
   const model = modelRegistry.find(PROVIDER, MODEL_ID) ?? getModel(PROVIDER as never, MODEL_ID as never);
   if (!model) {
-    throw new MissingApiKeyError(
-      `モデル "${PROVIDER}/${MODEL_ID}" を解決できません。GEMINI_MODEL に有効なモデル ID を設定してください（例: gemini-3-flash-preview, gemini-2.5-flash, gemini-flash-latest）。`,
-    );
+    throw new MissingApiKeyError("ai.modelUnresolved", { model: `${PROVIDER}/${MODEL_ID}` });
   }
 
   const loader = new DefaultResourceLoader({
@@ -217,11 +222,14 @@ export function extractHtmlFromImages(args: {
   images: AgentImage[];
   signal?: AbortSignal;
   onUsage?: (u: TurnUsage) => void;
+  /** 出力言語（ユーザーの表示言語）。 */
+  lang?: Lang;
 }): Promise<string> {
+  const { lang = "ja", ...rest } = args;
   return runOneShot({
-    systemPrompt: EXTRACT_SYSTEM_PROMPT,
+    systemPrompt: extractSystemPrompt(lang),
     userPrompt: "添付画像から情報を読み取り、指示どおり HTML に整形して出力してください。",
-    ...args,
+    ...rest,
   });
 }
 
@@ -350,11 +358,14 @@ export async function extractReceiptFromImages(args: {
   images: AgentImage[];
   signal?: AbortSignal;
   onUsage?: (u: TurnUsage) => void;
+  /** 自由記述（title / vendor / note）の言語（ユーザーの表示言語）。 */
+  lang?: Lang;
 }): Promise<ExpenseExtraction> {
+  const { lang = "ja", ...rest } = args;
   const raw = await runOneShot({
-    systemPrompt: RECEIPT_SYSTEM_PROMPT,
+    systemPrompt: receiptSystemPrompt(lang),
     userPrompt: "添付ファイルは領収書・請求書または予約完了画面です。指示どおり JSON で情報を書き出してください。",
-    ...args,
+    ...rest,
   });
   return parseReceiptResponse(raw);
 }

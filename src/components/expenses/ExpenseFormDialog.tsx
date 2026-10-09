@@ -6,6 +6,7 @@ import type { Expense, ExpenseExtraction } from "../../types";
 import { api, expenseImageUrl } from "../../api";
 import { readAttachedImage, isHeic, isPdf } from "../../lib/readAttachedImage";
 import { CURRENCIES } from "../../lib/money";
+import { EXPENSE_CATEGORIES, DEFAULT_EXPENSE_CATEGORY, expenseCategoryKey } from "../../lib/expenseCategory";
 import type { AttachedImage } from "../../hooks/useSpotChat";
 import FilePreview, { type PreviewFile } from "./FilePreview";
 
@@ -16,9 +17,6 @@ function base64ToBlobUrl(base64: string, mimeType: string): string {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
 }
-
-/** 実費の費目（budget の費目と揃える想定）。DB に保存する値なので翻訳せず日本語のまま扱う。 */
-export const EXPENSE_CATEGORIES = ["宿泊", "交通", "食事", "観光", "買い物", "その他"];
 
 const MAX_IMAGES = 8;
 const MAX_BYTES = 12 * 1024 * 1024;
@@ -38,7 +36,7 @@ interface Draft {
 
 function toDraft(e: Expense | null): Draft {
   return {
-    category: e?.category ?? "宿泊",
+    category: e?.category ?? DEFAULT_EXPENSE_CATEGORY,
     title: e?.title ?? "",
     vendor: e?.vendor ?? "",
     amount: e?.amount ?? 0,
@@ -360,7 +358,7 @@ export default function ExpenseFormDialog({
             <div className="flex flex-wrap gap-1.5">
               {EXPENSE_CATEGORIES.map((cat) => (
                 <button key={cat} onClick={() => set("category", cat)} className={chip(draft.category === cat)}>
-                  {cat}
+                  {t(expenseCategoryKey(cat), { defaultValue: cat })}
                 </button>
               ))}
             </div>

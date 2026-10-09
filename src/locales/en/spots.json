@@ -52,5 +52,19 @@
     "empty": "No related Instagram posts yet.",
     "showMore": "Show {{count}} more",
     "close": "Close"
+  },
+  "icon": {
+    "pin": "Default",
+    "sightseeing": "Sightseeing",
+    "nature": "Nature",
+    "food": "Food",
+    "cafe": "Cafe",
+    "hotel": "Stay",
+    "castle": "Castle",
+    "museum": "Museum",
+    "shopping": "Shopping",
+    "view": "Scenic view",
+    "beach": "Beach",
+    "star": "Favorite"
   }
 }

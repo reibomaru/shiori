@@ -5,31 +5,33 @@ import type { Spot } from "./types";
 export type RGB = [number, number, number];
 
 export interface SpotIconDef {
+  /** 保存キー。表示名は spots 名前空間の `icon.{key}` で翻訳する。 */
   key: string;
   emoji: string;
-  label: string;
   rgb: RGB; // 地図ピンの色
 }
 
 // 選択肢（先頭の pin が既定フォールバック）
 export const SPOT_ICONS: SpotIconDef[] = [
-  { key: "pin", emoji: "📍", label: "デフォルト", rgb: [219, 39, 119] },
-  { key: "sightseeing", emoji: "🏛️", label: "観光", rgb: [219, 39, 119] },
-  { key: "nature", emoji: "⛰️", label: "自然", rgb: [22, 163, 74] },
-  { key: "food", emoji: "🍽️", label: "食事", rgb: [234, 88, 12] },
-  { key: "cafe", emoji: "☕", label: "カフェ", rgb: [180, 83, 9] },
-  { key: "hotel", emoji: "🏨", label: "宿泊", rgb: [13, 148, 136] },
-  { key: "castle", emoji: "🏰", label: "城", rgb: [147, 51, 234] },
-  { key: "museum", emoji: "🖼️", label: "美術館", rgb: [124, 58, 237] },
-  { key: "shopping", emoji: "🛍️", label: "買い物", rgb: [217, 70, 239] },
-  { key: "view", emoji: "📷", label: "絶景", rgb: [2, 132, 199] },
-  { key: "beach", emoji: "🏖️", label: "ビーチ", rgb: [14, 165, 233] },
-  { key: "star", emoji: "⭐", label: "お気に入り", rgb: [202, 138, 4] },
+  { key: "pin", emoji: "📍", rgb: [219, 39, 119] },
+  { key: "sightseeing", emoji: "🏛️", rgb: [219, 39, 119] },
+  { key: "nature", emoji: "⛰️", rgb: [22, 163, 74] },
+  { key: "food", emoji: "🍽️", rgb: [234, 88, 12] },
+  { key: "cafe", emoji: "☕", rgb: [180, 83, 9] },
+  { key: "hotel", emoji: "🏨", rgb: [13, 148, 136] },
+  { key: "castle", emoji: "🏰", rgb: [147, 51, 234] },
+  { key: "museum", emoji: "🖼️", rgb: [124, 58, 237] },
+  { key: "shopping", emoji: "🛍️", rgb: [217, 70, 239] },
+  { key: "view", emoji: "📷", rgb: [2, 132, 199] },
+  { key: "beach", emoji: "🏖️", rgb: [14, 165, 233] },
+  { key: "star", emoji: "⭐", rgb: [202, 138, 4] },
 ];
 
 const ICON_BY_KEY = new Map(SPOT_ICONS.map((d) => [d.key, d]));
 
-// category 文字列 → 既定アイコンキー
+// category 文字列 → 既定アイコンキー。
+// category は AI 提案や手入力の自由文字列で、表示言語（日本語 / 英語 / フランス語）で入るため
+// 各言語の代表的な語を小文字で持ち、前後一致で判定する。
 const CATEGORY_TO_ICON: Record<string, string> = {
   観光: "sightseeing",
   名所: "sightseeing",
@@ -50,12 +52,70 @@ const CATEGORY_TO_ICON: Record<string, string> = {
   展望: "view",
   ビーチ: "beach",
   海: "beach",
+  // English
+  sightseeing: "sightseeing",
+  landmark: "sightseeing",
+  attraction: "sightseeing",
+  nature: "nature",
+  park: "nature",
+  mountain: "nature",
+  food: "food",
+  restaurant: "food",
+  dining: "food",
+  gourmet: "food",
+  cafe: "cafe",
+  café: "cafe",
+  coffee: "cafe",
+  hotel: "hotel",
+  lodging: "hotel",
+  accommodation: "hotel",
+  castle: "castle",
+  museum: "museum",
+  gallery: "museum",
+  shopping: "shopping",
+  shop: "shopping",
+  market: "shopping",
+  view: "view",
+  viewpoint: "view",
+  scenic: "view",
+  beach: "beach",
+  sea: "beach",
+  // Français
+  visite: "sightseeing",
+  monument: "sightseeing",
+  parc: "nature",
+  montagne: "nature",
+  gastronomie: "food",
+  repas: "food",
+  hébergement: "hotel",
+  hôtel: "hotel",
+  château: "castle",
+  musée: "museum",
+  achats: "shopping",
+  boutique: "shopping",
+  marché: "shopping",
+  "point de vue": "view",
+  panorama: "view",
+  plage: "beach",
+  mer: "beach",
 };
+
+/** category 文字列から既定アイコンキーを推定する（完全一致 → 語の包含）。 */
+function iconKeyForCategory(category: string): string | undefined {
+  const c = category.trim().toLowerCase();
+  if (!c) return undefined;
+  if (CATEGORY_TO_ICON[c]) return CATEGORY_TO_ICON[c];
+  for (const [word, key] of Object.entries(CATEGORY_TO_ICON)) {
+    if (c.includes(word)) return key;
+  }
+  return undefined;
+}
 
 /** spot.icon → category 自動判定 → pin、の優先順で確定したアイコン定義を返す。 */
 export function resolveSpotIcon(spot: Pick<Spot, "icon" | "category">): SpotIconDef {
   if (spot.icon && ICON_BY_KEY.has(spot.icon)) return ICON_BY_KEY.get(spot.icon)!;
-  if (spot.category && CATEGORY_TO_ICON[spot.category]) return ICON_BY_KEY.get(CATEGORY_TO_ICON[spot.category])!;
+  const byCategory = spot.category ? iconKeyForCategory(spot.category) : undefined;
+  if (byCategory) return ICON_BY_KEY.get(byCategory)!;
   return SPOT_ICONS[0];
 }
 

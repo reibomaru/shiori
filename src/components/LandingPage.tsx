@@ -10,69 +10,24 @@ import {
   FaArrowRightLong,
   FaRobot,
 } from "react-icons/fa6";
+import { useTranslation, Trans } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Logo } from "./Logo";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
-/** サービス紹介の各機能。phase は上部フローのどの工程に当たるかを示す。 */
-const FEATURES: { icon: React.ReactNode; title: string; desc: string; phase: string }[] = [
-  {
-    icon: <FaRobot />,
-    title: "AI エージェント",
-    desc: "ネット検索や資料の読み取りまで自律的に駆使して、行き先やルートを強力に調査・提案。ただ会話するだけでなく、旅そのものを前へ進めます。",
-    phase: "全工程",
-  },
-  {
-    icon: <FaCompass />,
-    title: "スポット候補",
-    desc: "行きたい場所をストックして、メモと一緒に管理。気になった候補を旅程へそのまま組み込めます。",
-    phase: "01 ディスカバリー",
-  },
-  {
-    icon: <FaMapLocationDot />,
-    title: "地図・移動ルート",
-    desc: "経由地や交通手段を並べて、区間ごとの移動を地図上のルートとして可視化。鉄道・飛行機・徒歩まで区別して描けます。",
-    phase: "02 プランニング",
-  },
-  {
-    icon: <FaRegCalendarDays />,
-    title: "日ごとの旅程",
-    desc: "Day ごとに予定を積み上げ、ドラッグで並べ替え。移動と滞在をひと目でつかめるタイムラインに。",
-    phase: "02 プランニング",
-  },
-  {
-    icon: <FaWallet />,
-    title: "予算",
-    desc: "費目ごとに見積もりと実費を記録。旅の全体像とお財布のバランスを保ちながら計画できます。",
-    phase: "03 予約・費用の管理",
-  },
-  {
-    icon: <FaFilePdf />,
-    title: "PDF・HTML 出力",
-    desc: "できあがった旅のしおりは、そのまま印刷 / PDF に。オフラインでも手元で確認できる一冊になります。",
-    phase: "04 しおりづくり",
-  },
-  {
-    icon: <FaRegNoteSticky />,
-    title: "メモ",
-    desc: "持ち物・予約番号・現地の気づきまで、旅にまつわるメモを一箇所に。思いついたときにすぐ残せます。",
-    phase: "全工程",
-  },
+/** サービス紹介の各機能。key は landing:features.{key}、phase は landing:phase.{phase} を参照する。 */
+const FEATURES: { key: string; icon: React.ReactNode; phase: string }[] = [
+  { key: "agent", icon: <FaRobot />, phase: "all" },
+  { key: "spots", icon: <FaCompass />, phase: "discovery" },
+  { key: "map", icon: <FaMapLocationDot />, phase: "planning" },
+  { key: "itinerary", icon: <FaRegCalendarDays />, phase: "planning" },
+  { key: "budget", icon: <FaWallet />, phase: "booking" },
+  { key: "export", icon: <FaFilePdf />, phase: "booklet" },
+  { key: "memo", icon: <FaRegNoteSticky />, phase: "all" },
 ];
 
-/** 使い方の 3 ステップ。 */
-const STEPS: { title: string; desc: string }[] = [
-  {
-    title: "ログインしてはじめる",
-    desc: "Google アカウントで数秒でサインイン。すぐに最初の旅を作りはじめられます。",
-  },
-  {
-    title: "旅を組み立てる",
-    desc: "行きたいスポットを集め、移動ルートと日ごとの旅程を並べて、予算やメモを添えていきます。",
-  },
-  {
-    title: "しおりにして持ち出す",
-    desc: "仲間と共有したり、PDF に出力して手元に。当日はそのまま旅の相棒になります。",
-  },
-];
+/** 使い方の 3 ステップ（landing:steps.{key}）。 */
+const STEP_KEYS = ["s1", "s2", "s3"] as const;
 
 const GITHUB_URL = "https://github.com/reibomaru/shiori";
 
@@ -83,8 +38,8 @@ type FlowStep = {
   /** アイコン付きのひとことラベル（例: AI エージェント）。 */
   icon?: "robot";
   note?: string;
-  /** ノード内に並べるタグ（観点・情報源・出力形式など）。 */
-  tags?: { label: string; w: number }[];
+  /** ノード内に並べるタグ（観点・情報源・出力形式など）。幅は文言から見積もる。 */
+  tags?: string[];
   /** タグを使わないノードの説明 2 行。 */
   desc?: string[];
 };
@@ -98,54 +53,97 @@ type FlowStep = {
  * 入力元（ネット検索・書類/領収書/請求書の OCR）と出力元（PDF・HTML）は
  * サービス外のものとして FLOW_INPUTS / FLOW_OUTPUTS に分ける。
  */
-const FLOW_STEPS: FlowStep[] = [
-  {
-    n: "01",
-    x: 62,
-    title: "ディスカバリー",
-    icon: "robot",
-    note: "AI エージェントと下調べ",
-    tags: [
-      { label: "歴史", w: 54 },
-      { label: "食", w: 40 },
-      { label: "文化", w: 54 },
-      { label: "自然", w: 54 },
-    ],
-  },
-  { n: "02", x: 337, title: "プランニング", desc: ["地図で全体を俯瞰し、", "効率の良い旅程に"] },
-  {
-    n: "03",
-    x: 612,
-    title: "予約・費用の管理",
-    tags: [
-      { label: "航空券", w: 64 },
-      { label: "宿代", w: 50 },
-      { label: "交通費", w: 64 },
-      { label: "アクティビティ", w: 90 },
-      { label: "レストラン", w: 80 },
-    ],
-  },
-  { n: "04", x: 887, title: "しおりづくり", icon: "robot", note: "エージェントが自動生成" },
-];
+function flowSteps(t: TFunction): FlowStep[] {
+  return [
+    {
+      n: "01",
+      x: 62,
+      title: t("flow.step1.title"),
+      icon: "robot",
+      note: t("flow.step1.note"),
+      tags: t("flow.step1.tags", { returnObjects: true }) as string[],
+    },
+    { n: "02", x: 337, title: t("flow.step2.title"), desc: [t("flow.step2.desc1"), t("flow.step2.desc2")] },
+    {
+      n: "03",
+      x: 612,
+      title: t("flow.step3.title"),
+      tags: t("flow.step3.tags", { returnObjects: true }) as string[],
+    },
+    { n: "04", x: 887, title: t("flow.step4.title"), icon: "robot", note: t("flow.step4.note") },
+  ];
+}
+
+/**
+ * SVG 内のチップ幅を文言から見積もる（全角文字 ≒ 12.5px、半角 ≒ 7px、左右余白 20px）。
+ * 言語ごとに文字数が大きく変わるため、固定幅ではなく文言から算出する。
+ */
+function chipWidth(label: string, fontSize = 12): number {
+  let w = 0;
+  for (const ch of label) {
+    const code = ch.codePointAt(0) ?? 0;
+    const wide = code > 0x2e80; // CJK・全角記号など
+    w += wide ? fontSize * 1.05 : fontSize * 0.58;
+  }
+  return Math.ceil(w + 20);
+}
 
 const FLOW_BOX = { w: 250, h: 144, y: 124 };
 
 /** 1〜4 を囲う shiori のサービス内空間。 */
 const FLOW_CONTAINER = { x: 40, y: 100, w: 1120, h: 180 };
 
+type FlowChip = { label: string; w: number; cx: number; tx: number };
+
+/**
+ * 同じノードへ向かう入力チップを、グループ中心 `center` を挟んで左右に並べる。
+ * 文言の長さは言語で変わるため、幅を見積もってから中心位置を決める。
+ */
+function layoutChipGroup(items: { label: string; tx: number }[], center: number, gap = 10): FlowChip[] {
+  const widths = items.map((i) => chipWidth(i.label, 13));
+  const total = widths.reduce((a, b) => a + b, 0) + gap * (items.length - 1);
+  let x = center - total / 2;
+  return items.map((it, i) => {
+    const w = widths[i];
+    const chip = { label: it.label, w, cx: x + w / 2, tx: it.tx };
+    x += w + gap;
+    return chip;
+  });
+}
+
 /** サービス外の入力元。矢印で該当ノードへ取り込む（cx=チップ中心 / tx=着地点）。 */
-const FLOW_INPUTS = [
-  { label: "ネット検索", w: 104, cx: 135, tx: 168 },
-  { label: "書類 OCR", w: 96, cx: 243, tx: 208 },
-  { label: "領収書 OCR", w: 104, cx: 678, tx: 705 },
-  { label: "請求書 OCR", w: 110, cx: 793, tx: 768 },
-];
+function flowInputs(t: TFunction): FlowChip[] {
+  return [
+    ...layoutChipGroup(
+      [
+        { label: t("flow.inputs.webSearch"), tx: 168 },
+        { label: t("flow.inputs.docOcr"), tx: 208 },
+      ],
+      189,
+    ),
+    ...layoutChipGroup(
+      [
+        { label: t("flow.inputs.receiptOcr"), tx: 705 },
+        { label: t("flow.inputs.invoiceOcr"), tx: 768 },
+      ],
+      736,
+    ),
+  ];
+}
 
 /** サービス外への出力元（しおりの成果物）。 */
-const FLOW_OUTPUTS = [
-  { label: "PDF 印刷", w: 80, cx: 970 },
-  { label: "HTML", w: 76, cx: 1056 },
-];
+function flowOutputs(t: TFunction): { label: string; w: number; cx: number }[] {
+  const pdf = t("flow.outputs.pdf");
+  const html = t("flow.outputs.html");
+  const wp = chipWidth(pdf, 13);
+  const wh = chipWidth(html, 13);
+  const gap = 10;
+  const start = 1013 - (wp + gap + wh) / 2;
+  return [
+    { label: pdf, w: wp, cx: start + wp / 2 },
+    { label: html, w: wh, cx: start + wp + gap + wh / 2 },
+  ];
+}
 
 /**
  * コネクタ線の上を移動する「データパケット」の光点。
@@ -195,34 +193,46 @@ function FlowPulse({
  * 出力元（PDF・HTML）は枠の外へ矢印で書き出す。01⇄02 は行き来しながら固める。
  */
 function FlowChart() {
-  const { w, h, y } = FLOW_BOX;
-  const cy = y + h / 2;
-  const cx = (s: { x: number }) => s.x + w / 2;
+  const { t } = useTranslation("landing");
+  const FLOW_STEPS = flowSteps(t);
+  const FLOW_INPUTS = flowInputs(t);
+  const FLOW_OUTPUTS = flowOutputs(t);
+  const { w, y } = FLOW_BOX;
   // タグの x 位置を幅から積み上げ、maxRight を超えたら次の行へ折り返す。
-  const layoutTags = (
-    tags: { label: string; w: number }[],
-    startX: number,
-    maxRight: number,
-  ) => {
+  const layoutTags = (tags: string[], startX: number, maxRight: number) => {
     const gap = 6;
     let x = startX;
     let row = 0;
-    return tags.map((t) => {
-      if (x > startX && x + t.w > maxRight) {
+    return tags.map((label) => {
+      const tw = chipWidth(label);
+      if (x > startX && x + tw > maxRight) {
         row += 1;
         x = startX;
       }
-      const placed = { ...t, x, row };
-      x += t.w + gap;
+      const placed = { label, w: tw, x, row };
+      x += tw + gap;
       return placed;
     });
   };
+  // 言語によってタグの行数が変わるため、ノードの高さ（＝枠・全体の高さ）は行数から決める。
+  const layouts = FLOW_STEPS.map((s) => {
+    const tags = s.tags ? layoutTags(s.tags, s.x + 18, s.x + w - 12) : null;
+    const tagsTop = s.note ? y + 104 : y + 86;
+    const rows = tags && tags.length ? Math.max(...tags.map((tg) => tg.row)) + 1 : 0;
+    const bottom = rows ? tagsTop + (rows - 1) * 28 + 24 + 16 : y + FLOW_BOX.h;
+    return { tags, tagsTop, bottom };
+  });
+  const h = Math.max(FLOW_BOX.h, ...layouts.map((l) => l.bottom - y));
+  const extra = h - FLOW_BOX.h;
+  const container = { ...FLOW_CONTAINER, h: FLOW_CONTAINER.h + extra };
+  const cy = y + h / 2;
+  const cx = (s: { x: number }) => s.x + w / 2;
   return (
     <svg
-      viewBox="0 0 1200 348"
+      viewBox={`0 0 1200 ${348 + extra}`}
       className="h-auto w-full"
       role="img"
-      aria-label="shiori のサービス内空間で、ディスカバリー・プランニング・予約と費用の管理・しおりづくりの 4 フェーズが進む。ネット検索や書類 OCR、領収書や請求書の OCR はサービス外の入力として取り込み、PDF・HTML はサービス外への出力として書き出す。"
+      aria-label={t("flow.aria")}
     >
       <defs>
         <marker id="flow-arrow-cyan" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
@@ -235,10 +245,10 @@ function FlowChart() {
 
       {/* shiori のサービス内空間（1〜4 を囲う枠） */}
       <rect
-        x={FLOW_CONTAINER.x}
-        y={FLOW_CONTAINER.y}
-        width={FLOW_CONTAINER.w}
-        height={FLOW_CONTAINER.h}
+        x={container.x}
+        y={container.y}
+        width={container.w}
+        height={container.h}
         rx={20}
         fill="rgba(56,189,248,0.03)"
         stroke="rgba(56,189,248,0.25)"
@@ -324,9 +334,8 @@ function FlowChart() {
       />
 
       {/* 各フェーズのノード */}
-      {FLOW_STEPS.map((s) => {
-        const tags = s.tags ? layoutTags(s.tags, s.x + 18, s.x + w - 12) : null;
-        const tagsTop = s.note ? y + 104 : y + 86;
+      {FLOW_STEPS.map((s, i) => {
+        const { tags, tagsTop } = layouts[i];
         return (
           <g key={s.n}>
             <rect
@@ -365,26 +374,26 @@ function FlowChart() {
               </>
             )}
 
-            {tags?.map((t) => (
-              <g key={t.label}>
+            {tags?.map((tag) => (
+              <g key={tag.label}>
                 <rect
-                  x={t.x}
-                  y={tagsTop + t.row * 28}
-                  width={t.w}
+                  x={tag.x}
+                  y={tagsTop + tag.row * 28}
+                  width={tag.w}
                   height={24}
                   rx={12}
                   fill="rgba(56,189,248,0.12)"
                   stroke="rgba(56,189,248,0.3)"
                 />
                 <text
-                  x={t.x + t.w / 2}
-                  y={tagsTop + t.row * 28 + 12}
+                  x={tag.x + tag.w / 2}
+                  y={tagsTop + tag.row * 28 + 12}
                   textAnchor="middle"
                   dominantBaseline="central"
                   fontSize={12}
                   fill="#7dd3fc"
                 >
-                  {t.label}
+                  {tag.label}
                 </text>
               </g>
             ))}
@@ -438,7 +447,7 @@ function FlowChart() {
             x1={cx(FLOW_STEPS[3])}
             y1={y + h}
             x2={o.cx}
-            y2={FLOW_CONTAINER.y + FLOW_CONTAINER.h + 18}
+            y2={container.y + container.h + 18}
             stroke="#38bdf8"
             strokeWidth={1.5}
             markerEnd="url(#flow-arrow-cyan)"
@@ -447,13 +456,13 @@ function FlowChart() {
             x1={cx(FLOW_STEPS[3])}
             y1={y + h}
             x2={o.cx}
-            y2={FLOW_CONTAINER.y + FLOW_CONTAINER.h + 18}
+            y2={container.y + container.h + 18}
             dur={1.6}
             r={2.2}
           />
           <rect
             x={o.cx - o.w / 2}
-            y={FLOW_CONTAINER.y + FLOW_CONTAINER.h + 20}
+            y={container.y + container.h + 20}
             width={o.w}
             height={30}
             rx={15}
@@ -462,7 +471,7 @@ function FlowChart() {
           />
           <text
             x={o.cx}
-            y={FLOW_CONTAINER.y + FLOW_CONTAINER.h + 35}
+            y={container.y + container.h + 35}
             textAnchor="middle"
             dominantBaseline="central"
             fontSize={13}
@@ -478,6 +487,7 @@ function FlowChart() {
 
 /** 未認証時のトップ（`/`）に表示するランディングページ。CTA から Google ログインへ誘導する。 */
 export function LandingPage() {
+  const { t } = useTranslation("landing");
   return (
     <div className="tech-mesh min-h-screen text-slate-100">
       {/* ===== ヘッダー ===== */}
@@ -489,13 +499,16 @@ export function LandingPage() {
               shiori
             </span>
           </div>
-          <a
-            href="/auth/google"
-            className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3.5 py-2 text-sm font-semibold text-slate-100 ring-1 ring-inset ring-white/15 transition hover:bg-white/15"
-          >
-            <FaGoogle className="text-cyan-300" />
-            ログイン
-          </a>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher surface="dark" />
+            <a
+              href="/auth/google"
+              className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3.5 py-2 text-sm font-semibold text-slate-100 ring-1 ring-inset ring-white/15 transition hover:bg-white/15"
+            >
+              <FaGoogle className="text-cyan-300" />
+              {t("header.login")}
+            </a>
+          </div>
         </div>
       </header>
 
@@ -505,18 +518,17 @@ export function LandingPage() {
           <div className="text-center lg:text-left">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-cyan-200 ring-1 ring-inset ring-cyan-400/20">
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-neon)]" />
-              AI と一緒につくる、旅のしおり
+              {t("hero.badge")}
             </span>
             <h1 className="mt-5 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-              旅の計画を、
-              <br className="hidden sm:block" />
-              ひとつの
-              <span className="brand-wordmark">しおり</span>に。
+              <Trans
+                t={t}
+                i18nKey="hero.title"
+                components={[<br key="br" className="hidden sm:block" />, <span key="brand" className="brand-wordmark" />]}
+              />
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg lg:mx-0">
-              移動ルート・日ごとの旅程・行きたいスポット・予算・メモを
-              まとめて編集し、そのまま PDF に。
-              AI と話しながら、旅の計画をかたちにできます。
+              {t("hero.lead")}
             </p>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-start lg:justify-start">
               <a
@@ -524,13 +536,13 @@ export function LandingPage() {
                 className="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-white px-5 py-3 font-semibold text-slate-800 shadow-lg shadow-cyan-500/10 transition hover:bg-slate-100 sm:w-auto"
               >
                 <FaGoogle className="text-lg" />
-                Google ではじめる
+                {t("hero.ctaGoogle")}
               </a>
               <a
                 href="#features"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 font-semibold text-slate-200 ring-1 ring-inset ring-white/15 transition hover:bg-white/5 sm:w-auto"
               >
-                機能を見る
+                {t("hero.ctaFeatures")}
                 <FaArrowRightLong className="text-sm" />
               </a>
             </div>
@@ -548,7 +560,7 @@ export function LandingPage() {
               </div>
               <img
                 src="/app-preview.jpg"
-                alt="shiori のアプリ画面。行きたいスポット候補を一覧しながら、AI と会話して旅の計画を進められる。"
+                alt={t("hero.previewAlt")}
                 width={1400}
                 height={790}
                 loading="eager"
@@ -564,14 +576,10 @@ export function LandingPage() {
         <div className="mx-auto max-w-[1440px] px-6 py-20 sm:py-28 lg:px-10">
           <div className="mx-auto max-w-2xl text-center">
             <span className="font-mono-tech text-xs uppercase tracking-[0.25em] text-cyan-300/70">
-              Workflow
+              {t("workflow.eyebrow")}
             </span>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-              見つけて、組んで、しおりにする
-            </h2>
-            <p className="mt-4 text-slate-300">
-              AI エージェントがネット検索や書類の読み取りから、歴史・食・文化・自然まで下調べ。見つけたスポットを効率の良い旅程に落とし込み、領収書や請求書まで取り込んで管理。仕上げは PDF・HTML のしおりに。
-            </p>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{t("workflow.title")}</h2>
+            <p className="mt-4 text-slate-300">{t("workflow.lead")}</p>
           </div>
 
           <div className="mx-auto mt-16 w-full max-w-5xl overflow-x-auto">
@@ -583,16 +591,16 @@ export function LandingPage() {
           {/* 含まれる機能（カードにせず、罫線区切りの一覧で示す） */}
           <dl className="mx-auto mt-16 grid max-w-5xl gap-x-10 border-t border-white/10 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
-              <div key={f.title} className="flex items-start gap-3.5 border-b border-white/10 py-5">
+              <div key={f.key} className="flex items-start gap-3.5 border-b border-white/10 py-5">
                 <span className="mt-0.5 text-lg text-cyan-300/80">{f.icon}</span>
                 <div className="min-w-0">
                   <dt className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-100">
-                    {f.title}
+                    {t(`features.${f.key}.title`)}
                     <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium tracking-wide text-cyan-200">
-                      {f.phase}
+                      {t(`phase.${f.phase}`)}
                     </span>
                   </dt>
-                  <dd className="mt-1 text-xs leading-relaxed text-slate-400">{f.desc}</dd>
+                  <dd className="mt-1 text-xs leading-relaxed text-slate-400">{t(`features.${f.key}.desc`)}</dd>
                 </div>
               </div>
             ))}
@@ -605,21 +613,21 @@ export function LandingPage() {
         <div className="mx-auto max-w-[1440px] px-6 py-20 sm:py-28 lg:px-10">
           <div>
             <span className="font-mono-tech text-xs uppercase tracking-[0.25em] text-cyan-300/70">
-              How to start
+              {t("steps.eyebrow")}
             </span>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">3 ステップではじめる</h2>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{t("steps.title")}</h2>
           </div>
           <div className="mt-14 grid border-t border-white/10 sm:grid-cols-3 sm:divide-x sm:divide-white/10">
-            {STEPS.map((s, i) => (
+            {STEP_KEYS.map((k, i) => (
               <div
-                key={s.title}
+                key={k}
                 className="border-b border-white/10 py-8 sm:border-b-0 sm:px-10 sm:first:pl-0 sm:last:pr-0"
               >
                 <span className="brand-wordmark font-mono-tech text-5xl font-bold">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <h3 className="mt-5 text-xl font-semibold text-slate-100">{s.title}</h3>
-                <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-400">{s.desc}</p>
+                <h3 className="mt-5 text-xl font-semibold text-slate-100">{t(`steps.${k}.title`)}</h3>
+                <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-400">{t(`steps.${k}.desc`)}</p>
               </div>
             ))}
           </div>
@@ -636,19 +644,15 @@ export function LandingPage() {
                 shiori
               </span>
             </div>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              次の旅を、いまつくりはじめよう
-            </h2>
-            <p className="mt-4 max-w-lg text-slate-300">
-              Google アカウントでログインして、あなたの旅程を作成しましょう。
-            </p>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("cta.title")}</h2>
+            <p className="mt-4 max-w-lg text-slate-300">{t("cta.lead")}</p>
           </div>
           <a
             href="/auth/google"
             className="inline-flex shrink-0 items-center justify-center gap-3 rounded-lg bg-white px-6 py-3.5 font-semibold text-slate-800 shadow-lg shadow-cyan-500/10 transition hover:bg-slate-100"
           >
             <FaGoogle className="text-lg" />
-            Google でログイン
+            {t("cta.button")}
           </a>
         </div>
       </section>
@@ -668,10 +672,10 @@ export function LandingPage() {
               className="inline-flex items-center gap-1.5 transition hover:text-slate-100"
             >
               <FaGithub />
-              GitHub
+              {t("footer.github")}
             </a>
           </nav>
-          <p className="text-slate-500">© 2026 shiori</p>
+          <p className="text-slate-500">{t("footer.copyright")}</p>
         </div>
       </footer>
     </div>

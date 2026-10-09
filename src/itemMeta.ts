@@ -10,15 +10,15 @@ import {
 } from "react-icons/fa6";
 import type { ItemType } from "./types";
 
-/** 予定タイプごとのアイコン（react-icons）・ラベル・色 */
-export const ITEM_META: Record<ItemType, { Icon: IconType; label: string; color: string }> = {
-  flight: { Icon: FaPlane, label: "移動（飛行機）", color: "#2563eb" },
-  train: { Icon: FaTrain, label: "移動（鉄道）", color: "#0e7490" },
-  bus: { Icon: FaCableCar, label: "移動（バス・登山）", color: "#0891b2" },
-  spot: { Icon: FaLocationDot, label: "観光", color: "#d97706" },
-  meal: { Icon: FaUtensils, label: "食事", color: "#db2777" },
-  hotel: { Icon: FaBed, label: "宿泊", color: "#7c3aed" },
-  free: { Icon: FaRegClock, label: "自由・その他", color: "#64748b" },
+/** 予定タイプごとのアイコン（react-icons）・色。表示名は itinerary 名前空間の `itemType.{type}` で翻訳する。 */
+export const ITEM_META: Record<ItemType, { Icon: IconType; color: string }> = {
+  flight: { Icon: FaPlane, color: "#2563eb" },
+  train: { Icon: FaTrain, color: "#0e7490" },
+  bus: { Icon: FaCableCar, color: "#0891b2" },
+  spot: { Icon: FaLocationDot, color: "#d97706" },
+  meal: { Icon: FaUtensils, color: "#db2777" },
+  hotel: { Icon: FaBed, color: "#7c3aed" },
+  free: { Icon: FaRegClock, color: "#64748b" },
 };
 
 export const ITEM_TYPES = Object.keys(ITEM_META) as ItemType[];

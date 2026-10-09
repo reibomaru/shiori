@@ -1,0 +1,70 @@
+{
+  "title": "Lieux à visiter",
+  "count": "{{count}} éléments",
+  "description": "Les candidats que vous avez enregistrés via le chat en feuilletant votre guide. Cliquez sur une carte pour voir les détails et les publications Instagram.",
+  "empty": "Aucun candidat pour l'instant. Essayez d'en enregistrer depuis le chat.",
+  "detail": "Détails ›",
+  "view": {
+    "group": "Changer l'affichage",
+    "card": "Vue cartes",
+    "list": "Vue liste"
+  },
+  "chat": {
+    "open": "Ouvrir le chat"
+  },
+  "splitter": "Glisser pour redimensionner",
+  "iconPicker": {
+    "change": "Changer l'icône de l'épingle",
+    "resetToCategory": "Revenir à l'icône par défaut de la catégorie ({{category}})",
+    "none": "Aucune"
+  },
+  "delete": {
+    "title": "Supprimer ce candidat ?",
+    "message": "« {{name}} » sera retiré de vos candidats. Cette action est irréversible."
+  },
+  "links": {
+    "link": "Lien",
+    "googleMaps": "Google Maps"
+  },
+  "rating": {
+    "tooltip": "Note Google Maps (voir les avis via le lien)"
+  },
+  "carousel": {
+    "prev": "Photo précédente",
+    "next": "Photo suivante",
+    "photoAlt": "Photo {{index}} de {{name}}",
+    "goTo": "Aller à la photo {{index}}"
+  },
+  "detailContent": {
+    "close": "Fermer",
+    "source": "Source : {{source}}",
+    "googlePhotos": "Photos Google",
+    "mapTitle": "Google Maps pour {{name}}",
+    "reviewHint": "Les notes et photos sont affichées dans la carte. Consultez tous les avis sur <0>Google Maps</0>.",
+    "reviewHintPlain": "Les notes et photos sont affichées dans la carte. Consultez tous les avis sur Google Maps."
+  },
+  "instagram": {
+    "editorLabel": "URL de publications Instagram ({{count}})",
+    "invalidUrl": "Saisissez une URL de publication Instagram (…/p/…, /reel/…, /tv/…)",
+    "delete": "Supprimer",
+    "placeholder": "https://www.instagram.com/p/...",
+    "add": "Ajouter",
+    "empty": "Aucune publication Instagram associée pour l'instant.",
+    "showMore": "Afficher {{count}} de plus",
+    "close": "Fermer"
+  },
+  "icon": {
+    "pin": "Par défaut",
+    "sightseeing": "Visite",
+    "nature": "Nature",
+    "food": "Restaurant",
+    "cafe": "Café",
+    "hotel": "Hébergement",
+    "castle": "Château",
+    "museum": "Musée",
+    "shopping": "Shopping",
+    "view": "Point de vue",
+    "beach": "Plage",
+    "star": "Favori"
+  }
+}

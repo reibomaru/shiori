@@ -35,7 +35,8 @@
   "language": {
     "label": "言語",
     "ja": "日本語",
-    "en": "English"
+    "en": "English",
+    "fr": "Français"
   },
   "print": {
     "pdf": "PDF出力"
@@ -48,5 +49,10 @@
   "auth": {
     "logout": "ログアウト",
     "editProfile": "プロフィールを編集"
+  },
+  "error": {
+    "unknown": "不明なエラー",
+    "imageLoad": "画像を読み込めませんでした。",
+    "canvas": "画像の処理に失敗しました（canvas を利用できません）。"
   }
 }

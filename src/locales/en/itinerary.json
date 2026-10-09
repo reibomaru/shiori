@@ -128,6 +128,7 @@
     "deleteDayTitleQuote": " \"{{title}}\"",
     "deleteLegTitle": "Delete this route?",
     "deleteLegMessage": "The route \"{{from}} → {{to}}\" will be deleted. This cannot be undone.{{where}}",
-    "deleteLegWhere": " Items already placed in the itinerary ({{days}}) will remain."
+    "deleteLegWhere": " Items already placed in the itinerary ({{days}}) will remain.",
+    "daysSeparator": ", "
   }
 }

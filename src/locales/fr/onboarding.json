@@ -1,0 +1,26 @@
+{
+  "progress": "{{current}} / {{total}}",
+  "skip": "Passer",
+  "next": "Suivant",
+  "done": "C'est parti",
+  "create-project": {
+    "title": "Commencez par créer un projet",
+    "body": "Saisissez un nom de voyage et appuyez sur Créer pour commencer à préparer votre périple."
+  },
+  "search-spots": {
+    "title": "Cherchez des lieux",
+    "body": "Ouvrez « Lieux » dans la barre latérale pour chercher les endroits que vous voulez visiter."
+  },
+  "chat-spot": {
+    "title": "Ajoutez un lieu en discutant",
+    "body": "Demandez par exemple « Que me conseilles-tu à ○○ ? » et l'IA proposera des candidats. Enregistrez ceux qui vous plaisent pour les ajouter."
+  },
+  "map-spots": {
+    "title": "Vérifiez-les sur la carte",
+    "body": "Les lieux enregistrés apparaissent comme des épingles sur la « Carte ». Jetez un œil à leur emplacement."
+  },
+  "itinerary-dnd": {
+    "title": "Composez votre programme par glisser-déposer",
+    "body": "Dans « Programme », faites glisser lieux et trajets depuis la palette de droite vers chaque journée pour construire votre plan."
+  }
+}

@@ -16,6 +16,7 @@
 //
 //  利用量・上限は users ドキュメント（server/users.ts）で per-user・月次に集計する。
 // ============================================================
+import { LocalizedError } from "./i18n.ts";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -31,18 +32,16 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 
-/** API キーが 1 つも解決できない（BYOK 未登録かつ共有キー未設定）。 */
-export class MissingApiKeyError extends Error {}
+/** API キーが 1 つも解決できない（BYOK 未登録かつ共有キー未設定）。message は日本語（ログ用）、表示は translateError で翻訳する。 */
+export class MissingApiKeyError extends LocalizedError {}
 
 /** 共有キーの月次上限に達した（BYOK 登録を促す）。 */
-export class UsageLimitExceededError extends Error {
+export class UsageLimitExceededError extends LocalizedError {
   readonly costUsd: number;
   readonly limitUsd: number;
   readonly month: string;
   constructor(costUsd: number, limitUsd: number, month: string) {
-    super(
-      `今月の無料利用上限（$${limitUsd.toFixed(2)}）に達しました。自分の API キー（BYOK）を登録すると継続してご利用いただけます。`,
-    );
+    super("ai.limitExceeded", { limit: limitUsd.toFixed(2) });
     this.name = "UsageLimitExceededError";
     this.costUsd = costUsd;
     this.limitUsd = limitUsd;
@@ -278,9 +277,7 @@ export async function resolveAiKey(sub: string): Promise<{ apiKey: string; sourc
   // 2) 共有キーへフォールバック（上限チェック）。
   const shared = process.env.GEMINI_API_KEY;
   if (!shared) {
-    throw new MissingApiKeyError(
-      "AI 機能を利用できません。自分の API キー（BYOK）を登録してください（共有キーは未設定です）。",
-    );
+    throw new MissingApiKeyError("ai.sharedNotConfigured");
   }
   const cost = currentMonthCost(state, "shared");
   const limit = monthlyLimitFor(state);

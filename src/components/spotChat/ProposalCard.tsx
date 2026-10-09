@@ -46,10 +46,10 @@ function toDraft(p: Proposal): Draft {
 }
 
 /** 文字列ドラフト → API へ送る本文。 */
-function toBody(d: Draft): Record<string, unknown> {
+function toBody(d: Draft, untitled: string): Record<string, unknown> {
   const num = (v: string) => (v.trim() === "" ? null : Number(v));
   return {
-    name: d.name?.trim() || "（無題）",
+    name: d.name?.trim() || untitled,
     name_en: d.name_en?.trim() || null,
     category: d.category?.trim() || null,
     city: d.city?.trim() || null,
@@ -64,10 +64,10 @@ function toBody(d: Draft): Record<string, unknown> {
 }
 
 /** ドラフト（編集中の値）から、保存後の見た目を再現するカード用データを組み立てる。 */
-function toPreview(d: Draft, p: Proposal): SpotCardData {
+function toPreview(d: Draft, p: Proposal, untitled: string): SpotCardData {
   const num = (v: string) => (v.trim() === "" ? null : Number(v));
   return {
-    name: d.name?.trim() || "（無題）",
+    name: d.name?.trim() || untitled,
     name_en: d.name_en?.trim() || null,
     category: d.category?.trim() || null,
     city: d.city?.trim() || null,
@@ -144,7 +144,7 @@ export default function ProposalCard({
   }, [placeQuery, isDelete]);
   const diffs =
     proposal.op === "update" && proposal.current
-      ? changedFields(proposal.current as unknown as Record<string, unknown>, toBody(draft))
+      ? changedFields(proposal.current as unknown as Record<string, unknown>, toBody(draft, t("proposal.untitled")))
       : [];
 
   return (
@@ -221,7 +221,7 @@ export default function ProposalCard({
         <>
           {/* 保存後の一覧カードに近い見た目のプレビュー（写真・評価は Google マップから）。 */}
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-            <SpotCard spot={toPreview(draft, proposal)} photoUrls={photoUrls} rating={rating} />
+            <SpotCard spot={toPreview(draft, proposal, t("proposal.untitled"))} photoUrls={photoUrls} rating={rating} />
           </div>
           {/* update は変更前→変更後の差分も示す。 */}
           {proposal.op === "update" && (
@@ -255,7 +255,7 @@ export default function ProposalCard({
             <FaXmark /> {t("proposal.dismiss")}
           </button>
           <button
-            onClick={() => onSave(isDelete ? {} : toBody(draft))}
+            onClick={() => onSave(isDelete ? {} : toBody(draft, t("proposal.untitled")))}
             disabled={busy}
             className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold text-white disabled:opacity-50 ${
               isDelete ? "bg-rose-600 hover:bg-rose-500" : "bg-cyan-700 hover:bg-cyan-600"

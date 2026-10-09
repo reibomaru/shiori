@@ -9,6 +9,7 @@
 //  アクセス境界: ログインユーザーの email が project.memberEmails に含まれるか。
 //  リクエストは X-Project-Id ヘッダで対象プロジェクトを指定する。
 // ============================================================
+import { t as tr, tc } from "./i18n.ts";
 import type { MiddlewareHandler } from "hono";
 import { randomUUID } from "node:crypto";
 import { firestore } from "./users.ts";
@@ -62,7 +63,7 @@ const norm = (email: string): string => (email || "").trim().toLowerCase();
 function toRecord(id: string, x: FirebaseFirestore.DocumentData): ProjectRecord {
   return {
     id,
-    name: typeof x.name === "string" ? x.name : "（無題のプロジェクト）",
+    name: typeof x.name === "string" ? x.name : tr("ja", "project.untitled"),
     ownerSub: typeof x.ownerSub === "string" ? x.ownerSub : "",
     ownerEmail: typeof x.ownerEmail === "string" ? x.ownerEmail : "",
     memberEmails: Array.isArray(x.memberEmails) ? (x.memberEmails as unknown[]).map((e) => String(e)) : [],
@@ -90,12 +91,18 @@ export async function getProject(id: string): Promise<ProjectRecord | null> {
 }
 
 /** 新規プロジェクトを作成し、作成者を owner + member にする。 */
-export async function createProject(name: string, ownerSub: string, ownerEmail: string): Promise<ProjectRecord> {
+/** @param defaultName 名前が空のときの既定名（呼び出し側が表示言語で渡す）。 */
+export async function createProject(
+  name: string,
+  ownerSub: string,
+  ownerEmail: string,
+  defaultName = tr("ja", "project.defaultName"),
+): Promise<ProjectRecord> {
   const id = randomUUID();
   const now = new Date().toISOString();
   const rec: ProjectRecord = {
     id,
-    name: name.trim() || "新しいプロジェクト",
+    name: name.trim() || defaultName,
     ownerSub,
     ownerEmail: norm(ownerEmail),
     memberEmails: [norm(ownerEmail)],
@@ -183,18 +190,18 @@ export const requireProjectMember: MiddlewareHandler = async (c, next) => {
   // ブラウザネイティブの GET はカスタムヘッダを付けられないため、?projectId= の
   // クエリでも受け付ける（認証は Cookie、メンバー検証は下で行うため安全）。
   const projectId = c.req.header("X-Project-Id") || c.req.query("projectId") || "";
-  if (!projectId) return c.json({ error: "X-Project-Id ヘッダが必要です。" }, 400);
+  if (!projectId) return c.json({ error: tc(c, "project.headerRequired") }, 400);
 
   let id: string;
   try {
     id = sanitizeProjectId(projectId);
   } catch {
-    return c.json({ error: "不正なプロジェクト ID です。" }, 400);
+    return c.json({ error: tc(c, "project.invalidId") }, 400);
   }
 
   const project = await getProjectCached(id);
-  if (!project) return c.json({ error: "プロジェクトが見つかりません。" }, 404);
-  if (!isMember(project, c.get("userEmail"))) return c.json({ error: "このプロジェクトへのアクセス権がありません。" }, 403);
+  if (!project) return c.json({ error: tc(c, "project.notFound") }, 404);
+  if (!isMember(project, c.get("userEmail"))) return c.json({ error: tc(c, "project.forbidden") }, 403);
 
   c.set("projectId", id);
   c.set("db", await getProjectDb(id));

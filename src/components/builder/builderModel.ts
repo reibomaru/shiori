@@ -32,10 +32,14 @@ export type BlockPatch = Partial<
   Pick<Block, "time" | "type" | "title" | "note" | "url" | "url_label" | "cost">
 >;
 
-/** 飲食系カテゴリならば meal、それ以外は spot 扱い（初期 type の推定）。 */
-const MEAL_HINT = ["食", "グルメ", "レストラン", "カフェ", "ディナー", "ランチ", "バー", "スイーツ"];
+/** 飲食系カテゴリならば meal、それ以外は spot 扱い（初期 type の推定）。category は表示言語で入るため日英仏の語を見る。 */
+const MEAL_HINT = [
+  "食", "グルメ", "レストラン", "カフェ", "ディナー", "ランチ", "バー", "スイーツ",
+  "food", "restaurant", "cafe", "café", "dinner", "lunch", "breakfast", "bar", "sweets", "dessert", "bakery",
+  "repas", "gastronomie", "déjeuner", "dîner", "brasserie", "boulangerie", "pâtisserie", "bistro",
+];
 export function spotItemType(spot: Spot): ItemType {
-  const c = spot.category ?? "";
+  const c = (spot.category ?? "").toLowerCase();
   return MEAL_HINT.some((h) => c.includes(h)) ? "meal" : "spot";
 }
 
@@ -81,9 +85,9 @@ export function seedDays(days: Day[]): BuilderDay[] {
 /**
  * スポット候補 → 楽観的ブロック（差し込み時の初期値）。
  * url_label はユーザーデータとして保存されるため、生成時の表示言語に合わせて
- * 呼び出し側から翻訳済みのラベルを渡す（未指定なら日本語フォールバック）。
+ * 呼び出し側から翻訳済みのラベル（itinerary:block.link）を渡す。
  */
-export function newBlockFromSpot(spot: Spot, linkLabel = "リンク"): Block {
+export function newBlockFromSpot(spot: Spot, linkLabel: string): Block {
   return {
     id: tempId(),
     time: "",
@@ -117,10 +121,9 @@ export function newBlockFromLeg(leg: LegFeature): Block {
 
 /**
  * 自由入力の空ブロック。title はユーザーデータとして保存されるため、
- * 生成時の表示言語に合わせて呼び出し側から翻訳済みのタイトルを渡す
- * （未指定なら日本語フォールバック）。
+ * 生成時の表示言語に合わせて呼び出し側から翻訳済みのタイトル（itinerary:block.newItem）を渡す。
  */
-export function newBlockManual(title = "新しい予定"): Block {
+export function newBlockManual(title: string): Block {
   return {
     id: tempId(),
     time: "",
@@ -138,9 +141,9 @@ export function newBlockManual(title = "新しい予定"): Block {
 /**
  * Block → items の POST/PUT 用ボディ。id はクライアント採番の UUID をそのまま送る。
  * 無題フォールバックはユーザーデータとして保存されるため、呼び出し側から翻訳済みの
- * 文言を渡す（未指定なら日本語フォールバック）。
+ * 文言（itinerary:block.untitled）を渡す。
  */
-export function itemBody(block: Block, dayId: string, sortOrder: number, untitled = "（無題）") {
+export function itemBody(block: Block, dayId: string, sortOrder: number, untitled: string) {
   return {
     id: block.id,
     day_id: dayId,

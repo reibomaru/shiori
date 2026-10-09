@@ -1,0 +1,8 @@
+{
+  "period": "{{start}} – {{end}}",
+  "party": "{{travelers}} ({{count}} pers.)",
+  "perPerson": "{{amount}} / pers.",
+  "apiError": "Impossible de joindre l'API : {{error}}",
+  "apiErrorHint": "Lancez <0>pnpm dev</0> dans un autre terminal.",
+  "mapLoading": "Chargement de la carte…"
+}

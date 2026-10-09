@@ -597,7 +597,7 @@ export default function ItineraryBuilder({
       const [, kind, refId] = id.split(":");
       if (kind === "spot") {
         const s = spots.find((x) => x.id === refId);
-        if (s) setActiveBlock(newBlockFromSpot(s));
+        if (s) setActiveBlock(newBlockFromSpot(s, t("block.link")));
       } else {
         const l = legs.find((x) => x.properties.id === refId);
         if (l) setActiveBlock(newBlockFromLeg(l));
@@ -825,7 +825,7 @@ export default function ItineraryBuilder({
                 const where =
                   placedNos.length > 0
                     ? t("confirm.deleteLegWhere", {
-                        days: placedNos.map((n) => `Day${n}`).join("・"),
+                        days: placedNos.map((n) => `Day${n}`).join(t("confirm.daysSeparator")),
                       })
                     : "";
                 return t("confirm.deleteLegMessage", {

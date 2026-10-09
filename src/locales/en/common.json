@@ -35,7 +35,8 @@
   "language": {
     "label": "Language",
     "ja": "日本語",
-    "en": "English"
+    "en": "English",
+    "fr": "Français"
   },
   "print": {
     "pdf": "Export PDF"
@@ -48,5 +49,10 @@
   "auth": {
     "logout": "Log out",
     "editProfile": "Edit profile"
+  },
+  "error": {
+    "unknown": "Unknown error",
+    "imageLoad": "The image could not be loaded.",
+    "canvas": "Image processing failed (canvas is unavailable)."
   }
 }

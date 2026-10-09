@@ -3,6 +3,7 @@
 // 本文・ツール実行・提案・コストを state へ反映する。
 // useSpotChat と対になる実装（対象がスポット候補ではなくメモページ）。
 import { useCallback, useEffect, useRef, useState } from "react";
+import i18n, { langHeader } from "../i18n";
 import { useSearchParams } from "react-router-dom";
 import type { MemoPage } from "../types";
 import { api, projectHeader, type ChatSessionSummary } from "../api";
@@ -154,7 +155,7 @@ export function useMemoChat() {
       try {
         const res = await fetch("/api/memo/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...projectHeader() },
+          headers: { "Content-Type": "application/json", ...projectHeader(), ...langHeader() },
           credentials: "same-origin",
           body: JSON.stringify({
             sessionId: sessionIdRef.current,
@@ -190,7 +191,7 @@ export function useMemoChat() {
               }));
               break;
             case "error":
-              setError(String(d.message ?? "不明なエラー"));
+              setError(String(d.message ?? i18n.t("error.unknown", { ns: "common" })));
               setErrorCode((d.code as ChatErrorCode) ?? null);
               break;
           }

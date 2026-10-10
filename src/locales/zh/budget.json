@@ -1,0 +1,83 @@
+{
+  "title": "实际花费",
+  "summary": {
+    "total": "{{currency}} 合计",
+    "unpaid": "{{currency}} 未付",
+    "emptyLabel": "合计"
+  },
+  "filter": {
+    "all": "全部",
+    "unpaid": "未付",
+    "paid": "已付"
+  },
+  "status": {
+    "paid": "已付",
+    "unpaid": "未付"
+  },
+  "preview": {
+    "untitled": "文件",
+    "openNewTab": "在新标签页打开",
+    "close": "关闭"
+  },
+  "row": {
+    "link": "链接",
+    "edit": "编辑",
+    "delete": "删除",
+    "receiptAlt": "收据",
+    "dayLabel": "第 {{day}} 天",
+    "linkedItem": "关联行程 第 {{day}} 天 · {{title}}"
+  },
+  "empty": {
+    "none": "还没有花费记录。可以从收据截图添加。",
+    "filtered": "没有符合条件的花费。"
+  },
+  "addButton": "添加花费（从收据导入）",
+  "delete": {
+    "title": "删除此花费？",
+    "message": "“{{title}}”将从花费中移除。此操作无法撤销。"
+  },
+  "form": {
+    "editTitle": "编辑花费",
+    "addTitle": "添加花费",
+    "upload": {
+      "hint": "粘贴或拖入收据、账单或预订确认的图片 / PDF",
+      "select": "选择文件",
+      "extract": "从文件提取",
+      "extracting": "提取中…",
+      "removeImage": "移除此文件",
+      "removeAttach": "移除附件",
+      "attachedAlt": "附件",
+      "preview": "预览",
+      "filenameFallback": "文件"
+    },
+    "field": {
+      "category": "类别",
+      "title": "摘要",
+      "titlePlaceholder": "例：XX 酒店 2 晚 / 日内瓦→采尔马特 火车",
+      "vendor": "商家 / 店铺",
+      "vendorPlaceholder": "例：Booking.com / SBB / XX 餐厅",
+      "amount": "金额",
+      "currency": "货币",
+      "paidStatus": "支付状态",
+      "date": "支付 / 预订日期",
+      "sourceUrl": "参考链接（预订网站 / 账单等）",
+      "note": "备注"
+    },
+    "error": {
+      "titleRequired": "请输入摘要（标题）。",
+      "extractFailed": "提取失败：{{msg}}",
+      "saveFailed": "保存失败：{{msg}}"
+    },
+    "cancel": "取消",
+    "save": "保存",
+    "saving": "保存中…"
+  },
+  "category": {
+    "hotel": "住宿",
+    "transport": "交通",
+    "meal": "餐饮",
+    "sightseeing": "观光",
+    "shopping": "购物",
+    "other": "其他"
+  }
+}

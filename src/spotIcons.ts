@@ -98,6 +98,25 @@ const CATEGORY_TO_ICON: Record<string, string> = {
   panorama: "view",
   plage: "beach",
   mer: "beach",
+  // 简体中文
+  景点: "sightseeing",
+  名胜: "sightseeing",
+  公园: "nature",
+  美食: "food",
+  餐厅: "food",
+  餐饮: "food",
+  咖啡: "cafe",
+  酒店: "hotel",
+  住宿: "hotel",
+  城堡: "castle",
+  博物馆: "museum",
+  美术馆: "museum",
+  购物: "shopping",
+  商场: "shopping",
+  市场: "shopping",
+  观景: "view",
+  景观: "view",
+  海滩: "beach",
 };
 
 /** category 文字列から既定アイコンキーを推定する（完全一致 → 語の包含）。 */

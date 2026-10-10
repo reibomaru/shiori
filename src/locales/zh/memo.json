@@ -1,0 +1,99 @@
+{
+  "list": {
+    "heading": "笔记",
+    "addPage": "添加页面",
+    "empty": "还没有笔记。",
+    "createFirst": "创建第一篇笔记",
+    "untitled": "无标题笔记",
+    "updatedAt": "更新于 {{date}}",
+    "createdAt": "创建于 {{date}}",
+    "deleteTitle": "删除此笔记",
+    "sortLabel": "排序",
+    "sortByUpdated": "更新时间",
+    "sortByCreated": "创建时间",
+    "sortDesc": "最新在前",
+    "sortAsc": "最早在前"
+  },
+  "detail": {
+    "backToList": "笔记列表",
+    "openAiEditMobile": "用 AI 编辑",
+    "openAiEdit": "打开 AI 编辑器",
+    "deleteTitle": "删除此笔记",
+    "notFound": "未找到笔记。",
+    "backToListLink": "返回列表",
+    "resizeHint": "拖动调整宽度",
+    "closeChat": "关闭聊天",
+    "generateTitle": "自动生成标题",
+    "generatingTitle": "生成中…",
+    "generateTitleEmpty": "请先写一些内容再自动生成标题",
+    "generateTitleError": "标题生成失败。"
+  },
+  "editor": {
+    "titlePlaceholder": "笔记标题",
+    "sectionLabel": "笔记",
+    "bodyPlaceholder": "用 Markdown 自由书写（标题、列表、表格，也支持 ```mermaid 图表）。也可以通过“用 AI 编辑”传入图片，让 AI 帮你写。",
+    "preview": "预览",
+    "previewEmpty": "输入内容后这里会显示预览。",
+    "empty": "还没有笔记。可以从“编辑”自由书写，或通过“用 AI 编辑”传入图片让 AI 帮你写。"
+  },
+  "diff": {
+    "noChanges": "正文没有变化。",
+    "omitted": "⋯ 省略 {{count}} 行"
+  },
+  "confirm": {
+    "deleteTitle": "删除此笔记页面？",
+    "deleteMessageList": "将删除“{{title}}”。此操作无法撤销，导入的原始图片也会一并删除。",
+    "deleteMessageDetail": "将删除“{{title}}”。此操作无法撤销。",
+    "deleteSessionTitle": "删除此对话？",
+    "deleteSessionMessage": "将删除“{{title}}”的对话记录。此操作无法撤销。"
+  },
+  "chat": {
+    "defaultSessionName": "本次对话",
+    "newSession": "新对话",
+    "deleteSession": "删除此对话",
+    "sessionCostTitle": "本次会话累计费用",
+    "loadingHistory": "加载历史记录中…",
+    "introText": "用文字描述如何修改笔记内容（自由书写和从图片导入的信息）。可以修正错别字、总结、整理格式、补充等。未经确认不会保存任何内容。",
+    "thinking": "思考中…",
+    "saveError": "保存失败：{{error}}",
+    "attachImage": "附加图片",
+    "removeImage": "移除",
+    "stop": "停止",
+    "sendTitle": "发送",
+    "inputPlaceholder": "描述如何修改笔记…",
+    "sendHint": "Enter 发送 / Shift+Enter 换行",
+    "suggestions": {
+      "fixTypos": "修正错别字并整理导入的信息",
+      "summarize": "把这篇笔记的要点用 3 行总结到正文中",
+      "packingList": "根据导入的信息在正文中添加行李清单"
+    },
+    "tools": {
+      "list_memo_pages": "查看笔记列表",
+      "list_itinerary": "查看行程",
+      "list_spots": "查看已保存景点",
+      "get_memo_page": "读取笔记",
+      "propose_upsert_memo_page": "提议创建/编辑",
+      "propose_delete_memo_page": "提议删除",
+      "web_search": "网页搜索",
+      "fetch_url": "读取页面"
+    }
+  },
+  "proposal": {
+    "untitled": "无标题笔记",
+    "createLabel": "创建提议",
+    "updateLabel": "编辑提议",
+    "deleteLabel": "删除提议",
+    "viewPreview": "预览",
+    "viewDiff": "差异",
+    "applied": "✓ 已应用",
+    "dismissed": "已忽略",
+    "deleteConfirm": "将删除“{{title}}”。确定吗？",
+    "titleLabel": "标题：",
+    "emptyValue": "（空）",
+    "noChanges": "没有变化。",
+    "noBody": "（无正文）",
+    "dismiss": "忽略",
+    "delete": "删除",
+    "save": "保存"
+  }
+}

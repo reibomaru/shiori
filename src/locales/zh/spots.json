@@ -1,0 +1,70 @@
+{
+  "title": "想去的地方",
+  "count": "{{count}} 项",
+  "description": "翻阅旅游指南时通过聊天登记的候选景点。点击卡片查看详情和 Instagram 帖子。",
+  "empty": "还没有候选景点，试试在聊天中登记吧。",
+  "detail": "详情 ›",
+  "view": {
+    "group": "切换视图",
+    "card": "卡片视图",
+    "list": "列表视图"
+  },
+  "chat": {
+    "open": "打开聊天"
+  },
+  "splitter": "拖动调整大小",
+  "iconPicker": {
+    "change": "更换地图图钉图标",
+    "resetToCategory": "恢复为类别默认图标（{{category}}）",
+    "none": "无"
+  },
+  "delete": {
+    "title": "删除此候选？",
+    "message": "“{{name}}”将从候选中移除。此操作无法撤销。"
+  },
+  "links": {
+    "link": "链接",
+    "googleMaps": "Google 地图"
+  },
+  "rating": {
+    "tooltip": "Google 地图评分（点击链接查看评价）"
+  },
+  "carousel": {
+    "prev": "上一张照片",
+    "next": "下一张照片",
+    "photoAlt": "{{name}} 的第 {{index}} 张照片",
+    "goTo": "跳到第 {{index}} 张照片"
+  },
+  "detailContent": {
+    "close": "关闭",
+    "source": "来源：{{source}}",
+    "googlePhotos": "Google 照片",
+    "mapTitle": "{{name}} 的 Google 地图",
+    "reviewHint": "卡片中显示评分和照片。完整评价请在 <0>Google 地图</0> 查看。",
+    "reviewHintPlain": "卡片中显示评分和照片。完整评价请在 Google 地图查看。"
+  },
+  "instagram": {
+    "editorLabel": "Instagram 帖子 URL（{{count}}）",
+    "invalidUrl": "请输入 Instagram 帖子 URL（…/p/…、/reel/…、/tv/…）",
+    "delete": "删除",
+    "placeholder": "https://www.instagram.com/p/...",
+    "add": "添加",
+    "empty": "还没有相关的 Instagram 帖子。",
+    "showMore": "再显示 {{count}} 条",
+    "close": "关闭"
+  },
+  "icon": {
+    "pin": "默认",
+    "sightseeing": "观光",
+    "nature": "自然",
+    "food": "美食",
+    "cafe": "咖啡馆",
+    "hotel": "住宿",
+    "castle": "城堡",
+    "museum": "博物馆",
+    "shopping": "购物",
+    "view": "观景",
+    "beach": "海滩",
+    "star": "收藏"
+  }
+}

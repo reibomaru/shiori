@@ -17,7 +17,7 @@ for (const path in modules) {
   (resources[lng] ??= {})[ns] = modules[path].default;
 }
 
-export const SUPPORTED_LANGUAGES = ["ja", "en", "fr"] as const;
+export const SUPPORTED_LANGUAGES = ["ja", "en", "fr", "zh"] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 
 /** 言語表示名（言語切り替え UI 用）。各言語の自称表記なので翻訳しない。 */
@@ -25,6 +25,7 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   ja: "日本語",
   en: "English",
   fr: "Français",
+  zh: "简体中文",
 };
 
 /** 言語コードの短縮表記（トグルのチップ用）。 */
@@ -32,6 +33,7 @@ export const LANGUAGE_SHORT: Record<Language, string> = {
   ja: "JA",
   en: "EN",
   fr: "FR",
+  zh: "ZH",
 };
 
 /** localStorage / Cookie に保存するキー。サーバ（server/i18n.ts）も同じ Cookie 名を読む。 */

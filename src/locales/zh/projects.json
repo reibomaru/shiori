@@ -1,0 +1,26 @@
+{
+  "heading": "项目",
+  "createPlaceholder": "新项目名称（例：2026 台湾之旅）",
+  "empty": {
+    "title": "还没有项目。",
+    "hint": "请在上方输入框创建第一个项目。"
+  },
+  "member": {
+    "count_one": "{{count}} 位成员",
+    "count_other": "{{count}} 位成员",
+    "owner": " · 所有者"
+  },
+  "actions": {
+    "members": "成员",
+    "rename": "重命名"
+  },
+  "delete": {
+    "title": "删除此项目？",
+    "message": "“{{name}}”的行程、景点、预算和聊天记录将全部删除。此操作无法撤销。"
+  },
+  "login": {
+    "tagline": "开始规划你的旅行",
+    "description": "使用 Google 账号登录即可创建行程。",
+    "google": "使用 Google 登录"
+  }
+}

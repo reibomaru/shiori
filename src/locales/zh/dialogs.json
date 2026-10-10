@@ -1,0 +1,50 @@
+{
+  "profile": {
+    "title": "个人资料",
+    "aria": "编辑个人资料",
+    "uploadImage": "上传图片",
+    "changeImage": "更换图片",
+    "displayName": "显示名称",
+    "displayNamePlaceholder": "显示名称",
+    "displayNameHint": "留空时将使用账号名称（{{account}}）。",
+    "imageError": "无法加载此图片，请尝试其他图片（PNG / JPEG）。"
+  },
+  "members": {
+    "title": "成员 — {{name}}",
+    "invitePlaceholder": "要邀请的邮箱地址",
+    "invite": "邀请",
+    "owner": "所有者",
+    "removeMember": "移除成员",
+    "inviteError": "邀请失败，请检查邮箱地址。",
+    "removeError": "移除失败。",
+    "ownerOnly": "只有所有者可以添加或移除成员。",
+    "confirmTitle": "移除此成员？",
+    "confirmMessage": "{{email}} 将从此项目中移除。"
+  },
+  "rename": {
+    "title": "重命名项目",
+    "aria": "重命名项目"
+  },
+  "byok": {
+    "title": "AI 密钥（BYOK）",
+    "loading": "加载中…",
+    "loadError": "无法加载状态。",
+    "registered": "已注册你的 API 密钥",
+    "usingShared": "正在使用共享密钥",
+    "usageLabel": "本月：${{cost}} / ${{limit}}",
+    "overLimit": "已达到本月免费使用上限。注册自己的 API 密钥即可继续使用 AI 功能。",
+    "sharedNotConfigured": "未配置共享密钥，请注册自己的 API 密钥。",
+    "benefit": "注册自己的密钥即可不受限制地使用 AI 功能（费用由你承担）。",
+    "keyPlaceholder": "粘贴你的 Gemini API 密钥",
+    "getKeyLink": "获取 API 密钥",
+    "register": "注册",
+    "update": "保存更改",
+    "replace": "使用其他密钥",
+    "remove": "删除密钥",
+    "saved": "API 密钥已注册。",
+    "invalid": "API 密钥无效，请输入在 Google AI Studio 获取的有效 Gemini API 密钥。",
+    "removeError": "删除密钥失败。",
+    "confirmRemoveTitle": "删除你的 API 密钥？",
+    "confirmRemoveMessage": "将改回使用共享密钥（有每月上限）。"
+  }
+}

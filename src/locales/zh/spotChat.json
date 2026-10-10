@@ -1,0 +1,81 @@
+{
+  "byokCta": "注册 API 密钥",
+  "session": {
+    "fallbackTitle": "本次对话",
+    "untitled": "（无标题）",
+    "newConversation": "新对话",
+    "create": "开始新对话",
+    "select": "选择对话记录",
+    "delete": "删除此对话"
+  },
+  "confirm": {
+    "title": "删除此对话？",
+    "message": "将删除“{{title}}”的对话记录。此操作无法撤销。"
+  },
+  "close": "关闭聊天",
+  "usage": {
+    "title": "本次会话累计费用",
+    "tokens": "{{count}} tok · "
+  },
+  "history": {
+    "loading": "加载历史记录中…"
+  },
+  "empty": {
+    "lead": "描述你想去的地方，AI 会查找信息并提议添加、更新或删除候选景点。未经确认不会保存任何内容。"
+  },
+  "suggestions": {
+    "s1": "添加 3 个能看到马特洪峰的采尔马特推荐景点",
+    "s2": "在尼斯找一家海边早餐咖啡馆并加入候选",
+    "s3": "检查当前候选是否有重复，并提出整理建议"
+  },
+  "tools": {
+    "list_spots": "查看候选列表",
+    "web_search": "网页搜索",
+    "fetch_url": "读取页面",
+    "geocode": "获取坐标",
+    "propose_upsert_spot": "提议添加/更新",
+    "propose_delete_spot": "提议删除"
+  },
+  "thinking": "思考中…",
+  "saveError": "保存失败：{{error}}",
+  "input": {
+    "placeholder": "输入消息…",
+    "attach": "附加图片",
+    "removeImage": "移除",
+    "stop": "停止",
+    "send": "发送",
+    "hint": "Enter 发送 / Shift+Enter 换行"
+  },
+  "proposal": {
+    "create": "添加提议",
+    "update": "更新提议",
+    "delete": "删除提议",
+    "target": "（{{name}}）",
+    "preview": "预览",
+    "edit": "编辑",
+    "saved": "✓ 已应用",
+    "dismissed": "已忽略",
+    "deleteConfirm": "将把“{{name}}”从候选中移除。确定吗？",
+    "noChanges": "没有变化。",
+    "empty": "（空）",
+    "dismiss": "忽略",
+    "doDelete": "删除",
+    "doSave": "保存",
+    "untitled": "（无标题）",
+    "fields": {
+      "name": "名称",
+      "name_en": "英文名称",
+      "category": "类别",
+      "city": "城市",
+      "country": "国家",
+      "url": "URL",
+      "google_maps_url": "Google 地图 URL",
+      "source": "来源",
+      "note": "备注",
+      "lat": "纬度",
+      "lng": "经度",
+      "latInput": "纬度（lat）",
+      "lngInput": "经度（lng）"
+    }
+  }
+}

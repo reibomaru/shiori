@@ -37,6 +37,7 @@ const MEAL_HINT = [
   "食", "グルメ", "レストラン", "カフェ", "ディナー", "ランチ", "バー", "スイーツ",
   "food", "restaurant", "cafe", "café", "dinner", "lunch", "breakfast", "bar", "sweets", "dessert", "bakery",
   "repas", "gastronomie", "déjeuner", "dîner", "brasserie", "boulangerie", "pâtisserie", "bistro",
+  "美食", "餐厅", "餐饮", "咖啡", "小吃", "甜点", "酒吧", "早餐", "午餐", "晚餐",
 ];
 export function spotItemType(spot: Spot): ItemType {
   const c = (spot.category ?? "").toLowerCase();

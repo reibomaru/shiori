@@ -36,7 +36,8 @@
     "label": "Langue",
     "ja": "日本語",
     "en": "English",
-    "fr": "Français"
+    "fr": "Français",
+    "zh": "简体中文"
   },
   "print": {
     "pdf": "Exporter en PDF"

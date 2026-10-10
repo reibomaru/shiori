@@ -12,7 +12,7 @@ Cloud Run + Litestream + GCS + Secret Manager + Workload Identity Federation 一
 - **Artifact Registry**（Docker リポジトリ）。
 - **GCS バケット** 2 つ: `*-state`（Litestream レプリカ + backups）、`*-sessions`（AI チャット履歴 JSONL, FUSE マウント）。
 - **Firestore**（`(default)`, Native）: `users`（プロフィール）と `projects`（プロジェクト・メンバー）の台帳。実行 SA に `roles/datastore.user`。
-- **Secret Manager**: `GEMINI_API_KEY` / `WEBSEARCH_API_KEY` / `GOOGLE_MAPS_API_KEY` / `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `SESSION_SECRET`（入れ物のみ。値は手動投入）。
+- **Secret Manager**: `GEMINI_API_KEY` / `WEBSEARCH_API_KEY` / `GOOGLE_MAPS_API_KEY` / `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `SESSION_SECRET` / `ADMIN_BASIC_USER` / `ADMIN_BASIC_PASS`（入れ物のみ。値は手動投入）。
 - **IAM**: 実行 SA、デプロイ SA、GitHub Actions 用 Workload Identity 連携。
 
 ## 手順
@@ -58,12 +58,28 @@ printf '%s' "$GOOGLE_OAUTH_CLIENT_ID"     | gcloud secrets versions add GOOGLE_O
 printf '%s' "$GOOGLE_OAUTH_CLIENT_SECRET" | gcloud secrets versions add GOOGLE_OAUTH_CLIENT_SECRET --data-file=-
 # JWT Cookie の署名鍵（十分に長いランダム文字列。例 openssl rand -hex 32）。
 openssl rand -hex 32 | gcloud secrets versions add SESSION_SECRET --data-file=-
+# 管理ダッシュボード（/admin）の Basic 認証。パスワードは十分に長いランダム文字列にする。
+printf '%s' "$ADMIN_BASIC_USER" | gcloud secrets versions add ADMIN_BASIC_USER --data-file=-
+openssl rand -base64 24 | tr -d '\n' | gcloud secrets versions add ADMIN_BASIC_PASS --data-file=-
 ```
+
+> **シークレット追加時の順序**: Cloud Run は `latest` 版が存在しないシークレットを参照すると
+> 新リビジョンを起動できない。既存環境にシークレットを追加するときは、先に入れ物だけ作って
+> 値を投入してから全体を apply する。
+>
+> ```bash
+> terraform apply -target='google_secret_manager_secret.app["ADMIN_BASIC_USER"]' \
+>                 -target='google_secret_manager_secret.app["ADMIN_BASIC_PASS"]'
+> # ↑ の値を gcloud secrets versions add で投入してから
+> terraform apply
+> ```
+>
+> 投入したパスワードの確認: `gcloud secrets versions access latest --secret=ADMIN_BASIC_PASS`
 
 > **OAuth クライアント**: GCP コンソール「API とサービス → 認証情報」で OAuth 2.0 クライアント（Web）を作成し、
 > 承認済みリダイレクト URI に `<本番の origin>/auth/google` を登録する。
 > **アクセス境界（許可制ログイン + プロジェクト招待）**: ログインは**許可制**。新規ユーザーは Firestore
-> `users` に `allowed=false`（承認待ち）で登録され、`allowed=true`（初期は GCP コンソール / gcloud で直接編集）
+> `users` に `allowed=false`（承認待ち）で登録され、`allowed=true`（管理ダッシュボード `/admin` で承認）
 > にするまでアプリを使えない。承認済みユーザーの中で、データはプロジェクト単位
 > （`data/{projectId}/travel.db`）に分離され、参加は**メール招待**（Firestore `projects.memberEmails`）。
 > 各ユーザーは自分がメンバーのプロジェクトのみ閲覧・編集できる。

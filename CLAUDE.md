@@ -26,7 +26,7 @@
 
 ## 多言語対応（i18n）
 
-- 対応言語は日本語 / 英語 / フランス語（`src/i18n.ts` の `SUPPORTED_LANGUAGES`）。言語を増やすときは `src/locales/{lng}/` に全名前空間の JSON を揃え、`SUPPORTED_LANGUAGES` / `LANGUAGE_LABELS` / `LANGUAGE_SHORT`、`server/i18n.ts` の `LANGS` と `MESSAGES` を更新する。
+- 対応言語は日本語 / 英語 / フランス語 / 中国語（簡体字）（`src/i18n.ts` の `SUPPORTED_LANGUAGES`）。言語を増やすときは `src/locales/{lng}/` に全名前空間の JSON を揃え、`SUPPORTED_LANGUAGES` / `LANGUAGE_LABELS` / `LANGUAGE_SHORT`、`server/i18n.ts` の `LANGS` と `MESSAGES` を更新する。
 - UI 文言はベタ書きせず `useTranslation` で `t()` を使う。コンポーネント外（hooks / lib）では `i18n.t(key, { ns })` を使う。ログイン前の LP も `landing` 名前空間で翻訳する。
 - 言語の判定順は `?lng=` → `localStorage`（`shiori-lang`）→ ブラウザ言語。選択言語は `X-Lang` ヘッダ（`langHeader()`）と同名 Cookie でサーバにも伝える。
 - サーバ側のユーザー向け文言（API のエラー・警告、OAuth の承認待ち/エラーページ、既定値）は `server/i18n.ts` の `tc(c, key)` / `t(lang, key)` を使う。AI キー関連のエラーは `LocalizedError` を継承し、返却時に `translateError` で翻訳する。

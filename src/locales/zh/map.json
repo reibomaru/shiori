@@ -1,0 +1,50 @@
+{
+  "mode": {
+    "train": "火车",
+    "bus": "巴士 / 缆车",
+    "car": "汽车",
+    "flight": "飞机",
+    "walk": "步行"
+  },
+  "basemap": {
+    "osm": "标准",
+    "satellite": "卫星",
+    "topo": "地形",
+    "light": "浅色"
+  },
+  "controls": {
+    "view2d": "2D",
+    "view3d": "3D",
+    "resetView": "显示全部",
+    "openPanel": "打开路线面板",
+    "closePanel": "关闭面板",
+    "resizePanel": "调整面板大小",
+    "saveHomeView": "设为默认视图",
+    "saveHomeViewHint": "将当前地图位置和缩放设为此次旅行的默认视图",
+    "homeViewSaved": "已保存",
+    "clearHomeView": "重置默认视图",
+    "clearHomeViewHint": "清除已保存的默认视图，自动按路线调整地图"
+  },
+  "legend": {
+    "border": "国境",
+    "spots": "已保存景点",
+    "missingCoords": "已隐藏（无坐标）：{{count}}"
+  },
+  "tooltip": {
+    "geojsonDetail": "GeoJSON 详情 · {{count}} 点",
+    "straight": "直线",
+    "border": "（国境）"
+  },
+  "panel": {
+    "legsTitle": "路线",
+    "legsHint": "点击卡片可在地图上高亮路线",
+    "spotsTitle": "已保存景点",
+    "spotsHint": "点击卡片查看详情 · 勾选复选框显示/隐藏图钉",
+    "backToSpots": "返回已保存景点",
+    "showSpotsOnMap": "在地图上显示已保存景点",
+    "segment": "第 {{n}} 段",
+    "routePoints": "路线 · {{count}} 点",
+    "straight": "直线",
+    "shownOnMap": "已显示"
+  }
+}

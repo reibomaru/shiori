@@ -1,0 +1,8 @@
+{
+  "period": "{{start}} – {{end}}",
+  "party": "{{travelers}}（{{count}} 人）",
+  "perPerson": "{{amount}} / 人",
+  "apiError": "无法连接 API：{{error}}",
+  "apiErrorHint": "请在另一个终端运行 <0>pnpm dev</0>。",
+  "mapLoading": "地图加载中…"
+}

@@ -24,7 +24,7 @@ pnpm install       # 依存をインストール（--frozen-lockfile 相当は C
 cp .env.example .env   # GEMINI_API_KEY などを設定（使わなければスキップ可）
 ```
 
-主要な変数は [`README.md`](README.md#configuration) を参照。
+主要な変数は [`README.ja.md`](README.ja.md#configuration) を参照。
 
 ## 日常の開発コマンド
 

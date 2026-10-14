@@ -1,27 +1,30 @@
 # 🗺️ shiori
 
+**English** | [日本語](README.ja.md)
+
 [![deploy](https://github.com/reibomaru/shiori/actions/workflows/deploy.yml/badge.svg)](https://github.com/reibomaru/shiori/actions/workflows/deploy.yml)
 
-AI と一緒に旅行計画を作る、セルフホストの旅のしおりアプリ。[`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi/tree/main/packages/coding-agent) を使い、ブラウザで AI に話しかけながら、移動ルート・日ごとの旅程・行きたいスポット・予算・旅のメモを **1つの SQLite** にまとめて編集し、そのまま PDF に出力できる。
+A self-hosted travel guidebook ("shiori") app for planning trips together with AI. Powered by [`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi/tree/main/packages/coding-agent), it lets you talk to an AI in the browser while editing your route, day-by-day itinerary, places to visit, budget, and travel notes — all stored in **a single SQLite database** — and export the result straight to PDF.
 
 ## Features
 
-- 🗺️ **地図・移動ルート** — deck.gl 製の地図で、経由地を番号付きピン、区間を線（空路は弧、地上移動は GeoJSON 実経路）で表示。標準/衛星/地形/淡色のベースマップを切り替えられる。
-- 🗓️ **旅程** — 日ごとの予定を、ドラッグ&ドロップのビルダーで追加・編集・並べ替え。
-- 🧭 **スポット候補** — 行きたい場所を一覧・地図で管理。Google の評価（★）・写真や Instagram ギャラリーも表示。
-- 💰 **予算** — 費目ごとの予算を管理。
-- 📝 **メモ** — 旅のメモ。画像の取り込み・情報抽出や、ページ間の関係グラフ（Mermaid）に対応。
-- 🤖 **AI アシスタント** — 自然文の指示から Web を調べてスポットやメモを**提案**（プレビュー承認制）。画像添付にも対応。
-- 🖨️ **PDF 出力** — 操作用 UI を隠した印刷レイアウトで、ブラウザから「PDF に保存」。
+- 🗺️ **Map & route** — A deck.gl map showing waypoints as numbered pins and legs as lines (arcs for flights, real GeoJSON paths for ground travel). Switch between standard / satellite / terrain / light base maps.
+- 🗓️ **Itinerary** — Add, edit, and reorder each day's plans with a drag-and-drop builder.
+- 🧭 **Spot candidates** — Manage places you want to visit as a list or on the map, with Google ratings (★), photos, and Instagram galleries.
+- 💰 **Budget** — Track budgets by category.
+- 📝 **Notes** — Travel notes with image import / information extraction and a page relationship graph (Mermaid).
+- 🤖 **AI assistant** — Researches the web from natural-language instructions and **proposes** spots and notes (applied only after you approve the preview). Image attachments are supported.
+- 🖨️ **PDF export** — A print layout that hides interactive UI; use your browser's "Save as PDF".
+- 🌐 **Multilingual UI** — Japanese / English / French / Simplified Chinese.
 
 ## Quick Start
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 24（リポジトリの `.nvmrc` で固定。標準の `node:sqlite` と TypeScript 型ストリップを使うため）
-- [pnpm](https://pnpm.io/) 9 以上
+- [Node.js](https://nodejs.org/) 24 (pinned in `.nvmrc`; required for the built-in `node:sqlite` and TypeScript type stripping)
+- [pnpm](https://pnpm.io/) 9 or later
 
-`nvm` 利用時はリポジトリ直下で `nvm use`（`.nvmrc` を読む）。開発フロー・貢献手順は [`CONTRIBUTING.md`](CONTRIBUTING.md) を参照。
+If you use `nvm`, run `nvm use` at the repository root (it reads `.nvmrc`). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development workflow and contribution guidelines.
 
 ### 1. Install
 
@@ -33,13 +36,13 @@ pnpm install
 
 ### 2. Configure
 
-AI アシスタントを使う場合は、環境変数を設定する（使わない場合はスキップ可）。
+To use the AI assistant, set up environment variables (skip this if you don't need it).
 
 ```bash
 cp .env.example .env
 ```
 
-初期データ（サンプルの旅程）を SQLite に投入する。
+Load the initial data (a sample itinerary) into SQLite.
 
 ```bash
 pnpm db:init
@@ -48,67 +51,65 @@ pnpm db:init
 ### 3. Run
 
 ```bash
-pnpm dev   # API(:8080) と Vite(:5173) を同時起動
+pnpm dev   # starts the API (:8080) and Vite (:5173) together
 ```
 
-ブラウザで http://localhost:5173 を開く。データを作り直したいときは `pnpm db:reset`。
+Open http://localhost:5173 in your browser. Run `pnpm db:reset` to recreate the data.
 
 ## Using Skills
 
-Claude Code の [`travel-plan`](.claude/skills/travel-plan/SKILL.md) Skill が、移動ルート / 旅程 / 候補スポット / 予算をまとめて編集する（1つの DB で密結合しているため1スキルに集約）。内部的には次の CLI を使う:
+The Claude Code [`travel-plan`](.claude/skills/travel-plan/SKILL.md) skill edits the route / itinerary / spot candidates / budget in one place (they are tightly coupled in a single DB, so they're consolidated into one skill). Under the hood it uses the following CLI:
 
 ```bash
-node scripts/travel.ts summary                     # まず全体把握
+node scripts/travel.ts summary                     # get the big picture first
 node scripts/travel.ts route | legs | days | spots | budget
 node scripts/travel.ts add-spot '{"name":"…", "url":"…"}'
 node scripts/travel.ts add-item 7 '{"time":"15:00","type":"spot","title":"…"}'
-node scripts/sql.ts "<SQL>"                          # CLI に無い操作用の逃げ道
+node scripts/sql.ts "<SQL>"                          # escape hatch for operations the CLI doesn't cover
 ```
 
-移動区間の実経路は GeoJSON / GPX を取り込める（`set-geojson` / `set-gpx`）ほか、`scripts/osrm-route.ts` で OSRM から補完できる。
+Real paths for route legs can be imported from GeoJSON / GPX (`set-geojson` / `set-gpx`), or filled in from OSRM with `scripts/osrm-route.ts`.
 
-スポット画面（`/spots`）やメモ画面（`/memo`）の **AI アシスタント**タブでは、Skill を使わずブラウザから直接 AI に依頼できる。AI は DB を直接書き換えず、提案カードを確認・修正して「保存」したときに反映される（プレビュー承認制）。
+On the spots page (`/spots`) and notes page (`/memo`), the **AI assistant** tab lets you ask the AI directly from the browser without using the skill. The AI never writes to the DB directly; changes are applied only when you review / edit a proposal card and click "Save" (preview-and-approve).
 
 ## User approval (admin dashboard)
 
-ログインは許可制。新規ユーザーは Firestore の `users` に `allowed: false`（承認待ち）で
-登録され、承認されるまでアプリを使えない。承認は `/admin` の管理ダッシュボードから行う
-（ユーザー一覧・承認 / 承認取り消し・ロール変更）。
+Sign-in is invite-only. New users are registered in Firestore `users` with `allowed: false` (pending approval) and cannot use the app until approved. Approvals are handled in the admin dashboard at `/admin` (user list, approve / revoke, role changes).
 
-アクセス制御は二段構え:
+Access control has two layers:
 
-1. **Basic 認証** — `/admin` 配下（画面 + API）。`ADMIN_BASIC_USER` / `ADMIN_BASIC_PASS` が
-   両方設定されているときだけ有効で、未設定なら `/admin` は 503 で閉じる。
-2. **`role: admin`（Google SSO）** — `/admin/api/*`。非 admin は 403。
+1. **Basic auth** — Everything under `/admin` (UI + API). Enabled only when both `ADMIN_BASIC_USER` and `ADMIN_BASIC_PASS` are set; otherwise `/admin` is closed with 503.
+2. **`role: admin` (Google SSO)** — `/admin/api/*`. Non-admins get 403.
 
-最初の管理者は `ADMIN_EMAILS`（カンマ区切り）で作る。ここに挙げたメールはログイン時に
-`allowed: true` / `role: admin` へ自動昇格する。以降のロール変更はダッシュボードから行える。
+Bootstrap the first admins with `ADMIN_EMAILS` (comma-separated). Listed emails are automatically promoted to `allowed: true` / `role: admin` on sign-in. Further role changes can be made from the dashboard.
 
 ## Configuration
 
-管理ダッシュボード（`.env`）で使う環境変数:
+Environment variables for the admin dashboard (`.env`):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ADMIN_BASIC_USER` | （未設定で `/admin` 無効） | `/admin` の Basic 認証ユーザー名 |
-| `ADMIN_BASIC_PASS` | （未設定で `/admin` 無効） | `/admin` の Basic 認証パスワード |
-| `ADMIN_EMAILS` | （任意） | 初期管理者のメール（カンマ区切り）。ログイン時に `allowed`/`admin` へ昇格 |
+| `ADMIN_BASIC_USER` | (unset disables `/admin`) | Basic auth username for `/admin` |
+| `ADMIN_BASIC_PASS` | (unset disables `/admin`) | Basic auth password for `/admin` |
+| `ADMIN_EMAILS` | (optional) | Initial admin emails (comma-separated). Promoted to `allowed`/`admin` on sign-in |
 
-AI アシスタント（`.env`）で使う環境変数:
+Environment variables for the AI assistant (`.env`):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GEMINI_API_KEY` | （必須） | Gemini の API キー（https://aistudio.google.com/apikey） |
-| `GEMINI_MODEL` | `gemini-3-flash-preview` | 使用モデル（複雑な調べ物は `gemini-3-pro-preview`） |
-| `WEBSEARCH_API_KEY` | （任意） | `web_search` 用（https://websearchapi.ai）。未設定だと web_search だけ無効 |
-| `GOOGLE_MAPS_API_KEY` | （任意） | スポットの Google 評価（★）・写真取得用。`spot_place_cache` に30日キャッシュ |
+| `GEMINI_API_KEY` | (required) | Gemini API key (https://aistudio.google.com/apikey) |
+| `GEMINI_MODEL` | `gemini-3-flash-preview` | Model to use (`gemini-3-pro-preview` for complex research) |
+| `WEBSEARCH_API_KEY` | (optional) | For `web_search` (https://websearchapi.ai). If unset, only web_search is disabled |
+| `GOOGLE_MAPS_API_KEY` | (optional) | Fetches Google ratings (★) and photos for spots. Cached for 30 days in `spot_place_cache` |
 
 ## Documentation
 
-- [`.claude/skills/travel-plan/SKILL.md`](.claude/skills/travel-plan/SKILL.md) — データ編集 Skill と操作レシピ（`recipes/`）
-- [`docs/er-diagram.md`](docs/er-diagram.md) — データモデル（SQLite）
-- [`docs/gcp-deployment-design.md`](docs/gcp-deployment-design.md) — 本番デプロイ設計（Cloud Run / Litestream）
-- スキーマ変更は `db/migrations/` に連番 SQL を追加し、`node db/migrate.ts` で適用（本番は `.github/workflows/deploy.yml` が push 時に自動 migrate → deploy）
-- インフラ（Cloud Run / Artifact Registry / IAM / GCS）は [`infra/terraform`](infra/terraform) で管理
+The following documents are written in Japanese.
 
-構成: **SQLite**（`node:sqlite`）/ **Hono** API / **React 19 + Vite + React Router + Tailwind CSS v4** / **deck.gl**（地図）/ **pi-coding-agent + Gemini**（AI）/ **Docker → Cloud Run + Litestream**（本番）。
+- [`.claude/skills/travel-plan/SKILL.md`](.claude/skills/travel-plan/SKILL.md) — Data-editing skill and recipes (`recipes/`)
+- [`docs/er-diagram.md`](docs/er-diagram.md) — Data model (SQLite)
+- [`docs/gcp-deployment-design.md`](docs/gcp-deployment-design.md) — Production deployment design (Cloud Run / Litestream)
+- For schema changes, add a numbered SQL file to `db/migrations/` and apply it with `node db/migrate.ts` (in production, `.github/workflows/deploy.yml` automatically migrates → deploys on push)
+- Infrastructure (Cloud Run / Artifact Registry / IAM / GCS) is managed in [`infra/terraform`](infra/terraform)
+
+Stack: **SQLite** (`node:sqlite`) / **Hono** API / **React 19 + Vite + React Router + Tailwind CSS v4** / **deck.gl** (maps) / **pi-coding-agent + Gemini** (AI) / **Docker → Cloud Run + Litestream** (production).

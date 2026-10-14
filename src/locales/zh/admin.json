@@ -1,0 +1,64 @@
+{
+  "heading": "用户管理",
+  "subtitle": "审批新用户的使用申请。",
+  "backToProjects": "返回项目列表",
+  "reload": "重新加载",
+  "filter": {
+    "label": "筛选",
+    "all": "全部",
+    "pending": "待审批",
+    "approved": "已批准"
+  },
+  "pendingCount_one": "待审批 {{count}} 位",
+  "pendingCount_other": "待审批 {{count}} 位",
+  "column": {
+    "user": "用户",
+    "role": "角色",
+    "status": "状态",
+    "createdAt": "注册时间"
+  },
+  "status": {
+    "pending": "待审批",
+    "approved": "已批准"
+  },
+  "role": {
+    "admin": "管理员",
+    "user": "普通用户"
+  },
+  "actions": {
+    "approve": "批准",
+    "revoke": "撤销批准",
+    "changeRole": "更改角色"
+  },
+  "self": "本人",
+  "empty": "暂无用户。",
+  "emptyFiltered": "没有符合条件的用户。",
+  "confirm": {
+    "revoke": {
+      "title": "撤销使用许可？",
+      "message": "{{name}} 将无法继续使用应用（重新登录后会回到待审批状态）。",
+      "action": "撤销"
+    },
+    "promote": {
+      "title": "设为管理员？",
+      "message": "{{name}} 将可以在此管理仪表板中审批用户和更改角色。",
+      "action": "设为管理员"
+    },
+    "demote": {
+      "title": "移除管理员权限？",
+      "message": "{{name}} 将无法再使用此管理仪表板。",
+      "action": "移除"
+    }
+  },
+  "denied": {
+    "unauthorized": {
+      "title": "需要认证",
+      "message": "需要管理仪表板的 Basic 认证，或需要登录。请重新加载页面后重试。"
+    },
+    "unconfigured": {
+      "title": "管理仪表板已禁用",
+      "message": "服务器未设置 ADMIN_BASIC_USER / ADMIN_BASIC_PASS。"
+    }
+  },
+  "error": "更新失败，请稍后重试。"
+}

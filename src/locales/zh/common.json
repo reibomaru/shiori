@@ -49,7 +49,8 @@
   },
   "auth": {
     "logout": "退出登录",
-    "editProfile": "编辑个人资料"
+    "editProfile": "编辑个人资料",
+    "admin": "用户管理"
   },
   "error": {
     "unknown": "未知错误",

@@ -11,9 +11,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { mkdirSync } from "node:fs";
 import {
-  AuthStorage,
   DefaultResourceLoader,
-  ModelRegistry,
+  ModelRuntime,
   SessionManager,
   createAgentSession,
   getAgentDir,
@@ -167,12 +166,11 @@ export async function runChatAgent({
 
   mkdirSync(sessionDir, { recursive: true });
 
-  const authStorage = AuthStorage.create();
-  authStorage.setRuntimeApiKey(PROVIDER, apiKey);
-  const modelRegistry = ModelRegistry.create(authStorage);
+  const modelRuntime = await ModelRuntime.create();
+  await modelRuntime.setRuntimeApiKey(PROVIDER, apiKey);
   // getModel は静的なモデルカタログに対する強い generic 型を持つため、
   // 環境変数由来の動的な文字列では型が合わない。実行時の解決に委ねて never で渡す。
-  const model = modelRegistry.find(PROVIDER, MODEL_ID) ?? getModel(PROVIDER as never, MODEL_ID as never);
+  const model = modelRuntime.getModel(PROVIDER, MODEL_ID) ?? getModel(PROVIDER as never, MODEL_ID as never);
   // モデルが解決できないと createAgentSession が既定プロバイダ（amazon-bedrock）に
   // 黙ってフォールバックし「No API key found for amazon-bedrock」になる。
   // 原因が分かりにくいので、ここで明示的に弾く。
@@ -203,8 +201,7 @@ export async function runChatAgent({
       cwd: ROOT,
       agentDir: getAgentDir(),
       model,
-      authStorage,
-      modelRegistry,
+      modelRuntime,
       resourceLoader: loader,
       sessionManager,
       // "builtin" は read/bash/edit/write を無効化しつつ customTools は有効に保つ

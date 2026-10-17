@@ -125,10 +125,10 @@ const MESSAGES = {
   },
   "ai.keyUnresolved": { ja: "API キーが解決できませんでした。", en: "Could not resolve an API key.", fr: "Impossible de déterminer une clé API.", zh: "无法确定 API 密钥。" },
   "ai.modelUnresolved": {
-    ja: "モデル \"{{model}}\" を解決できません。GEMINI_MODEL に有効なモデル ID を設定してください（例: gemini-3-flash-preview, gemini-2.5-flash, gemini-flash-latest）。",
-    en: "Could not resolve model \"{{model}}\". Set GEMINI_MODEL to a valid model ID (e.g. gemini-3-flash-preview, gemini-2.5-flash, gemini-flash-latest).",
-    fr: "Impossible de résoudre le modèle « {{model}} ». Définissez GEMINI_MODEL sur un identifiant de modèle valide (ex. gemini-3-flash-preview, gemini-2.5-flash, gemini-flash-latest).",
-    zh: "无法解析模型“{{model}}”。请将 GEMINI_MODEL 设置为有效的模型 ID（例如 gemini-3-flash-preview、gemini-2.5-flash、gemini-flash-latest）。",
+    ja: "モデル \"{{model}}\" を解決できません。GEMINI_MODEL に有効なモデル ID を設定してください（例: gemini-3.8-flash, gemini-3.6-flash, gemini-flash-latest）。",
+    en: "Could not resolve model \"{{model}}\". Set GEMINI_MODEL to a valid model ID (e.g. gemini-3.8-flash, gemini-3.6-flash, gemini-flash-latest).",
+    fr: "Impossible de résoudre le modèle « {{model}} ». Définissez GEMINI_MODEL sur un identifiant de modèle valide (ex. gemini-3.8-flash, gemini-3.6-flash, gemini-flash-latest).",
+    zh: "无法解析模型“{{model}}”。请将 GEMINI_MODEL 设置为有效的模型 ID（例如 gemini-3.8-flash、gemini-3.6-flash、gemini-flash-latest）。",
   },
   // ---- DB 制約 ----
   "db.constraintItems": {

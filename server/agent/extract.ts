@@ -11,9 +11,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { mkdirSync } from "node:fs";
 import {
-  AuthStorage,
   DefaultResourceLoader,
-  ModelRegistry,
+  ModelRuntime,
   SessionManager,
   createAgentSession,
   getAgentDir,
@@ -41,7 +40,7 @@ const ROOT = join(__dirname, "..", "..");
 const SESSION_DIR = process.env.AGENT_SESSIONS_DIR || join(ROOT, "data", "agent-sessions");
 
 const PROVIDER = process.env.GEMINI_PROVIDER ?? "google";
-const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
+const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3.8-flash";
 
 /** 画像 → HTML 抽出のシステムプロンプト。出力言語だけ表示言語に合わせる。 */
 function extractSystemPrompt(lang: Lang): string {
@@ -143,10 +142,9 @@ async function runOneShot({ apiKey, systemPrompt, userPrompt, images, signal, on
 
   mkdirSync(SESSION_DIR, { recursive: true });
 
-  const authStorage = AuthStorage.create();
-  authStorage.setRuntimeApiKey(PROVIDER, apiKey);
-  const modelRegistry = ModelRegistry.create(authStorage);
-  const model = modelRegistry.find(PROVIDER, MODEL_ID) ?? getModel(PROVIDER as never, MODEL_ID as never);
+  const modelRuntime = await ModelRuntime.create();
+  await modelRuntime.setRuntimeApiKey(PROVIDER, apiKey);
+  const model = modelRuntime.getModel(PROVIDER, MODEL_ID) ?? getModel(PROVIDER as never, MODEL_ID as never);
   if (!model) {
     throw new MissingApiKeyError("ai.modelUnresolved", { model: `${PROVIDER}/${MODEL_ID}` });
   }
@@ -172,8 +170,7 @@ async function runOneShot({ apiKey, systemPrompt, userPrompt, images, signal, on
       cwd: ROOT,
       agentDir: getAgentDir(),
       model,
-      authStorage,
-      modelRegistry,
+      modelRuntime,
       resourceLoader: loader,
       sessionManager,
       // 抽出のみでツールは不要。"all" で組み込みツールも含め全て無効化する。

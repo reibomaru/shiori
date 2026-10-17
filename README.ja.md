@@ -102,7 +102,7 @@ AI アシスタント（`.env`）で使う環境変数:
 | Variable | Default | Purpose |
 |---|---|---|
 | `GEMINI_API_KEY` | （必須） | Gemini の API キー（https://aistudio.google.com/apikey） |
-| `GEMINI_MODEL` | `gemini-3-flash-preview` | 使用モデル（複雑な調べ物は `gemini-3-pro-preview`） |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | 使用モデル（複雑な調べ物は `gemini-3-pro-preview`） |
 | `WEBSEARCH_API_KEY` | （任意） | `web_search` 用（https://websearchapi.ai）。未設定だと web_search だけ無効 |
 | `GOOGLE_MAPS_API_KEY` | （任意） | スポットの Google 評価（★）・写真取得用。`spot_place_cache` に30日キャッシュ |
 

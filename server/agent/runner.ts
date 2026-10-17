@@ -38,7 +38,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
 
 const PROVIDER = process.env.GEMINI_PROVIDER ?? "google";
-const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
+const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3.8-flash";
 
 /**
  * スポット候補チャットのシステムプロンプト。指示文自体は日本語だが、

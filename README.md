@@ -98,7 +98,7 @@ Environment variables for the AI assistant (`.env`):
 | Variable | Default | Purpose |
 |---|---|---|
 | `GEMINI_API_KEY` | (required) | Gemini API key (https://aistudio.google.com/apikey) |
-| `GEMINI_MODEL` | `gemini-3-flash-preview` | Model to use (`gemini-3-pro-preview` for complex research) |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Model to use (`gemini-3-pro-preview` for complex research) |
 | `WEBSEARCH_API_KEY` | (optional) | For `web_search` (https://websearchapi.ai). If unset, only web_search is disabled |
 | `GOOGLE_MAPS_API_KEY` | (optional) | Fetches Google ratings (★) and photos for spots. Cached for 30 days in `spot_place_cache` |
 

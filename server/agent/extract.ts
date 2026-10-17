@@ -40,7 +40,7 @@ const ROOT = join(__dirname, "..", "..");
 const SESSION_DIR = process.env.AGENT_SESSIONS_DIR || join(ROOT, "data", "agent-sessions");
 
 const PROVIDER = process.env.GEMINI_PROVIDER ?? "google";
-const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3-flash-preview";
+const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3.8-flash";
 
 /** 画像 → HTML 抽出のシステムプロンプト。出力言語だけ表示言語に合わせる。 */
 function extractSystemPrompt(lang: Lang): string {

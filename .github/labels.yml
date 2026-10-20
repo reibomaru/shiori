@@ -1,0 +1,30 @@
+# リポジトリのラベル定義（ドキュメント兼用）。
+# 実登録は docs/dev-environment-runbook.md の `gh label create …` で行う。
+#
+# release:* … SemVer bump 判定に使う（release-drafter の version-resolver）。
+#             ラベル無しの PR は既定で patch 扱い。
+# feature/fix/chore … リリースノートのカテゴリ分けに使う。
+
+- name: "release:major"
+  color: "B60205"
+  description: "SemVer: major bump（破壊的変更）"
+
+- name: "release:minor"
+  color: "0E8A16"
+  description: "SemVer: minor bump（後方互換の機能追加）"
+
+- name: "release:patch"
+  color: "FBCA04"
+  description: "SemVer: patch bump（バグ修正・小改善）"
+
+- name: "feature"
+  color: "1D76DB"
+  description: "リリースノート: Features"
+
+- name: "fix"
+  color: "D93F0B"
+  description: "リリースノート: Bug Fixes"
+
+- name: "chore"
+  color: "CFD3D7"
+  description: "リリースノート: Maintenance"

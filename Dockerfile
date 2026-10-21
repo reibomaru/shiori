@@ -5,7 +5,7 @@
 # ============================================================
 #  builder: フロント（Vite → dist）をビルドする
 # ============================================================
-FROM node:24-slim AS builder
+FROM node:24.22.1-slim AS builder
 WORKDIR /app
 RUN corepack enable
 
@@ -19,7 +19,7 @@ RUN pnpm exec vite build
 # ============================================================
 #  runtime: API + 静的配信 + Litestream
 # ============================================================
-FROM node:24-slim AS runtime
+FROM node:24.22.1-slim AS runtime
 WORKDIR /app
 RUN corepack enable
 
